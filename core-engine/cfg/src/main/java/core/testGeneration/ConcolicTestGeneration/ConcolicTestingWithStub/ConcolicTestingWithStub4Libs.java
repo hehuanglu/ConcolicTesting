@@ -6,14 +6,15 @@ import core.cfg.CfgBlockNode;
 import core.cfg.CfgBoolExprNode;
 import core.cfg.CfgEndBlockNode;
 import core.cfg.CfgNode;
+import core.cfg.dataFlow.DefUsePair;
 import core.cfg.utils.ASTHelper;
+import core.cfg.utils.DataFlowHelper;
 import core.cfg.utils.ProjectParser;
 import core.path.FindPath;
 import core.path.MarkedPath;
 import core.path.MarkedStatement;
 import core.path.Path;
 import core.symbolicExecution.SymbolicExecutionRewrite;
-import core.testDriver.LoopPathGenerator;
 import core.testDriver.TestDriverGenerator;
 import core.testDriver.TestDriverRunner;
 import core.testDriver.TestDriverUtils;
@@ -26,10 +27,13 @@ import core.uploadProjectUtils.cloneProjectUtils.CloneProject;
 import core.utils.Utils;
 import org.eclipse.jdt.core.dom.*;
 
+import javax.tools.JavaCompiler;
+import javax.tools.ToolProvider;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.nio.file.Paths;
 import java.text.DecimalFormat;
 import java.util.*;
@@ -49,6 +53,17 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
         setupCfgTree(coverage);
         setupParameters(methodName);
         TestGeneration.isSetup = true;
+
+        // data flow setup
+        DataFlowHelper.ComputeDefUse(TestGeneration.cfgBeginNode);
+        Set<DefUsePair> targetDUAs = DataFlowHelper.findAllDUAs(TestGeneration.cfgBeginNode);
+
+        System.out.println("SIZE targetDUAs: " + targetDUAs.size());
+        for (DefUsePair pair : targetDUAs) {
+            System.out.println("targetDUA: " + pair);
+        }
+        TestGeneration.targetDUAs = targetDUAs;
+        //---------------------------------------------------------------------------------------------
 
         TestResult result = startGenerating(id, coverage);
 
@@ -103,16 +118,87 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
             testResult.addToFullTestData(new TestData(TestGeneration.parameterNames, TestGeneration.parameterClasses, evaluatedValues, coveredStatements,
                     TestDriverRunner.getOutput(), TestDriverRunner.getRuntime(), calculateRequiredCoverage(coverage), calculateFunctionCoverage(), calculateSourceCodeCoverage()));
 
-            // test Lico
-            List<Path> licoPaths = LoopPathGenerator.generateLicoPaths(TestGeneration.cfgBeginNode, TestGeneration.cfgEndNode);
 
-            int cnt = 1;
-            for (Path path : licoPaths) {
-                System.out.println("LICO đang chạy path: " + cnt);
-                cnt++;
-                solveAndRunTest(path, testResult, coverage);
-            }
+            // ====== LICO testing method ======
+//            List<Path> licoPaths = LoopPathGenerator.generateLicoPaths(TestGeneration.cfgBeginNode, TestGeneration.cfgEndNode);
+//            int cnt = 1;
+//            for (Path path : licoPaths) {
+//                System.out.println("LICO đang chạy path: " + cnt);
+//                cnt++;
+//                solveAndRunTest(path, testResult, coverage);
+//            }
+            // ==================================
+
             //----- End test Lico
+
+            // 1. Xây dựng Map tìm kiếm nhanh từ Content -> CfgNode
+            Map<String, CfgNode> contentToCfgNodeMap = buildContentToNodeMap(TestGeneration.cfgBeginNode);
+
+            System.out.println("Bắt đầu chạy data flow graph-------------------------------------------------");
+            if (!TestGeneration.targetDUAs.isEmpty()) {
+                for (DefUsePair pair : targetDUAs) {
+                    if (pair.isCovered) continue;
+
+                    System.out.println("Solving DUA: " + pair);
+                    boolean duaSolved = false;
+
+                    // Tìm các đường Def-Clear. Ta sẽ thử tối đa 3 đường khác nhau
+                    List<List<CfgNode>> potentialCorePaths = DataFlowHelper.findAllDefClearPaths(pair.defNode, pair.useNode, pair.variable, 3);
+
+                    if (potentialCorePaths.isEmpty()) {
+                        System.out.println("  -> Không có đường Def-Clear khả thi.");
+                        continue;
+                    }
+
+                    // Duyệt từng phương án Core Path
+                    for (List<CfgNode> corePath : potentialCorePaths) {
+                        // Nếu đã giải được thì thoát vòng lặp core
+                        if (duaSolved) break;
+
+                        // Tìm Prefix (Start -> Def). Ta sẽ thử tối đa 3 đường khác nhau
+                        List<List<CfgNode>> potentialPrefixes = DataFlowHelper.findAllPaths(TestGeneration.cfgBeginNode, pair.defNode, 3);
+
+                        for (List<CfgNode> prefix : potentialPrefixes) {
+                            if (duaSolved) break;
+
+                            // Tìm Suffix (Use -> End). Ta chỉ cần 1 đường.
+                            List<CfgNode> suffix = DataFlowHelper.findStandardPath(pair.useNode, TestGeneration.cfgEndNode);
+
+                            if (suffix == null) continue;
+
+                            // ghép các đườnng lại với nhau
+                            List<CfgNode> fullPath = new ArrayList<>(prefix);
+                            if (corePath.size() > 1) fullPath.addAll(corePath.subList(1, corePath.size()));
+                            if (suffix.size() > 1) fullPath.addAll(suffix.subList(1, suffix.size()));
+
+                            // GỌI solve
+                            try {
+                                Path pathObj = convertToPath(fullPath);
+                                boolean success = solveAndRunTest(pathObj, testResult, coverage);
+
+                                if (success) {
+                                    System.out.println("giải thành công với core path: " + potentialCorePaths.indexOf(corePath));
+                                    pair.isCovered = true;
+                                    duaSolved = true;
+
+                                    // Tính Bao hàm & Tối ưu (Subsumption)
+                                    TestData lastRun = testResult.getFullTestData().get(testResult.getFullTestData().size() - 1);
+                                    checkCoverageForAllDUAs(lastRun, targetDUAs, contentToCfgNodeMap);
+                                } else {
+                                    System.out.println("Path unsat, thử đường khác");
+                                }
+                            } catch (Exception e) {
+                                System.out.println("Lỗi khi giải path: " + e.getMessage());
+                            }
+                        }
+                    }
+
+                    if (!duaSolved) {
+                        System.out.println("Đường không thể phủ dù đã thử hết: UNSAT");
+                    }
+                }
+            }
+
 
             boolean isTestedSuccessfully = true;
 
@@ -138,21 +224,12 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
                         }
                     }
                 }
-
-//            List<String> testDataNames = new ArrayList<>();
-//            testDataNames.addAll(TestGeneration.parameterNames);
-//            testDataNames.addAll(SymbolicExecution.getStubVariableNames());
-
             }
-
 
             if (isTestedSuccessfully) System.out.println("Tested successfully with 100% coverage");
             else System.out.println("Test fail due to UNSATISFIABLE constraint");
 
             testResult.setFullCoverage(calculateFullTestSuiteCoverage(coverage));
-
-            // 1. Xây dựng Map tìm kiếm nhanh từ Content -> CfgNode
-            Map<String, CfgNode> contentToCfgNodeMap = buildContentToNodeMap(TestGeneration.cfgBeginNode);
 
             // 2. Duyệt qua từng TestData (mỗi test case sinh ra)
             for (TestData data : testResult.getFullTestData()) {
@@ -192,7 +269,6 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
                         }
                     }
                 }
-
                 // Cập nhật lại danh sách hiển thị cho TestData này
                 data.setCoveredStatements(translatedList);
             }
@@ -231,7 +307,133 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
             System.out.println("Tổng thời gian: " + df.format((endTime - startTime) / 1000.0) + " s");
             System.out.println("==========================================\n");
         }
+        double totalTime = 0;
+        for (TestData data : testResult.getFullTestData()) {
+            totalTime += data.getExecuteTime();
+        }
+
+        System.out.println("Tổng thời gian Execute Time: " + totalTime);
+
+        try {
+            List<Object[]> generatedInputs = new ArrayList<>();
+            for (TestData data : testResult.getFullTestData()) {
+                generatedInputs.add(data.getTestDataSet().toArray());
+            }
+
+            // Specify the name of the target method to be analyzed.
+            // This value must match the Java class and method name in the source project.
+            String classBaseName = "PerfectNumber";
+
+            String fullyClonedClassName = classBaseName + "." + classBaseName;
+
+            List<String> mutants = new ArrayList<>();
+            for (int i = 1; i <= 4; i++) {
+                mutants.add(classBaseName + "." + classBaseName + i);
+            }
+
+            String targetMethodName =
+                    ((MethodDeclaration) TestGeneration.testFunc)
+                            .getName()
+                            .getIdentifier();
+
+            // Define the absolute path to the Java source file of the target method.
+            // Users should ensure that the directory structure and file name
+            // correspond to the specified method name.
+            String fullPath = Paths.get(
+                    "D:", // Ổ đĩa
+                    "projectLAB", "backend", "jcia-backend",
+                    "project", "anonymous", "tmp-prj",
+                    "testData.zip.project", "example",
+                    "src", "main", "java", // Kiểm tra kỹ xem có folder 'main/java' không hay chỉ là 'src'?
+                    classBaseName,          // Folder package (binaryGap)
+                    classBaseName + ".java" // File (binaryGap.java)
+            ).toString();
+
+            String packageName = classBaseName;
+
+            String rootPath = getRootSourcePath(fullPath, packageName);
+
+            System.out.println("Path nạp vào ClassLoader: " + rootPath);
+
+            int killed = runMutationTest(fullyClonedClassName, mutants, generatedInputs, targetMethodName, TestGeneration.parameterClasses, rootPath);
+
+        } catch (Exception e) {
+            System.err.println("Lỗi khi chạy Test: " + e.getMessage());
+            e.printStackTrace();
+        }
+
         return testResult;
+    }
+
+    /**
+     *
+     *
+     * @param testData         Kết quả chạy của test case vừa rồi
+     * @param targetDUAs       Danh sách tất cả các DUA cần phủ
+     * @param contentToNodeMap Map ánh xạ từ String code sang CfgNode để tra cứu
+     */
+    private static void checkCoverageForAllDUAs(TestData testData, Set<DefUsePair> targetDUAs, Map<String, CfgNode> contentToNodeMap) {
+        List<CoveredStatement> trace = testData.getCoveredStatements();
+        Map<String, CfgNode> activeDefinitions = new HashMap<>();
+
+        for (CoveredStatement stmt : trace) {
+            String content = stmt.getStatementContent().trim();
+
+            CfgNode node = contentToNodeMap.get(content);
+            if (node == null) {
+                continue;
+            }
+
+            // KIỂM TRA USE
+            // Nếu node này dùng biến X, và ta biết X được define ở đâu trước đó
+            // Ta vừa hoàn thành một đường đi Def-Use
+            Set<String> useVars = node.getUseVars();
+            for (String useVar : useVars) {
+                if (activeDefinitions.containsKey(useVar)) {
+                    CfgNode lastDefNode = activeDefinitions.get(useVar);
+
+                    for (DefUsePair pair : targetDUAs) {
+                        if (!pair.isCovered && pair.variable.equals(useVar) && pair.defNode == lastDefNode && pair.useNode == node) {
+                            pair.isCovered = true;
+                            System.out.println("SKIP: " + pair + " (Đã được phủ trước đó)");
+                        }
+                    }
+                }
+            }
+
+            // KIỂM TRA DEF
+            // Node này định nghĩa lại biến X => Các Use sau này sẽ dùng X mới này
+            Set<String> defVars = node.getDefVars();
+            for (String defVar : defVars) {
+                activeDefinitions.put(defVar, node);
+            }
+        }
+    }
+
+    private static Path convertToPath(List<CfgNode> fullPath) {
+        Path path = new Path();
+        for (CfgNode node : fullPath) {
+            path.addLast(node);
+        }
+        return path;
+    }
+
+    public static String getRootSourcePath(String fullFilePath, String packageName) {
+
+        File file = new File(fullFilePath);
+        String parentDir = file.getParent();
+
+        int srcIndex = fullFilePath.indexOf("src" + File.separator + "main" + File.separator + "java");
+        if (srcIndex != -1) {
+            String rootPath = fullFilePath.substring(0, srcIndex + ("src" + File.separator + "main" + File.separator + "java").length());
+            return rootPath;
+        }
+        File currentDir = new File(parentDir);
+        String[] packageParts = packageName.split("\\.");
+        for (int i = 0; i < packageParts.length; i++) {
+            currentDir = currentDir.getParentFile();
+        }
+        return currentDir.getAbsolutePath();
     }
 
     private static void setup(String path, String className, String methodName, TestGeneration.Coverage coverage) throws IOException, InterruptedException {
@@ -407,7 +609,6 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
         Object[] evaluatedValues = solution.getEvaluatedTestData(TestGeneration.parameterClasses);
 
         System.out.println("Z3 giải ra input: " + Arrays.toString(evaluatedValues));
-
         TestGeneration.writeDataToFile("", FilePath.concreteExecuteResultPath, false);
 
         String testDriver = TestDriverGenerator.generateTestDriverNew(
@@ -486,5 +687,116 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
 
         return sb.toString();
     }
+
+    private static int runMutationTest(String originalClassName, List<String> errorClassNames,
+                                       List<Object[]> testDataList, String methodName,
+                                       Class<?>[] paramTypes, String rootFolderPath) {
+        int errorsDetected = 0;
+        System.out.println("\n>>> BẮT ĐẦU QUÁ TRÌNH KIỂM THỬ TỰ ĐỘNG (ERROR DETECTION)");
+
+        try {
+            //  BƯỚC 1: CHUẨN BỊ COMPILER (Giữ nguyên)
+            JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
+            if (compiler == null) {
+                System.err.println("LỖI: Không tìm thấy Java Compiler (JDK)!");
+                return 0;
+            }
+
+            File root = new File(rootFolderPath);
+            if (!root.exists()) return 0;
+
+            // BƯỚC 2: COMPILE FILE GỐC (Giữ nguyên)
+            String originalFilePath = rootFolderPath + File.separator + originalClassName.replace(".", File.separator) + ".java";
+            File originalFile = new File(originalFilePath);
+
+            if (originalFile.exists()) {
+                compiler.run(null, null, null, originalFile.getAbsolutePath());
+            } else {
+                System.err.println("Không tìm thấy file source gốc: " + originalFilePath);
+                return 0;
+            }
+
+            //  BƯỚC 3: COMPILE CÁC FILE LỖI (ERRORS/BUGS)
+            for (String errorClassName : errorClassNames) {
+                String errorFilePath = rootFolderPath + File.separator + errorClassName.replace(".", File.separator) + ".java";
+                File errorFile = new File(errorFilePath);
+                if (errorFile.exists()) {
+                    compiler.run(null, null, null, errorFile.getAbsolutePath());
+                }
+            }
+
+            //  BƯỚC 4: LOAD CLASS VÀ CHẠY TEST
+            java.net.URL[] urls = {root.toURI().toURL()};
+            java.net.URLClassLoader classLoader = new java.net.URLClassLoader(urls);
+
+            Class<?> originalClass = classLoader.loadClass(originalClassName);
+
+            for (String errorClassName : errorClassNames) {
+                boolean isDetected = false;
+
+                try {
+                    Class<?> errorClass = classLoader.loadClass(errorClassName);
+                    System.out.print("Checking Bug Case: " + errorClass.getSimpleName() + "... ");
+
+                    for (Object[] args : testDataList) {
+                        try {
+                            Object originalObj = originalClass.getDeclaredConstructor().newInstance();
+                            Object errorObj = errorClass.getDeclaredConstructor().newInstance(); // errorObj thay vì mutantObj
+
+                            Method originalMethod = originalClass.getMethod(methodName, paramTypes);
+                            Method errorMethod = errorClass.getMethod(methodName, paramTypes);
+
+                            Object originalOutput = null;
+                            Exception originalException = null;
+                            try {
+                                originalOutput = originalMethod.invoke(originalObj, args);
+                            } catch (InvocationTargetException e) {
+                                originalException = (Exception) e.getTargetException();
+                            }
+
+                            Object errorOutput = null;
+                            Exception errorException = null;
+                            try {
+                                errorOutput = errorMethod.invoke(errorObj, args);
+                            } catch (InvocationTargetException e) {
+                                errorException = (Exception) e.getTargetException();
+                            }
+                            if ((originalException == null && errorException != null) ||
+                                    (originalException == null && errorException == null && !originalOutput.equals(errorOutput))) {
+                                isDetected = true;
+                                break;
+                            }
+                        } catch (Exception e) {
+                        }
+                    }
+
+                    if (isDetected) {
+                        errorsDetected++;
+                        System.out.println("DETECTED (Đã tìm ra)");
+                    } else {
+                        System.out.println("UNDETECTED (Không tìm thấy)");
+                    }
+                } catch (ClassNotFoundException e) {
+                    System.err.println("Lỗi: Không tìm thấy class lỗi: " + errorClassName);
+                }
+            }
+
+            classLoader.close();
+
+            System.out.println("==========================================");
+            System.out.println("ERROR DETECTION REPORT (BÁO CÁO PHÁT HIỆN LỖI)");
+            System.out.println("Inserted Error Number (Tổng số lỗi cấy vào): " + errorClassNames.size());
+            System.out.println("Detected Error Number (Số lỗi tìm thấy):     " + errorsDetected);
+            double rate = errorClassNames.isEmpty() ? 0 : (double) errorsDetected / errorClassNames.size() * 100;
+            DecimalFormat df = new DecimalFormat("#.##");
+            System.out.println("Detection Rate (Tỷ lệ phát hiện):            " + df.format(rate) + "%");
+            System.out.println("==========================================");
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return errorsDetected;
+    }
+
 }
 

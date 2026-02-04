@@ -2,6 +2,7 @@ package core.testGeneration;
 
 import core.cfg.CfgEndBlockNode;
 import core.cfg.CfgNode;
+import core.cfg.dataFlow.DefUsePair;
 import core.cfg.utils.ASTHelper;
 import core.path.MarkedPath;
 import org.eclipse.jdt.core.dom.ASTNode;
@@ -14,6 +15,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 public abstract class TestGeneration {
     public enum Coverage {
@@ -33,6 +35,7 @@ public abstract class TestGeneration {
     protected static Class<?>[] parameterClasses;
     protected static List<String> parameterNames;
     protected static ASTNode testFunc;
+    protected static Set<DefUsePair> targetDUAs;
 
     protected static CfgNode findUncoverNode(CfgNode cfgNode, Coverage coverage) {
         switch (coverage) {

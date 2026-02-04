@@ -6,10 +6,7 @@ import core.utils.Utils;
 import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.dom.*;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class CfgNode {
     private int startPosition;
@@ -26,12 +23,13 @@ public class CfgNode {
     private ASTNode ast;
     private CfgNode parent;
     private List<CfgNode> children = new ArrayList<>();
+    private Set<String> defVars = new HashSet<>();
+    private Set<String> useVars = new HashSet<>();
 
     public CfgNode(ASTNode ast) {
         this.ast = ast;
         setStartPosition(ast.getStartPosition());
         setEndPosition(ast.getStartPosition() + ast.getLength());
-
     }
 
     public CfgNode() {
@@ -74,6 +72,22 @@ public class CfgNode {
         if (ast != null)
             return ast.toString();
         else return content;
+    }
+
+    public Set<String> getDefVars() {
+        return defVars;
+    }
+
+    public Set<String> getUseVars() {
+        return useVars;
+    }
+
+    public void addDefVar(String var) {
+        defVars.add(var);
+    }
+
+    public void addUseVar(String var) {
+        useVars.add(var);
     }
 
     public String getContentReport() {
@@ -239,7 +253,7 @@ public class CfgNode {
                 ("".equals(content) ? "null" : ", content='" + content + '}');
 //                ", isRootNode=" + isBeginCfgNode +
 //                ", isEndNode=" + isEndCfgNode +
-                //", children=" + children +
+        //", children=" + children +
 //                ", isVisited=" + isVisited +
 //                '}';
     }
