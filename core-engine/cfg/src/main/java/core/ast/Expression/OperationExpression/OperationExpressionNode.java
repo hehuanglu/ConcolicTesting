@@ -1,5 +1,7 @@
 package core.ast.Expression.OperationExpression;
 
+import com.microsoft.z3.BitVecExpr;
+import com.microsoft.z3.BoolExpr;
 import com.microsoft.z3.Context;
 import com.microsoft.z3.Expr;
 import core.Z3Vars.Z3VariableWrapper;
@@ -10,6 +12,7 @@ import core.ast.Expression.Literal.CharacterLiteralNode;
 import core.ast.Expression.Literal.LiteralNode;
 import core.ast.Expression.Literal.NumberLiteral.IntegerLiteralNode;
 import core.ast.Expression.Literal.NumberLiteral.NumberLiteralNode;
+import core.ast.Expression.MethodInvocationNode;
 import core.ast.Expression.Name.NameNode;
 import core.symbolicExecution.MemoryModel;
 import core.variable.Variable;
@@ -92,9 +95,28 @@ public abstract class OperationExpressionNode extends ExpressionNode {
             } else {
                 throw new RuntimeException("Invalid Literal");
             }
+        } else if (operand instanceof MethodInvocationNode) {
+            MethodInvocationNode methodInvocationNode = (MethodInvocationNode) operand;
+            String methodName = methodInvocationNode.getMethodName();
+            String className = methodInvocationNode.getClassName();
+
+            if ("Math".equals(className) && "abs".equals(methodName)) {
+                ExpressionNode argNode = (ExpressionNode) methodInvocationNode.getArgument();
+                Expr argZ3 = createZ3Expression(argNode, ctx, vars, memoryModel);
+                if (argZ3 instanceof BitVecExpr) {
+                    BitVecExpr x_arg = (BitVecExpr) argZ3;
+                    BoolExpr isNegative = ctx.mkBVSLT(x_arg, ctx.mkBV(0, x_arg.getSortSize()));
+                    BitVecExpr negativeX = ctx.mkBVNeg(x_arg);
+                    System.out.println("Đã dịch Math.abs sang Z3");
+                    return ctx.mkITE(isNegative, negativeX, x_arg);
+                }
+            } else {
+                throw new RuntimeException("Chưa hỗ trợ hàm này");
+            }
         } else {
             throw new RuntimeException(operand.getClass() + " is not an Expression");
         }
+        return null;
     }
 
     private static Expr createZ3Variable(NameNode variableName, Context ctx, List<Z3VariableWrapper> vars, MemoryModel memoryModel) {
@@ -146,6 +168,8 @@ public abstract class OperationExpressionNode extends ExpressionNode {
             return ParenthesizedExpressionNode.executeParenthesizedExpressionNode((ParenthesizedExpressionNode) operand, memoryModel);
         } else if (operand instanceof NameNode) {
             return NameNode.executeNameNode((NameNode) operand, memoryModel);
+        } else if (operand instanceof MethodInvocationNode) {
+            return operand;
         } else {
             throw new RuntimeException(operand.getClass() + " is Invalid expressionNode");
         }

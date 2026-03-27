@@ -21,6 +21,7 @@ import core.variable.ArrayTypeVariable;
 import core.variable.PrimitiveTypeVariable;
 import core.variable.Variable;
 import org.eclipse.jdt.core.dom.*;
+import org.eclipse.jdt.core.dom.AST;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -37,6 +38,9 @@ public class SymbolicExecutionRewrite {
     private static CfgNode currentCfgNode;
     public static Map<String, PrimitiveType.Code> variableTypeMap = new HashMap<>();
     public String globalZ3Result = "";
+    // Map để đếm số lần một hàm được gọi --> tạo biến gỉa không bị trùng lặp
+    private Map<String, Integer> mockMethodCounter = new HashMap<>();
+    public static List<MockInfo> currentMockInfos = new ArrayList<>();
 
     public SymbolicExecutionRewrite(Path testPath, List<ASTNode> parameters) {
         this.testPath = testPath;
@@ -53,6 +57,19 @@ public class SymbolicExecutionRewrite {
         Context ctx = new Context(cfg);
 
         executeParameters(ctx);
+
+        for (MockInfo info : currentMockInfos) {
+            Sort z3Sort = ctx.mkIntSort();
+            Expr mockExpr = ctx.mkConst(info.mockVarName, z3Sort);
+            Z3VariableWrapper wrapper = new Z3VariableWrapper(mockExpr);
+
+            if (!haveDuplicateVariable(wrapper)) {
+                Z3Vars.add(wrapper);
+            }
+        }
+
+        mockMethodCounter.clear();
+        currentMockInfos.clear();
 
         Node currentNode = testPath.getCurrentFirst();
 
@@ -87,6 +104,101 @@ public class SymbolicExecutionRewrite {
             ASTNode astNode = currentCfgNode.getAst();
 
             if (astNode != null) {
+
+                // BẮT, NỘI SOI KIỂU VÀ TẠO BIẾN GIẢ Z3
+                astNode.accept(new ASTVisitor() {
+                    @Override
+                    public boolean visit(MethodInvocation methodInvocation) {
+                        String methodName = methodInvocation.getName().getIdentifier();
+                        String className = "";
+                        if (methodInvocation.getExpression() != null) {
+                            className = methodInvocation.getExpression().toString();
+                        }
+
+                        // Ta đã xử lý các hàm thư viện ở phía trước rồi nên bỏ qua
+                        java.util.List<String> blackList = java.util.Arrays.asList("Math", "String",
+                                "System", "Integer", "Double", "Thread");
+                        if (blackList.contains(className)) {
+                            System.out.println("không mock class thư viện: " + className);
+                            return super.visit(methodInvocation); // Trả về bình thường
+                        }
+
+                        String methodKey = className.isEmpty() ? methodName : className + "_" + methodName;
+                        int count = mockMethodCounter.getOrDefault(methodKey, 0) + 1;
+                        mockMethodCounter.put(methodKey, count);
+                        String mockVariableName = "mock_" + methodKey + "_" + count;
+
+                        MockInfo info = new MockInfo(className, methodName, mockVariableName);
+                        boolean alreadyExists = false;
+                        for (MockInfo existingMock : currentMockInfos) {
+                            // Nếu đã từng mock hàm này rồi thì bỏ qua, không add thêm
+                            if (existingMock.className.equals(info.className) &&
+                                    existingMock.methodName.equals(info.methodName)) {
+                                alreadyExists = true;
+                                break;
+                            }
+                        }
+
+                        if (!alreadyExists) {
+                            currentMockInfos.add(info); // Chỉ add khi chưa tồn tại
+                        }
+
+                        int argCount = methodInvocation.arguments().size();
+
+                        String clonedDirPath = "D:\\projectLAB\\backend\\jcia-backend\\core-engine\\cfg\\src\\main\\java\\data\\clonedProject";
+
+                        Class<?> returnType = ReflectionStubHelper.getReturnType(methodInvocation, className, methodName, argCount, clonedDirPath);
+
+                        if (returnType == null) {
+                            System.out.println("class lạ (" + className + "), không thể tìm được kiểu trả về, tự động ép về int");
+                            returnType = int.class;
+                        }
+
+                        if (returnType != null) {
+                            Sort z3Sort = ReflectionStubHelper.getZ3Sort(returnType, ctx);
+
+                            Expr mockExpr = ctx.mkConst(mockVariableName, z3Sort);
+
+                            Z3VariableWrapper wrapper = new Z3VariableWrapper(mockExpr);
+                            if (!haveDuplicateVariable(wrapper)) {
+                                Z3Vars.add(wrapper);
+                            }
+
+                            AST ast = methodInvocation.getAST();
+                            PrimitiveType.Code typeCode = getPrimitiveTypeCode(returnType.getSimpleName());
+
+                            if (typeCode != null) {
+                                // Mapping kiểu dữ liệu cho hàm in kết quả Z3
+                                variableTypeMap.put(mockVariableName, typeCode);
+
+                                try {
+                                    SingleVariableDeclaration fakeParam = ast.newSingleVariableDeclaration();
+                                    fakeParam.setName(ast.newSimpleName(mockVariableName));
+                                    fakeParam.setType(ast.newPrimitiveType(typeCode));
+
+                                    // Đưa vào memory map dưới dạng Parameter để Tool nhận nó là biến Symbolic
+                                    AstNode.executeASTNode(fakeParam, symbolicMap);
+                                } catch (Exception e) {
+                                    System.out.println("   ---> Lỗi tạo fake parameter: " + e.getMessage());
+                                }
+                            }
+
+                            // THAY THẾ AST NODE: Cắt bỏ MethodInvocation, thế bằng SimpleName
+                            try {
+                                SimpleName mockNameNode = ast.newSimpleName(mockVariableName);
+                                org.eclipse.jdt.core.dom.StructuralPropertyDescriptor location = methodInvocation.getLocationInParent();
+                                if (location != null) {
+                                    methodInvocation.getParent().setStructuralProperty(location, mockNameNode);
+                                    System.out.println("   ---> Đã thay thế thành công lời gọi hàm thành biến" + mockVariableName);
+                                }
+                            } catch (Exception e) {
+                                System.out.println("   ---> Lỗi thay thế AST: " + e.getMessage());
+                            }
+                        }
+                        return super.visit(methodInvocation);
+                    }
+                });
+
                 AstNode executedAstNode = Rewrite.reStm(astNode, symbolicMap);
 
                 if (currentNode.getData() instanceof CfgBoolExprNode) { // Condition
@@ -201,6 +313,7 @@ public class SymbolicExecutionRewrite {
         currentCfgNode = null;
         System.out.println("=== Final Z3 Constraint ===");
         System.out.println(finalZ3Expression.simplify());
+        System.out.println(finalZ3Expression.toString());
 
         model = createModel(ctx, (BoolExpr) finalZ3Expression);
         evaluateAndSaveTestDataCreated(ctx);
@@ -270,9 +383,9 @@ public class SymbolicExecutionRewrite {
 
     private void evaluateAndSaveTestDataCreated(Context ctx) {
         // check and update Z3Vars with stub variables
-        if (Z3Vars.size() != parameters.size()) {
-            executeParameters(ctx);
-        }
+//        if (Z3Vars.size() != parameters.size()) {
+//            executeParameters(ctx);
+//        }
 
         if (model != null) {
             StringBuilder result = new StringBuilder();
@@ -352,6 +465,20 @@ public class SymbolicExecutionRewrite {
                         }
                     } else {
                         result.append(evaluateResult.toString());
+                    }
+
+                    // Lưu giá trị Z3 vừa giải được vào MockInfo
+                    String currentResult = result.toString();
+                    String z3ValueStr = currentResult;
+                    int lastNewLine = currentResult.lastIndexOf("\n");
+                    if (lastNewLine != -1) {
+                        z3ValueStr = currentResult.substring(lastNewLine + 1);
+                    }
+
+                    for (MockInfo info : currentMockInfos) {
+                        if (info.mockVarName.equals(name)) {
+                            info.solveValue = z3ValueStr;
+                        }
                     }
                 } else {
                     ArrayTypeVariable arrayTypeVariable = z3VariableWrapper.getArrayVar();
@@ -447,6 +574,47 @@ public class SymbolicExecutionRewrite {
         }
 
         return result;
+    }
+
+    /**
+     * Hàm hỗ trợ chuyển đổi String sang PrimitiveType.Code của AST
+     */
+    private PrimitiveType.Code getPrimitiveTypeCode(String typeName) {
+        switch (typeName) {
+            case "int":
+                return PrimitiveType.INT;
+            case "boolean":
+                return PrimitiveType.BOOLEAN;
+            case "byte":
+                return PrimitiveType.BYTE;
+            case "short":
+                return PrimitiveType.SHORT;
+            case "char":
+                return PrimitiveType.CHAR;
+            case "long":
+                return PrimitiveType.LONG;
+            case "float":
+                return PrimitiveType.FLOAT;
+            case "double":
+                return PrimitiveType.DOUBLE;
+            case "void":
+                return PrimitiveType.VOID;
+            default:
+                return PrimitiveType.INT;
+        }
+    }
+
+    public static class MockInfo {
+        public String className;
+        public String methodName;
+        public String mockVarName;
+        public String solveValue;
+
+        public MockInfo(String className, String methodName, String mockVarName) {
+            this.className = className;
+            this.methodName = methodName;
+            this.mockVarName = mockVarName;
+        }
     }
 
     private static Object createRandomVariableData(Class<?> parameterClass) {

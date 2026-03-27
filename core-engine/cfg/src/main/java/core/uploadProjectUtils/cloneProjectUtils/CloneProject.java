@@ -125,17 +125,41 @@ public final class CloneProject {
                 String dirName = file.getName();
                 createCloneDirectory(destinationDirPath, dirName);
                 iCloneProject(originalDirPath + "/" + dirName, destinationDirPath + "/" + dirName, coverage, fileToTestName);
-            } else if (file.isFile() && file.getName().endsWith("java") && file.getName().equals(fileToTestName)) {
+            } else if (file.isFile() && file.getName().endsWith(".java")) {
                 existJavaFile = true;
-                totalClassStatement = 0;
                 String fileName = file.getName();
                 String sourcePath = originalDirPath + "/" + fileName;
-                CompilationUnit compilationUnit = Parser.parseFileToCompilationUnit(sourcePath);
-                classCompilationUnit = compilationUnit;
 
-                createCloneFile(destinationDirPath, fileName);
-                String sourceCode = createCloneSourceCode(compilationUnit, destinationDirPath, coverage);
-                writeDataToFile(sourceCode, destinationDirPath + "/" + fileName);
+                if (fileName.equals(fileToTestName)) {
+                    //File chính -> Parse AST và cấy mã theo dõi
+                    totalClassStatement = 0;
+                    CompilationUnit compilationUnit = Parser.parseFileToCompilationUnit(sourcePath);
+                    classCompilationUnit = compilationUnit;
+
+                    createCloneFile(destinationDirPath, fileName);
+                    String sourceCode = createCloneSourceCode(compilationUnit, destinationDirPath, coverage);
+                    writeDataToFile(sourceCode, destinationDirPath + "/" + fileName);
+                } else {
+                    //File họ hàng -> Copy sang và tự động truyền package
+                    try {
+                        String originalCode = new String(Files.readAllBytes(Path.of(sourcePath)));
+                        String correctPackage = buildPackage(destinationDirPath); // Lấy tên package
+
+                        //chưa có package thì tự động nhét vào đầu file
+                        if (!originalCode.contains("package ")) {
+                            originalCode = correctPackage + "\n" + originalCode;
+                        } else {
+                            // Nếu có package lạ, thay bằng package chính xác
+                            originalCode = originalCode.replaceAll("package\\s+[^;]+;", correctPackage);
+                        }
+
+                        createCloneFile(destinationDirPath, fileName);
+                        writeDataToFile(originalCode, destinationDirPath + "/" + fileName);
+                        System.out.println("   [CLONE] Đã đưa file liên quan: " + fileName);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }
             }
         }
 

@@ -4,7 +4,6 @@ import core.ast.AstNode;
 import core.ast.Expression.Name.SimpleNameNode;
 import core.ast.VariableDeclaration.SingleVariableDeclarationNode;
 import core.symbolicExecution.MemoryModel;
-import core.symbolicExecution.SymbolicExecution;
 import core.testDriver.TestDriverUtils;
 import core.testGeneration.TestGeneration;
 import org.eclipse.jdt.core.dom.*;
@@ -16,13 +15,45 @@ import java.util.List;
 public class MethodInvocationNode extends ExpressionNode {
     private static int numberOfFunctionsCall = 1;
     private static AST ast;
+    private String className;
+    private String methodName;
+    private AstNode argument;
+
+    public MethodInvocationNode(String className, String methodName, AstNode argument) {
+        this.className = className;
+        this.methodName = methodName;
+        this.argument = argument;
+    }
+
+    public MethodInvocationNode() {
+    }
+
+    public String getClassName() {
+        return className;
+    }
+
+    public String getMethodName() {
+        return methodName;
+    }
+
+    public AstNode getArgument() {
+        return argument;
+    }
 
     public static AstNode executeMethodInvocation(MethodInvocation methodInvocation, MemoryModel memoryModel) {
         ast = methodInvocation.getAST();
 
         String methodName = methodInvocation.getName().toString();
 
-        if (methodInvocation.getExpression() == null) { // method invocation in the same class
+
+        if (methodInvocation.getExpression() != null) { // method invocation in the same class
+            String className = methodInvocation.getExpression().toString();
+
+            if (className.equals("Math") && methodName.equals("abs")) {
+                AstNode argNode = ExpressionNode.executeExpression((Expression) methodInvocation.arguments().get(0), memoryModel);
+                return new MethodInvocationNode(className, methodName, argNode);
+            }
+
             MethodDeclaration methodDeclaration = getInvokedMethodAST(methodName);
             return declareStubVariable(methodName, methodDeclaration, memoryModel, methodInvocation);
         } else { // method invocation outside the class or in libs

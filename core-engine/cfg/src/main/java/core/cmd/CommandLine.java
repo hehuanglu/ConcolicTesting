@@ -7,7 +7,6 @@ import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 public class CommandLine {
 
@@ -18,18 +17,37 @@ public class CommandLine {
 
         // Tách command ra thành mảng để ProcessBuilder hiểu từng tham số
         List<String> parts = new ArrayList<>(Arrays.asList(command.split(" ")));
+        String cmdType = parts.get(0);
 
-        // Nếu command là "javac" hoặc "java" → thay bằng đường dẫn đầy đủ
-        if (parts.get(0).equals("javac") || parts.get(0).equals("java")) {
-            parts.set(0, "\"" + binDir + File.separator + parts.get(0) + "\"");
-        }
         ProcessBuilder builder;
-        if (os.contains("win")) {
-            // Windows dùng cmd.exe
-            builder = new ProcessBuilder("cmd.exe", "/c", String.join(" ", parts));
+
+        if (cmdType.equals("javac") || cmdType.equals("java")) {
+            // 1. Chỉ định chính xác file exe (ProcessBuilder không cần ngoặc kép)
+            String exeName = os.contains("win") ? cmdType + ".exe" : cmdType;
+            parts.set(0, binDir + File.separator + exeName);
+
+            String cp = System.getProperty("java.class.path");
+
+            try {
+                String mockitoPath = new File(org.mockito.Mockito.class.getProtectionDomain().getCodeSource().getLocation().toURI()).getAbsolutePath();
+                cp = cp + File.pathSeparator + mockitoPath;
+            } catch (Throwable t) {
+                System.out.println("Cảnh báo: Không thể lấy đường dẫn thực của Mockito.");
+            }
+
+            // 4. Nhét tham số -cp vào
+            parts.add(1, "-cp");
+            parts.add(2, cp + File.pathSeparator + ".");
+
+            // 5. Truyền trực tiếp List<String> vào ProcessBuilder để phá vỡ mọi giới hạn độ dài
+            builder = new ProcessBuilder(parts);
         } else {
-            // Linux/Mac dùng sh
-            builder = new ProcessBuilder("sh", "-c", String.join(" ", parts));
+            // Các lệnh khác (dir, mkdir...) thì chạy qua cmd
+            if (os.contains("win")) {
+                builder = new ProcessBuilder("cmd.exe", "/c", String.join(" ", parts));
+            } else {
+                builder = new ProcessBuilder("sh", "-c", String.join(" ", parts));
+            }
         }
 
         builder.redirectErrorStream(true);
@@ -44,23 +62,22 @@ public class CommandLine {
             ex.printStackTrace();
         }
 
-        //process.waitFor(2, TimeUnit.SECONDS);
-
-        //process.destroyForcibly();
         try {
             int exitCode = process.waitFor();
-            System.out.println("Process exited with code = " + exitCode);
+            if (exitCode != 0) {
+                System.out.println("Process exited with code = " + exitCode);
+            }
         } catch (InterruptedException e) {
-            Thread.currentThread().interrupt(); // khôi phục cờ interrupt
+            Thread.currentThread().interrupt();
             if (process.isAlive()) {
                 process.destroyForcibly();
             }
             throw e;
         }
-
     }
+
     public static void executeCommand(String command, String cdFolder) throws IOException, InterruptedException {
-        Process p = Runtime.getRuntime().exec(command, null , new File(cdFolder));
+        Process p = Runtime.getRuntime().exec(command, null, new File(cdFolder));
         p.waitFor();
     }
 

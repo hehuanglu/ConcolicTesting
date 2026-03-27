@@ -2,6 +2,7 @@ package core.testDriver;
 
 import core.FilePath;
 import core.cfg.utils.ASTHelper;
+import core.symbolicExecution.SymbolicExecutionRewrite;
 import core.testGeneration.TestGeneration;
 import org.eclipse.jdt.core.dom.*;
 
@@ -43,6 +44,9 @@ public final class TestDriverGenerator {
         String path = fullyClonedClassName.contains(".") ? fullyClonedClassName.substring(0, fullyClonedClassName.lastIndexOf('.')) : fullyClonedClassName;
         result.append("package ").append(path).append(";\n");
         result.append("import java.io.FileWriter;\n");
+        result.append("import org.mockito.MockedStatic;\n");
+        result.append("import org.mockito.Mockito;\n");
+        result.append("import static org.mockito.ArgumentMatchers.any;\n");
         result.append("public class TestDriver {\n");
         result.append(markMethodUtility);
         result.append(writeDataToFileUtility);
@@ -99,9 +103,11 @@ public final class TestDriverGenerator {
         result.append("public static void main(String[] args) {\n");
         result.append("writeDataToFile(\"\", \"" + FilePath.concreteExecuteResultPath + "\", false);\n");
         result.append("long startRunTestTime = System.nanoTime();\n");
-        result.append("long endRunTestTime = System.nanoTime();\n");
         result.append("Object output = null;\n");
+
+        // Bắt đầu khối kiểm thử cô lập
         result.append("try {\n");
+
         List<ASTNode> modifiers = method.modifiers();
         boolean isStatic = false;
         for (ASTNode modifier : modifiers) {
@@ -110,69 +116,143 @@ public final class TestDriverGenerator {
                 break;
             }
         }
-        if (isStatic) {
-            result.append("output = ").append(simpleClassName).append(".");
-        } else {
-            result.append("output = new ").append(simpleClassName).append("().");
-        }
-        result.append(method.getName().toString()).append("(");
-        for (int i = 0; i < testData.length; i++) {
-            Object value = testData[i];
-            String valueAsString = "";
 
-            // kiểm tra mảng
-            if (value == null) {
-                valueAsString = "null";
-            } else if (value.getClass().isArray()) {
+        // Cô lập đơn vị kiểm thử bằng cách đóng băng các lệnh gọi ra bên ngoài
+        List<SymbolicExecutionRewrite.MockInfo> mocks = SymbolicExecutionRewrite.currentMockInfos;
+        java.util.Set<String> processedClasses = new java.util.HashSet<>();
+        int tryBlockCount = 0;
 
-                if (value instanceof int[]) {
-                    valueAsString = java.util.Arrays.toString((int[]) value)
-                            .replace('[', '{')
-                            .replace(']', '}');
-                    valueAsString = "new int[]" + valueAsString;
-                }
-            } else {
-                // KHÔNG PHẢI MẢNG (xử lý kiểu nguyên thủy)
-                valueAsString = String.valueOf(value);
+        for (int i = 0; i < mocks.size(); i++) {
+            SymbolicExecutionRewrite.MockInfo mock = mocks.get(i);
+            String className = mock.className;
 
-                if (value instanceof String) {
-                    valueAsString = "\"" + valueAsString + "\"";
-                } else if (value instanceof Long) {
-                    valueAsString = valueAsString + "L";
-                } else if (value instanceof Character) {
-                    valueAsString = "'" + valueAsString + "'";
-                } else if (value instanceof Float) {
-                    valueAsString = valueAsString + "f";
-                } else if (value instanceof Double) {
-                    Double dVal = (Double) value;
-                    if (Double.isNaN(dVal)) {
-                        valueAsString = "Double.NaN";
-                    } else if (Double.isInfinite(dVal)) {
-                        if (dVal > 0) {
-                            valueAsString = "Double.POSITIVE_INFINITY";
-                        } else {
-                            valueAsString = "Double.NEGATIVE_INFINITY";
+            if (className == null || className.isEmpty()) continue;
+
+            // Sử dụng HashSet để tránh khởi tạo trùng lặp MockedStatic cho cùng một lớp,
+            if (!processedClasses.contains(className)) {
+                processedClasses.add(className);
+                String mockVarName = "mocked" + className;
+
+                result.append("try (org.mockito.MockedStatic<").append(className).append("> ").append(mockVarName)
+                        .append(" = org.mockito.Mockito.mockStatic(").append(className).append(".class, org.mockito.Mockito.CALLS_REAL_METHODS)) {\n");
+                tryBlockCount++; // Bộ đếm theo dõi số lượng tài nguyên cần giải phóng
+
+                // Duyệt qua tất cả các hàm thuộc lớp hiện tại để thiết lập cấu hình trả về
+                for (int j = 0; j < mocks.size(); j++) {
+                    SymbolicExecutionRewrite.MockInfo innerMock = mocks.get(j);
+                    if (innerMock.className.equals(className)) {
+
+                        // Trích xuất giá trị cho biến Mock từ mảng nghiệm do bộ giải Z3 trả về
+                        String valueAsString = "0"; // Giá trị mặc định dự phòng
+                        int z3Index = method.parameters().size() + j;
+                        if (testData != null && z3Index < testData.length) {
+                            Object value = testData[z3Index];
+                            if (value != null) valueAsString = String.valueOf(value);
                         }
+
+                        if (innerMock.solveValue != null) {
+                            valueAsString = String.valueOf(innerMock.solveValue);
+                        }
+
+                        // Cắm lệnh thenReturn cho từng hàm
+                        result.append("    ").append(mockVarName).append(".when(() -> ")
+                                .append(className).append(".").append(innerMock.methodName)
+                                .append("(org.mockito.Mockito.anyInt())).thenReturn(").append(valueAsString).append(");\n");
                     }
                 }
             }
+        }
 
+        // Gọi phương thức mục tiêu với bộ tham số thực từ Z3.
+        if (isStatic) {
+            result.append("    output = ").append(simpleClassName).append(".");
+        } else {
+            result.append("    output = new ").append(simpleClassName).append("().");
+        }
+        result.append(method.getName().toString()).append("(");
+
+        int actualParamCount = 0;
+        for (Object obj : method.parameters()) {
+            org.eclipse.jdt.core.dom.SingleVariableDeclaration param = (org.eclipse.jdt.core.dom.SingleVariableDeclaration) obj;
+            String paramName = param.getName().getIdentifier();
+
+            //Nếu tên tham số không chứa chữ "_call_" thì Nó là tham số thật!
+            if (!paramName.contains("_call_")) {
+                actualParamCount++;
+            }
+        }
+        for (int i = 0; i < actualParamCount; i++) {
+            String valueAsString = "0"; // Giá trị khởi tạo mặc định tránh lỗi NullReference
+
+            // Xử lý và ép kiểu dữ liệu từ Object của Z3 sang định dạng mã nguồn Java hợp lệ
+            if (testData != null && i < testData.length) {
+                Object value = testData[i];
+                if (value == null) {
+                    valueAsString = "null";
+                } else if (value.getClass().isArray() && value instanceof int[]) {
+                    // Xử lý mảng số nguyên
+                    valueAsString = "new int[]" + java.util.Arrays.toString((int[]) value).replace('[', '{').replace(']', '}');
+                } else {
+                    // Xử lý các kiểu dữ liệu nguyên thủy và chuỗi
+                    valueAsString = String.valueOf(value);
+                    if (value instanceof String) valueAsString = "\"" + valueAsString + "\"";
+                    else if (value instanceof Long) valueAsString += "L";
+                    else if (value instanceof Character) valueAsString = "'" + valueAsString + "'";
+                    else if (value instanceof Float) valueAsString += "f";
+                    else if (value instanceof Double) {
+                        Double dVal = (Double) value;
+                        if (Double.isNaN(dVal)) valueAsString = "Double.NaN";
+                        else if (Double.isInfinite(dVal))
+                            valueAsString = dVal > 0 ? "Double.POSITIVE_INFINITY" : "Double.NEGATIVE_INFINITY";
+                    }
+                }
+            }
             result.append(valueAsString);
 
-            if (i < testData.length - 1) {
+            // Bổ sung dấu phân cách tham số
+            if (i < actualParamCount - 1) {
                 result.append(", ");
             }
         }
         result.append(");\n");
-        result.append("endRunTestTime = System.nanoTime();\n");
+
+        // Cần đóng toàn bộ các block try-with-resources của Mockito
+        for (int i = 0; i < tryBlockCount; i++) {
+            result.append("}\n");
+        }
+
+        // Đóng khối try-catch tổng quản lý Runtime Exception trong quá trình test
         result.append("} catch (Throwable e) {\n");
-        result.append("endRunTestTime = System.nanoTime();\n");
         result.append("e.printStackTrace();\n");
         result.append("}\n");
 
+        result.append("long endRunTestTime = System.nanoTime();\n");
         result.append("double runTestDuration = (endRunTestTime - startRunTestTime) / 1000000.0;\n");
+
+        // Ghi nhận kết quả thực thi thô ra tệp tin
         result.append("writeDataToFile(runTestDuration + \"===\" + output, \"" + FilePath.concreteExecuteResultPath + "\", true);\n");
-        result.append("}\n");
+
+        // Sử dụng Regex để ánh xạ các lời gọi hàm gốc thành các biến Mock tương ứng.
+        result.append("try {\n");
+        result.append("    java.nio.file.Path tracePath = java.nio.file.Paths.get(\"")
+                .append(FilePath.concreteExecuteResultPath.replace("\\", "\\\\")).append("\");\n");
+        result.append("    String traceContent = new String(java.nio.file.Files.readAllBytes(tracePath));\n");
+
+        for (SymbolicExecutionRewrite.MockInfo mock : mocks) {
+            if (mock.className != null && !mock.className.isEmpty()) {
+                // Xây dựng biểu thức chính quy bắt chính xác cú pháp phương thức gốc
+                String originalCallRegex = mock.className + "\\\\." + mock.methodName + "\\\\([^)]*\\\\)";
+
+                // Thực hiện ghi đè dữ liệu vết, đánh lừa bộ phân tích CFG
+                result.append("    traceContent = traceContent.replaceAll(\"")
+                        .append(originalCallRegex).append("\", \"").append(mock.mockVarName).append("\");\n");
+            }
+        }
+        // Lưu trữ lại tệp tin vết đã qua tiền xử lý
+        result.append("    java.nio.file.Files.write(tracePath, traceContent.getBytes());\n");
+        result.append("} catch (Exception ex) { ex.printStackTrace(); }\n");
+
+        result.append("}\n"); // Kết thúc hàm main của TestDriver
         return result.toString();
     }
 
