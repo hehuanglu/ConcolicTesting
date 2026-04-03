@@ -17,12 +17,12 @@ public class MethodInvocationNode extends ExpressionNode {
     private static AST ast;
     private String className;
     private String methodName;
-    private AstNode argument;
+    private List<AstNode> arguments = new ArrayList<>();
 
-    public MethodInvocationNode(String className, String methodName, AstNode argument) {
+    public MethodInvocationNode(String className, String methodName, List<AstNode> arguments) {
         this.className = className;
         this.methodName = methodName;
-        this.argument = argument;
+        this.arguments = arguments;
     }
 
     public MethodInvocationNode() {
@@ -36,8 +36,8 @@ public class MethodInvocationNode extends ExpressionNode {
         return methodName;
     }
 
-    public AstNode getArgument() {
-        return argument;
+    public List<AstNode> getArgument() {
+        return arguments;
     }
 
     public static AstNode executeMethodInvocation(MethodInvocation methodInvocation, MemoryModel memoryModel) {
@@ -49,9 +49,13 @@ public class MethodInvocationNode extends ExpressionNode {
         if (methodInvocation.getExpression() != null) { // method invocation in the same class
             String className = methodInvocation.getExpression().toString();
 
-            if (className.equals("Math") && methodName.equals("abs")) {
-                AstNode argNode = ExpressionNode.executeExpression((Expression) methodInvocation.arguments().get(0), memoryModel);
-                return new MethodInvocationNode(className, methodName, argNode);
+            if (className.equals("Math") && (methodName.equals("abs") || methodName.equals("max") || methodName.equals("min"))) {
+                List<AstNode> arguments = new ArrayList<>();
+                for (int i = 0; i < methodInvocation.arguments().size(); i++) {
+                    AstNode argNode = ExpressionNode.executeExpression((Expression) methodInvocation.arguments().get(i), memoryModel);
+                    arguments.add(argNode);
+                }
+                return new MethodInvocationNode(className, methodName, arguments);
             }
 
             MethodDeclaration methodDeclaration = getInvokedMethodAST(methodName);

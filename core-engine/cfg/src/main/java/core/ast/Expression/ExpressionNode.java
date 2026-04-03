@@ -1,12 +1,13 @@
 package core.ast.Expression;
 
-import core.ast.*;
-import core.ast.Expression.Literal.*;
+import core.ast.AstNode;
+import core.ast.Expression.Array.ArrayAccessNode;
+import core.ast.Expression.Literal.LiteralNode;
 import core.ast.Expression.Name.NameNode;
-import core.ast.Expression.OperationExpression.*;
+import core.ast.Expression.OperationExpression.CastExpressionNode;
+import core.ast.Expression.OperationExpression.OperationExpressionNode;
 import core.symbolicExecution.MemoryModel;
 import org.eclipse.jdt.core.dom.*;
-import core.ast.Expression.Array.ArrayAccessNode;
 
 public abstract class ExpressionNode extends AstNode {
 
@@ -30,6 +31,8 @@ public abstract class ExpressionNode extends AstNode {
             VariableDeclarationExpressionNode.executeVariableDeclarationExpression((VariableDeclarationExpression) expression,
                     memoryModel);
             return null;
+        } else if (expression instanceof CastExpression) {
+            return CastExpressionNode.executeCastExpression((CastExpression) expression, memoryModel);
         } else if (expression instanceof MethodInvocation) {
             return MethodInvocationNode.executeMethodInvocation((MethodInvocation) expression, memoryModel);
         } else {
@@ -81,9 +84,11 @@ public abstract class ExpressionNode extends AstNode {
     }
 
     private boolean isFake = false;
+
     public void markFake() {
         isFake = true;
     }
+
     public boolean isFake() {
         return isFake;
     }
