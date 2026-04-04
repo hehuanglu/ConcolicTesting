@@ -1,11 +1,10 @@
 package core.ast.Expression.OperationExpression;
 
-import com.microsoft.z3.BitVecExpr;
-import com.microsoft.z3.BoolExpr;
 import com.microsoft.z3.Context;
 import com.microsoft.z3.Expr;
 import core.Z3Vars.Z3VariableWrapper;
 import core.ast.AstNode;
+import core.ast.Expression.Array.ArrayAccessNode;
 import core.ast.Expression.ExpressionNode;
 import core.ast.Expression.Literal.BooleanLiteralNode;
 import core.ast.Expression.Literal.CharacterLiteralNode;
@@ -95,90 +94,15 @@ public abstract class OperationExpressionNode extends ExpressionNode {
             } else {
                 throw new RuntimeException("Invalid Literal");
             }
+        } else if (operand instanceof ArrayAccessNode) {
+            return ArrayAccessNode.createZ3ArrayAccessExpression((ArrayAccessNode) operand, memoryModel, ctx, vars);
         } else if (operand instanceof MethodInvocationNode) {
-            MethodInvocationNode methodInvocationNode = (MethodInvocationNode) operand;
-            String methodName = methodInvocationNode.getMethodName();
-            String className = methodInvocationNode.getClassName();
-            List<AstNode> args = methodInvocationNode.getArgument();
-
-            if ("Math".equals(className)) {
-                if ("abs".equals(methodName)) {
-                    ExpressionNode argNode = (ExpressionNode) args.get(0);
-                    Expr argZ3 = createZ3Expression(argNode, ctx, vars, memoryModel);
-                    if (argZ3 instanceof BitVecExpr) {
-                        BitVecExpr x_arg = (BitVecExpr) argZ3;
-                        BoolExpr isNegative = ctx.mkBVSLT(x_arg, ctx.mkBV(0, x_arg.getSortSize()));
-                        BitVecExpr negativeX = ctx.mkBVNeg(x_arg);
-                        System.out.println("Đã dịch Math.abs sang Z3");
-                        return ctx.mkITE(isNegative, negativeX, x_arg);
-                    }
-                } else if ("max".equals(methodName)) {
-                    ExpressionNode arg1Node = (ExpressionNode) args.get(0);
-                    ExpressionNode arg2Node = (ExpressionNode) args.get(1);
-
-                    Expr arg1Z3 = createZ3Expression(arg1Node, ctx, vars, memoryModel);
-                    Expr arg2Z3 = createZ3Expression(arg2Node, ctx, vars, memoryModel);
-
-                    if (arg1Z3 instanceof BitVecExpr && arg2Z3 instanceof BitVecExpr) {
-                        BitVecExpr x_arg1 = (BitVecExpr) arg1Z3;
-                        BitVecExpr x_arg2 = (BitVecExpr) arg2Z3;
-
-                        BoolExpr a_gt_b = ctx.mkBVSGT(x_arg1, x_arg2);
-
-                        return ctx.mkITE(a_gt_b, x_arg1, x_arg2);
-                    }
-                } else if ("min".equals(methodName)) {
-                    ExpressionNode arg1Node = (ExpressionNode) args.get(0);
-                    ExpressionNode arg2Node = (ExpressionNode) args.get(1);
-
-                    Expr z3Arg1 = createZ3Expression(arg1Node, ctx, vars, memoryModel);
-                    Expr z3Arg2 = createZ3Expression(arg2Node, ctx, vars, memoryModel);
-
-                    if (z3Arg1 instanceof BitVecExpr && z3Arg2 instanceof BitVecExpr) {
-                        BitVecExpr a = (BitVecExpr) z3Arg1;
-                        BitVecExpr b = (BitVecExpr) z3Arg2;
-
-                        BoolExpr a_lt_b = ctx.mkBVSLT(a, b);
-
-                        return ctx.mkITE(a_lt_b, a, b);
-                    }
-                }
-            } else {
-                throw new RuntimeException("Chưa hỗ trợ hàm này");
-            }
+            return MethodInvocationNode.createZ3Expression((MethodInvocationNode) operand, memoryModel, ctx, vars);
         } else if (operand instanceof CastExpressionNode) {
-            CastExpressionNode castNode = (CastExpressionNode) operand;
-
-            String targetType = castNode.getTargetNode().toString();
-
-            ExpressionNode innerExpr = castNode.getInnerExpression();
-
-            Expr z3Inner = createZ3Expression(innerExpr, ctx, vars, memoryModel);
-
-            if (z3Inner instanceof BitVecExpr) {
-                BitVecExpr arg = (BitVecExpr) z3Inner;
-
-                int currentSize = arg.getSortSize();
-
-                if ("long".equals(targetType) && currentSize == 32) {
-                    System.out.println("Đã ép kiểu int thành long cho Z3");
-                    return ctx.mkSignExt(32, arg);
-                } else if ("int".equals(targetType) && currentSize == 64) {
-                    System.out.println(" Đã ép kiểu long thành int cho Z3");
-                    return ctx.mkExtract(31, 0, arg);
-                } else if ("short".equals(targetType) && currentSize == 32) {
-                    System.out.println(" Đã ép kiểu int thành short cho Z3");
-                    return ctx.mkExtract(15, 0, arg);
-                } else if ("int".equals(targetType) && currentSize == 8) {
-                    return ctx.mkSignExt(24, arg);
-                }
-            }
-
-            return z3Inner;
+            return CastExpressionNode.createZ3Expression((CastExpressionNode) operand, memoryModel, ctx, vars);
         } else {
             throw new RuntimeException(operand.getClass() + " is not an Expression");
         }
-        return null;
     }
 
     private static Expr createZ3Variable(NameNode variableName, Context ctx, List<Z3VariableWrapper> vars, MemoryModel memoryModel) {
@@ -233,6 +157,8 @@ public abstract class OperationExpressionNode extends ExpressionNode {
         } else if (operand instanceof CastExpressionNode) {
             return operand;
         } else if (operand instanceof MethodInvocationNode) {
+            return operand;
+        } else if (operand instanceof ArrayAccessNode) {
             return operand;
         } else {
             throw new RuntimeException(operand.getClass() + " is Invalid expressionNode");

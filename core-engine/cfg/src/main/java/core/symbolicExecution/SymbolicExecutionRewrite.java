@@ -9,6 +9,8 @@ import core.ast.Expression.Array.ArrayCreationWithNewKeyWord;
 import core.ast.Expression.Array.ArrayNode;
 import core.ast.Expression.ExpressionNode;
 import core.ast.Expression.Literal.BooleanLiteralNode;
+import core.ast.Expression.Literal.LiteralNode;
+import core.ast.Expression.Literal.NumberLiteral.IntegerLiteralNode;
 import core.ast.Expression.Name.NameNode;
 import core.ast.Expression.OperationExpression.OperationExpressionNode;
 import core.ast.Expression.OperationExpression.PrefixExpressionNode;
@@ -79,8 +81,9 @@ public class SymbolicExecutionRewrite {
             for (ASTNode param : this.parameters) {
                 if (param instanceof SingleVariableDeclaration) {
                     SingleVariableDeclaration decl = (SingleVariableDeclaration) param;
+                    String name = decl.getName().getIdentifier();
+
                     if (decl.getType().toString().equals("char")) {
-                        String name = decl.getName().getIdentifier();
                         Variable v = symbolicMap.getVariable(name);
                         Expr z3Var = Variable.createZ3Variable(v, ctx);
 
@@ -91,6 +94,26 @@ public class SymbolicExecutionRewrite {
 
                         if (finalZ3Expression == null) finalZ3Expression = charConstraint;
                         else finalZ3Expression = ctx.mkAnd(finalZ3Expression, charConstraint);
+                    } else if (decl.getType().isArrayType()) {
+                        ArrayType arrayType = (ArrayType) decl.getType();
+                        System.out.println(" Phát hiện Parameter là Mảng: " + name);
+
+                        ArrayNode virtualArray = new ArrayNode();
+                        virtualArray.setNumberOfDimensions(1);
+                        virtualArray.setLengthOfDimensions(IntegerLiteralNode.executeIntegerLiteral(10));
+
+                        Type elementType = arrayType.getElementType();
+                        if (elementType.isPrimitiveType() && elementType.toString().equals("int")) {
+                            PrimitiveTypeNode pType = new PrimitiveTypeNode();
+                            pType.setTypeCode(PrimitiveType.INT);
+                            virtualArray.setType(pType);
+
+                            // Tạo sẵn 10 phần tử mang giá trị 0
+                            LiteralNode[] defaultElements = PrimitiveTypeNode.changePrimitiveTypeToLiteralInitializationArray((PrimitiveType) elementType, 10);
+                            virtualArray.setElements(0, defaultElements);
+                        }
+
+                        symbolicMap.declareArrayTypeVariable(arrayType, name, arrayType.getDimensions(), virtualArray);
                     }
                 }
             }
@@ -382,164 +405,164 @@ public class SymbolicExecutionRewrite {
     }
 
     private void evaluateAndSaveTestDataCreated(Context ctx) {
-        // check and update Z3Vars with stub variables
-//        if (Z3Vars.size() != parameters.size()) {
-//            executeParameters(ctx);
-//        }
-
         if (model != null) {
             StringBuilder result = new StringBuilder();
+            Map<String, String> evaluatedValues = new HashMap<>();
 
-            for (int i = 0; i < Z3Vars.size(); i++) {
-                Z3VariableWrapper z3VariableWrapper = Z3Vars.get(i);
-
+            // Quét tất cả các biến Z3 đã giải được và lưu vào Map tạm
+            for (Z3VariableWrapper z3VariableWrapper : Z3Vars) {
                 if (z3VariableWrapper.getPrimitiveVar() != null) {
                     Expr primitiveVar = z3VariableWrapper.getPrimitiveVar();
-
                     Expr evaluateResult = model.evaluate(primitiveVar, true);
-
                     String name = primitiveVar.toString();
+                    String stringValue = "0";
+
                     PrimitiveType.Code originalTypeCode = variableTypeMap.get(name);
                     String typeName = (originalTypeCode != null) ? originalTypeCode.toString() : "";
+
                     if (evaluateResult instanceof BitVecNum) {
                         BitVecNum bvNum = (BitVecNum) evaluateResult;
                         BigInteger val = bvNum.getBigInteger();
-
                         switch (typeName) {
                             case "byte":
-                                result.append(val.byteValue()); // Ép về byte có dấu (-128 to 127)
+                                stringValue = String.valueOf(val.byteValue());
                                 break;
                             case "short":
-                                result.append(val.shortValue());
+                                stringValue = String.valueOf(val.shortValue());
                                 break;
                             case "char":
-                                result.append(val.intValue() & 0xFFFF);
+                                stringValue = String.valueOf(val.intValue() & 0xFFFF);
                                 break;
                             case "long":
-                                result.append(val.longValue());
+                                stringValue = String.valueOf(val.longValue());
                                 break;
-                            case "int":
                             default:
-                                result.append(val.intValue());
+                                stringValue = String.valueOf(val.intValue());
                                 break;
                         }
                     } else if (evaluateResult instanceof FPNum) {
                         FPNum fpNum = (FPNum) evaluateResult;
                         if (fpNum.isNaN()) {
-                            result.append("NaN");
+                            stringValue = "NaN";
                         } else if (fpNum.isInf()) {
-                            result.append(fpNum.isNegative() ? "-Infinity" : "Infinity");
+                            stringValue = fpNum.isNegative() ? "-Infinity" : "Infinity";
                         } else {
-                            int eBits = fpNum.getEBits();
-                            int sBits = fpNum.getSBits();
-                            boolean isFloat32 = (eBits == 8 && sBits == 24);
                             Expr bvExpr = ctx.mkFPToIEEEBV(fpNum).simplify();
                             if (bvExpr instanceof BitVecNum) {
                                 BigInteger bits = ((BitVecNum) bvExpr).getBigInteger();
-                                if (isFloat32) {
-                                    int intBits = bits.intValue();
-                                    float floatValue = Float.intBitsToFloat(intBits);
-                                    result.append(floatValue);
+                                if (fpNum.getEBits() == 8 && fpNum.getSBits() == 24) {
+                                    stringValue = String.valueOf(Float.intBitsToFloat(bits.intValue()));
                                 } else {
-                                    long longBits = bits.longValue();
-                                    double doubleValue = Double.longBitsToDouble(longBits);
-                                    result.append(doubleValue);
+                                    stringValue = String.valueOf(Double.longBitsToDouble(bits.longValue()));
                                 }
                             } else {
-                                try {
-                                    double d = Double.parseDouble(fpNum.toString());
-                                    result.append(d);
-                                } catch (Exception e) {
-                                    result.append(fpNum);
-                                }
+                                stringValue = fpNum.toString();
                             }
                         }
                     } else if (evaluateResult instanceof BoolExpr) {
-                        if (evaluateResult.isTrue()) {
-                            result.append("true");
-                        } else if (evaluateResult.isFalse()) {
-                            result.append("false");
-                        } else {
-                            // Fallback hiếm gặp nếu model chưa complete
-                            result.append("false");
-                        }
+                        stringValue = evaluateResult.isTrue() ? "true" : "false";
                     } else {
-                        result.append(evaluateResult.toString());
+                        stringValue = evaluateResult.toString();
                     }
 
-                    // Lưu giá trị Z3 vừa giải được vào MockInfo
-                    String currentResult = result.toString();
-                    String z3ValueStr = currentResult;
-                    int lastNewLine = currentResult.lastIndexOf("\n");
-                    if (lastNewLine != -1) {
-                        z3ValueStr = currentResult.substring(lastNewLine + 1);
-                    }
+                    evaluatedValues.put(name, stringValue);
 
                     for (MockInfo info : currentMockInfos) {
                         if (info.mockVarName.equals(name)) {
-                            info.solveValue = z3ValueStr;
+                            info.solveValue = stringValue;
                         }
                     }
-                } else {
-                    ArrayTypeVariable arrayTypeVariable = z3VariableWrapper.getArrayVar();
-                    if (arrayTypeVariable != null) {
-                        result.append(arrayTypeVariable.getConstraints());
-                    }
-                }
-
-                if (i != Z3Vars.size() - 1) {
-                    result.append("\n");
                 }
             }
-            this.globalZ3Result = result.toString();
 
+            // Lắp ráp lại dữ liệu theo đúng định dạng Parameter đầu vào
+            if (this.parameters != null) {
+                for (int i = 0; i < parameters.size(); i++) {
+                    ASTNode param = parameters.get(i);
+                    if (param instanceof SingleVariableDeclaration) {
+                        SingleVariableDeclaration decl = (SingleVariableDeclaration) param;
+                        String paramName = decl.getName().getIdentifier();
+
+                        if (decl.getType().isArrayType()) {
+                            StringBuilder arrStr = new StringBuilder();
+                            for (int k = 0; k < 10; k++) {
+                                String flatName = paramName + "_" + k;
+                                arrStr.append(evaluatedValues.getOrDefault(flatName, "0"));
+                                if (k < 9) arrStr.append(",");
+                            }
+                            result.append(arrStr.toString());
+                        } else {
+                            result.append(evaluatedValues.getOrDefault(paramName, "0"));
+                        }
+                    }
+                    if (i != parameters.size() - 1) {
+                        result.append("\n");
+                    }
+                }
+            }
+
+            this.globalZ3Result = result.toString();
             writeDataToFile(result.toString());
         }
     }
 
     public Object[] getEvaluatedTestData(Class<?>[] parameterClasses) {
         List<Object> result = new ArrayList<>();
-        Scanner scanner;
-        try {
-            scanner = new Scanner(this.globalZ3Result);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+
+        String[] lines = this.globalZ3Result.split("\\r?\\n");
 
         for (int i = 0; i < parameterClasses.length; i++) {
-//            if (!scanner.hasNext()) {
-//                result.add(createRandomVariableData(parameterClasses[i]));
-//                continue;
-//            }
+            // nếu z3 ko giải được, bỏ qua
+            if (i >= lines.length || lines[i].trim().isEmpty()) {
+                result.add(null);
+                continue;
+            }
 
             Class<?> parameterClass = parameterClasses[i];
+            String lineData = lines[i].trim();
 
+            // tham số là biến đơn
             if (parameterClass.isPrimitive()) {
+                result.add(parsePrimitiveString(lineData, parameterClass.getName()));
+            }
+            // tham số là mảng
+            else if (parameterClass.isArray()) {
+                String[] strElements = lineData.split(",");
 
-                String type = parameterClasses[i].getName();
+                // Lấy kiểu dữ liệu bên trong mảng
+                Class<?> componentType = parameterClass.getComponentType();
 
+                // tạo mảng
+                Object arrayInstance = Array.newInstance(componentType, strElements.length);
 
-                if ("int".equals(type)) {
-                    if (scanner.hasNextInt()) {
-                        result.add(scanValue(scanner, type));
-                    }
-                } else result.add(scanValue(scanner, type));
-
-            } else if (parameterClass.isArray()) {
-                String constraint = scanner.nextLine();
-                String[] constraints = constraint.split(" ");
-                int numberOfDimensions = Integer.parseInt(constraints[0]);
-                int[] dimensions = new int[numberOfDimensions];
-                for (int j = 0; j < numberOfDimensions; j++) {
-                    dimensions[j] = Integer.parseInt(constraints[j + 1]);
+                // Nhét từng con số vào mảng
+                for (int j = 0; j < strElements.length; j++) {
+                    // Ép chuỗi thành số
+                    Object val = parsePrimitiveString(strElements[j].trim(), componentType.getName());
+                    // Lưu vào mảng
+                    Array.set(arrayInstance, j, val);
                 }
-                result.add(Array.newInstance(parameterClass.getComponentType(), dimensions));
 
-                // Specific element constraints!!!
+                // Thêm mảng hoàn chỉnh vào danh sách kết quả
+                result.add(arrayInstance);
+            } else {
+                result.add(null);
             }
         }
 
         return result.toArray();
+    }
+
+    private Object parsePrimitiveString(String valStr, String type) {
+        if ("int".equals(type)) return Integer.parseInt(valStr);
+        if ("boolean".equals(type)) return Boolean.parseBoolean(valStr);
+        if ("byte".equals(type)) return Byte.parseByte(valStr);
+        if ("short".equals(type)) return Short.parseShort(valStr);
+        if ("char".equals(type)) return (char) Integer.parseInt(valStr);
+        if ("long".equals(type)) return Long.parseLong(valStr);
+        if ("float".equals(type)) return Float.parseFloat(valStr);
+        if ("double".equals(type)) return Double.parseDouble(valStr);
+        throw new RuntimeException("Chưa hỗ trợ ép kiểu Z3 cho: " + type);
     }
 
     private Object scanValue(Scanner scanner, String type) {
