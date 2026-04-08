@@ -42,6 +42,15 @@ public class SymbolicExecutionRewrite {
     public String globalZ3Result = "";
     // Map để đếm số lần một hàm được gọi --> tạo biến gỉa không bị trùng lặp
     private Map<String, Integer> mockMethodCounter = new HashMap<>();
+    private final Map<String, Integer> parameterArrayLengths = new HashMap<>();
+    // Map này lưu các biểu thức index symbolic theo từng tên mảng.
+    // Điểm quan trọng
+    // - không solve riêng index bằng một solver/context phụ
+    // - chỉ thu thập index symbolic ngay trong luồng solve chính
+    // - sau khi model chính đã có, mới evaluate các biểu thức này bằng chính model đó
+    // Nhờ vậy luồng solve chính và luồng suy kích thước mảng được tách trách nhiệm rõ ràng
+    // nhưng vẫn nhất quán tuyệt đối về nghiệm.
+    private final Map<String, List<Expr>> symbolicArrayIndexExpressions = new HashMap<>();
     public static List<MockInfo> currentMockInfos = new ArrayList<>();
 
     public SymbolicExecutionRewrite(Path testPath, List<ASTNode> parameters) {
@@ -53,6 +62,8 @@ public class SymbolicExecutionRewrite {
         symbolicMap = new MemoryModel();
         Z3Vars = new ArrayList<>();
         currentCfgNode = null;
+        parameterArrayLengths.clear();
+        symbolicArrayIndexExpressions.clear();
 
         HashMap<String, String> cfg = new HashMap();
         cfg.put("model", "true");
@@ -97,22 +108,9 @@ public class SymbolicExecutionRewrite {
                     } else if (decl.getType().isArrayType()) {
                         ArrayType arrayType = (ArrayType) decl.getType();
                         System.out.println(" Phát hiện Parameter là Mảng: " + name);
-
-                        ArrayNode virtualArray = new ArrayNode();
-                        virtualArray.setNumberOfDimensions(1);
-                        virtualArray.setLengthOfDimensions(IntegerLiteralNode.executeIntegerLiteral(10));
-
-                        Type elementType = arrayType.getElementType();
-                        if (elementType.isPrimitiveType() && elementType.toString().equals("int")) {
-                            PrimitiveTypeNode pType = new PrimitiveTypeNode();
-                            pType.setTypeCode(PrimitiveType.INT);
-                            virtualArray.setType(pType);
-
-                            // Tạo sẵn 10 phần tử mang giá trị 0
-                            LiteralNode[] defaultElements = PrimitiveTypeNode.changePrimitiveTypeToLiteralInitializationArray((PrimitiveType) elementType, 10);
-                            virtualArray.setElements(0, defaultElements);
-                        }
-
+                        int inferredLength  = inferArrayParameterLength(name);
+                        parameterArrayLengths.put(name, inferredLength);
+                        ArrayNode virtualArray = createVirtualArray(arrayType, inferredLength);
                         symbolicMap.declareArrayTypeVariable(arrayType, name, arrayType.getDimensions(), virtualArray);
                     }
                 }
@@ -127,6 +125,11 @@ public class SymbolicExecutionRewrite {
             ASTNode astNode = currentCfgNode.getAst();
 
             if (astNode != null) {
+                // Thu các index symbolic ngay tại thời điểm node sắp được symbolic execution.
+                // Ở đây ta dùng chính symbolicMap/Z3Vars/ctx của luồng solve chính để chuyển
+                // index như i, a + b, i + 1... thành Expr của cùng một Context.
+                // Các Expr này sẽ được evaluate lại sau khi model chính được solve xong.
+                collectSymbolicArrayIndexesFromAst(astNode, ctx);
 
                 // BẮT, NỘI SOI KIỂU VÀ TẠO BIẾN GIẢ Z3
                 astNode.accept(new ASTVisitor() {
@@ -339,6 +342,10 @@ public class SymbolicExecutionRewrite {
         System.out.println(finalZ3Expression.toString());
 
         model = createModel(ctx, (BoolExpr) finalZ3Expression);
+        // Sau khi đã có model chính, mới evaluate các index symbolic đã thu được trước đó.
+        // Đây là phần cốt lõi của "mức 1": index không có solver riêng, mà dùng trực tiếp
+        // nghiệm của solver chính để suy ra maxIndex cho từng tham số mảng.
+        updateArrayParameterLengthsFromModel();
         evaluateAndSaveTestDataCreated(ctx);
         return Z3Vars;
     }
@@ -347,30 +354,39 @@ public class SymbolicExecutionRewrite {
         Z3Vars = new ArrayList<>();
         for (ASTNode astNode : parameters) {
             AstNode.executeASTNode(astNode, symbolicMap);
-            createZ3ParameterVariable(astNode, ctx);
+            createZ3ParameterVariable(astNode, ctx, symbolicMap, Z3Vars);
         }
     }
 
     private void createZ3ParameterVariable(ASTNode parameter, Context ctx) {
+        createZ3ParameterVariable(parameter, ctx, symbolicMap, Z3Vars);
+    }
+
+    // Dùng chung cho cả luồng solve chính và luồng suy kích thước mảng.
+    // Việc tách hàm này giúp pass suy maxIndex có thể dựng đúng biến Z3 cho parameter
+    // mà không phải làm bẩn trạng thái solve thật của object hiện tại.
+    private void createZ3ParameterVariable(ASTNode parameter, Context ctx,
+                                           MemoryModel memoryModel,
+                                           List<Z3VariableWrapper> z3Vars) {
         if (parameter instanceof SingleVariableDeclaration) {
             SingleVariableDeclaration declaration = (SingleVariableDeclaration) parameter;
             String name = declaration.getName().toString();
 
-            Variable variable = symbolicMap.getVariable(name);
+            Variable variable = memoryModel.getVariable(name);
 
             if (variable instanceof PrimitiveTypeVariable) {
                 Expr z3Variable = Variable.createZ3Variable(variable, ctx);
                 if (z3Variable != null) {
                     Z3VariableWrapper z3VariableWrapper = new Z3VariableWrapper(z3Variable);
-                    if (!haveDuplicateVariable(z3VariableWrapper)) {
-                        Z3Vars.add(z3VariableWrapper);
+                    if (!haveDuplicateVariable(z3VariableWrapper, z3Vars)) {
+                        z3Vars.add(z3VariableWrapper);
                     }
                 }
             } else if (variable instanceof ArrayTypeVariable) {
                 ArrayTypeVariable arrayTypeVariable = (ArrayTypeVariable) variable;
                 Z3VariableWrapper z3VariableWrapper = new Z3VariableWrapper(arrayTypeVariable);
-                if (!haveDuplicateVariable(z3VariableWrapper)) {
-                    Z3Vars.add(z3VariableWrapper);
+                if (!haveDuplicateVariable(z3VariableWrapper, z3Vars)) {
+                    z3Vars.add(z3VariableWrapper);
                 }
             } else {
                 throw new RuntimeException("Invalid type variable");
@@ -381,7 +397,13 @@ public class SymbolicExecutionRewrite {
     }
 
     private boolean haveDuplicateVariable(Z3VariableWrapper z3Variable) {
-        for (Z3VariableWrapper i : Z3Vars) {
+        return haveDuplicateVariable(z3Variable, Z3Vars);
+    }
+
+    // Hàm overload này cho phép pass suy index symbolic kiểm tra duplicate trên
+    // một danh sách biến Z3 tạm, thay vì chỉ dựa vào danh sách solve chính.
+    private boolean haveDuplicateVariable(Z3VariableWrapper z3Variable, List<Z3VariableWrapper> z3Vars) {
+        for (Z3VariableWrapper i : z3Vars) {
             if (i.equals(z3Variable)) {
                 return true;
             }
@@ -484,11 +506,13 @@ public class SymbolicExecutionRewrite {
                         String paramName = decl.getName().getIdentifier();
 
                         if (decl.getType().isArrayType()) {
+                            int arrayLength = parameterArrayLengths.getOrDefault(paramName, 1);
                             StringBuilder arrStr = new StringBuilder();
-                            for (int k = 0; k < 10; k++) {
+                            for (int k = 0; k < arrayLength; k++) {
+
                                 String flatName = paramName + "_" + k;
                                 arrStr.append(evaluatedValues.getOrDefault(flatName, "0"));
-                                if (k < 9) arrStr.append(",");
+                                if (k < arrayLength - 1) arrStr.append(",");
                             }
                             result.append(arrStr.toString());
                         } else {
@@ -563,6 +587,170 @@ public class SymbolicExecutionRewrite {
         if ("float".equals(type)) return Float.parseFloat(valStr);
         if ("double".equals(type)) return Double.parseDouble(valStr);
         throw new RuntimeException("Chưa hỗ trợ ép kiểu Z3 cho: " + type);
+    }
+
+    private ArrayNode createVirtualArray(ArrayType arrayType, int length) {
+        ArrayNode virtualArray = new ArrayNode();
+        virtualArray.setNumberOfDimensions(arrayType.getDimensions());
+        virtualArray.setLengthOfDimensions(IntegerLiteralNode.executeIntegerLiteral(length));
+
+        Type elementType = arrayType.getElementType();
+        if (elementType.isPrimitiveType()) {
+            PrimitiveType primitiveType = (PrimitiveType) elementType;
+            PrimitiveTypeNode primitiveTypeNode = new PrimitiveTypeNode();
+            primitiveTypeNode.setTypeCode(primitiveType.getPrimitiveTypeCode());
+            virtualArray.setType(primitiveTypeNode);
+
+            LiteralNode[] defaultElements =
+                    PrimitiveTypeNode.changePrimitiveTypeToLiteralInitializationArray(primitiveType, length);
+            virtualArray.setElements(0, defaultElements);
+        }
+
+        return virtualArray;
+    }
+
+    private int inferArrayParameterLength(String arrayName) {
+        int maxIndex = -1;
+        Node currentPathNode = testPath != null ? testPath.getCurrentFirst() : null;
+        // bước suy kích thước sớm này chỉ lấy index concrete.
+        // Các index symbolic sẽ được xử lý tách riêng sau khi model chính đã có.
+        // Mục tiêu ở đây chỉ là tạo được virtual array tối thiểu để luồng solve chính tiếp tục chạy.
+        while (currentPathNode != null) {
+            ASTNode astNode = currentPathNode.getData().getAst();
+            if (astNode != null) {
+                ArrayParameterAccessVisitor visitor = new ArrayParameterAccessVisitor(arrayName);
+                astNode.accept(visitor);
+                maxIndex = Math.max(maxIndex, visitor.getMaxConcreteIndex());
+            }
+            currentPathNode = currentPathNode.getNext();
+        }
+
+        // Nếu không tìm được index concrete nào thì engine vẫn trả mảng độ dài 1 để giữ
+        // tương thích với luồng cũ. Độ dài thật sẽ được cập nhật lại sau khi evaluate index symbolic.
+        return Math.max(maxIndex + 1, 1);
+    }
+
+    // Model tạm của pass suy index có thể trả về BitVec, Int hoặc FP tùy kiểu biểu thức.
+    // Hàm này chuẩn hóa tất cả về int để lấy maxIndex thống nhất.
+    private int evaluateIndexFromModel(Model inferenceModel, Expr symbolicIndexExpr) {
+        Expr evaluatedExpr = inferenceModel.evaluate(symbolicIndexExpr, true);
+        if (evaluatedExpr instanceof BitVecNum) {
+            return ((BitVecNum) evaluatedExpr).getBigInteger().intValue();
+        }
+        if (evaluatedExpr instanceof IntNum) {
+            return ((IntNum) evaluatedExpr).getInt();
+        }
+        if (evaluatedExpr instanceof RatNum) {
+            RatNum ratNum = (RatNum) evaluatedExpr;
+            return ratNum.getBigIntNumerator().divide(ratNum.getBigIntDenominator()).intValue();
+        }
+        if (evaluatedExpr instanceof FPNum) {
+            return (int) Double.parseDouble(evaluatedExpr.toString());
+        }
+        throw new RuntimeException("Unsupported solved index type: " + evaluatedExpr);
+    }
+
+    // Thu các index symbolic của truy cập mảng ngay trong luồng solve chính.
+    // Hàm này không solve gì cả; nó chỉ biến index thành Expr của cùng Context với solver chính.
+    // Ví dụ:
+    // - arr[i]     -> lưu Expr của i
+    // - arr[a + b] -> lưu Expr của a + b
+    // - arr[3]     -> bỏ qua ở đây vì index concrete đã được xử lý ở inferArrayParameterLength()
+    private void collectSymbolicArrayIndexesFromAst(ASTNode astNode, Context ctx) {
+        astNode.accept(new ASTVisitor() {
+            @Override
+            public boolean visit(ArrayAccess node) {
+                if (!(node.getArray() instanceof SimpleName) || node.getIndex() instanceof NumberLiteral) {
+                    return super.visit(node);
+                }
+
+                String arrayName = ((SimpleName) node.getArray()).getIdentifier();
+                AstNode executedIndexNode = AstNode.executeASTNode(node.getIndex(), symbolicMap);
+                if (!(executedIndexNode instanceof ExpressionNode)) {
+                    return super.visit(node);
+                }
+
+                try {
+                    Expr symbolicIndexExpr = OperationExpressionNode.createZ3Expression(
+                            (ExpressionNode) executedIndexNode, ctx, Z3Vars, symbolicMap);
+                    symbolicArrayIndexExpressions
+                            .computeIfAbsent(arrayName, ignored -> new ArrayList<>())
+                            .add(symbolicIndexExpr);
+                } catch (RuntimeException ex) {
+                    // Một số index có thể chưa convert được ở thời điểm quét hiện tại.
+                    // Ta bỏ qua chúng để không làm hỏng luồng solve chính; mảng sẽ fallback
+                    // về độ dài đã suy được từ index concrete hoặc giá trị mặc định.
+                    System.out.println("Khong the thu thap index symbolic cho mang " + arrayName
+                            + " tai node hien tai: " + ex.getMessage());
+                }
+
+                return super.visit(node);
+            }
+        });
+    }
+
+    // Sau khi model chính đã solve xong, dùng chính model đó để evaluate mọi index symbolic đã thu.
+    // Đây là phần tách biệt luồng giải chính với luồng suy kích thước mảng:
+    // - solver chính chịu trách nhiệm tìm nghiệm cho path
+    // - bước này chỉ là hậu xử lý trên model để cập nhật parameterArrayLengths
+    private void updateArrayParameterLengthsFromModel() {
+        if (model == null) {
+            return;
+        }
+
+        for (Map.Entry<String, List<Expr>> entry : symbolicArrayIndexExpressions.entrySet()) {
+            String arrayName = entry.getKey();
+            int maxIndex = parameterArrayLengths.getOrDefault(arrayName, 1) - 1;
+
+            for (Expr symbolicIndexExpr : entry.getValue()) {
+                try {
+                    int solvedIndex = evaluateIndexFromModel(model, symbolicIndexExpr);
+                    if (solvedIndex >= 0) {
+                        maxIndex = Math.max(maxIndex, solvedIndex);
+                    }
+                } catch (RuntimeException ex) {
+                    // Nếu một index cụ thể không evaluate được từ model chính thì chỉ bỏ qua index đó.
+                    // Không được để lỗi hậu xử lý này làm hỏng toàn bộ quá trình tạo test data.
+                    System.out.println("Khong the evaluate index symbolic cua mang " + arrayName
+                            + " tu model chinh: " + ex.getMessage());
+                }
+            }
+
+            parameterArrayLengths.put(arrayName, Math.max(maxIndex + 1, 1));
+        }
+    }
+
+    private static final class ArrayParameterAccessVisitor extends ASTVisitor {
+        private final String arrayName;
+        private int maxIndex = -1;
+
+        private ArrayParameterAccessVisitor(String arrayName) {
+            this.arrayName = arrayName;
+        }
+
+        @Override
+        public boolean visit(ArrayAccess node) {
+
+            if (node.getArray() instanceof SimpleName
+                    && arrayName.equals(((SimpleName) node.getArray()).getIdentifier())
+                    && node.getIndex() instanceof NumberLiteral) {
+                try {
+                    // lấy index của array node
+                    int index = Integer.parseInt(((NumberLiteral) node.getIndex()).getToken());
+                    
+                    if (index >= 0) {
+                        //
+                        maxIndex = Math.max(maxIndex, index);
+                    }
+                } catch (NumberFormatException ignored) {
+                }
+            }
+            return super.visit(node);
+        }
+
+        private int getMaxConcreteIndex() {
+            return maxIndex;
+        }
     }
 
     private Object scanValue(Scanner scanner, String type) {

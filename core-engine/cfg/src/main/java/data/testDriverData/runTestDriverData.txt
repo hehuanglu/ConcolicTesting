@@ -1,13 +1,1 @@
-long exp=n;
-===false===false===1---end---exp < 0===false===true===2---end---double result=1.0;
-===false===false===7---end---exp > 0===true===false===9---end---(exp & 1) == 1===false===true===10---end---x*=x;
-===false===false===13---end---exp/=2;
-===false===false===14---end---exp > 0===true===false===9---end---(exp & 1) == 1===false===true===10---end---x*=x;
-===false===false===13---end---exp/=2;
-===false===false===14---end---exp > 0===true===false===9---end---(exp & 1) == 1===false===true===10---end---x*=x;
-===false===false===13---end---exp/=2;
-===false===false===14---end---exp > 0===true===false===9---end---(exp & 1) == 1===true===false===10---end---result*=x;
-===false===false===11---end---x*=x;
-===false===false===13---end---exp/=2;
-===false===false===14---end---exp > 0===false===true===9---end---return result;
-===false===false===17---end---9.702===1.6777216E7
+i > 10===false===true===1---end---107.16===null
