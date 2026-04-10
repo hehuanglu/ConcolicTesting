@@ -52,6 +52,10 @@ public class SymbolicExecutionRewrite {
     // nhưng vẫn nhất quán tuyệt đối về nghiệm.
     private final Map<String, List<Expr>> symbolicArrayIndexExpressions = new HashMap<>();
     public static List<MockInfo> currentMockInfos = new ArrayList<>();
+    //  Sổ tay lưu trạng thái hiện tại của các Mảng Z3
+    public static ThreadLocal<Map<String, Expr>> z3ArrayStateMap = ThreadLocal.withInitial(java.util.HashMap::new);
+    public static ThreadLocal<Context> globalCtx = new ThreadLocal<>();
+    public static ThreadLocal<List<Z3VariableWrapper>> globalZ3Vars = new ThreadLocal<>();
 
     public SymbolicExecutionRewrite(Path testPath, List<ASTNode> parameters) {
         this.testPath = testPath;
@@ -68,6 +72,10 @@ public class SymbolicExecutionRewrite {
         HashMap<String, String> cfg = new HashMap();
         cfg.put("model", "true");
         Context ctx = new Context(cfg);
+
+        globalCtx.set(ctx);
+        globalZ3Vars.set(Z3Vars);
+        z3ArrayStateMap.get().clear();
 
         executeParameters(ctx);
 
@@ -108,7 +116,7 @@ public class SymbolicExecutionRewrite {
                     } else if (decl.getType().isArrayType()) {
                         ArrayType arrayType = (ArrayType) decl.getType();
                         System.out.println(" Phát hiện Parameter là Mảng: " + name);
-                        int inferredLength  = inferArrayParameterLength(name);
+                        int inferredLength = inferArrayParameterLength(name);
                         parameterArrayLengths.put(name, inferredLength);
                         ArrayNode virtualArray = createVirtualArray(arrayType, inferredLength);
                         symbolicMap.declareArrayTypeVariable(arrayType, name, arrayType.getDimensions(), virtualArray);
@@ -383,11 +391,27 @@ public class SymbolicExecutionRewrite {
                     }
                 }
             } else if (variable instanceof ArrayTypeVariable) {
-                ArrayTypeVariable arrayTypeVariable = (ArrayTypeVariable) variable;
-                Z3VariableWrapper z3VariableWrapper = new Z3VariableWrapper(arrayTypeVariable);
+                // khia báo mảng mới
+
+                // Định nghĩa tập xác định
+                Sort domain = ctx.mkBitVecSort(32);
+
+                //Định nghĩa tập giá trị. Ta sẽ mặc định nó là Int và sẽ mở rộng sau
+                Sort range = ctx.mkBitVecSort(32);
+
+                // Tạp kiểu mảng z3
+                ArraySort z3ArraySort = ctx.mkArraySort(domain, range);
+
+                // khai báo mảng gốc với z3
+                Expr z3ArrayBase = ctx.mkConst(name, z3ArraySort);
+
+                // bọc xong đưa vào danh sách Z3Vars để đi luồng chính
+                Z3VariableWrapper z3VariableWrapper = new Z3VariableWrapper(z3ArrayBase);
                 if (!haveDuplicateVariable(z3VariableWrapper, z3Vars)) {
                     z3Vars.add(z3VariableWrapper);
                 }
+
+                this.z3ArrayStateMap.get().put(name, z3ArrayBase);
             } else {
                 throw new RuntimeException("Invalid type variable");
             }
@@ -431,7 +455,7 @@ public class SymbolicExecutionRewrite {
             StringBuilder result = new StringBuilder();
             Map<String, String> evaluatedValues = new HashMap<>();
 
-            // Quét tất cả các biến Z3 đã giải được và lưu vào Map tạm
+            // quét tất cả các biến Z3 cơ bản đã giải được và lưu vào Map tạm
             for (Z3VariableWrapper z3VariableWrapper : Z3Vars) {
                 if (z3VariableWrapper.getPrimitiveVar() != null) {
                     Expr primitiveVar = z3VariableWrapper.getPrimitiveVar();
@@ -497,7 +521,7 @@ public class SymbolicExecutionRewrite {
                 }
             }
 
-            // Lắp ráp lại dữ liệu theo đúng định dạng Parameter đầu vào
+            // lắp ráp lại dữ liệu theo đúng định dạng Parameter đầu vào
             if (this.parameters != null) {
                 for (int i = 0; i < parameters.size(); i++) {
                     ASTNode param = parameters.get(i);
@@ -508,14 +532,35 @@ public class SymbolicExecutionRewrite {
                         if (decl.getType().isArrayType()) {
                             int arrayLength = parameterArrayLengths.getOrDefault(paramName, 1);
                             StringBuilder arrStr = new StringBuilder();
-                            for (int k = 0; k < arrayLength; k++) {
 
-                                String flatName = paramName + "_" + k;
-                                arrStr.append(evaluatedValues.getOrDefault(flatName, "0"));
-                                if (k < arrayLength - 1) arrStr.append(",");
+                            try {
+                                // Dựng lại tham chiếu đến mảng gốc ban đầu
+                                Expr z3ArrayBase = ctx.mkConst(paramName, ctx.mkArraySort(ctx.mkBitVecSort(32), ctx.mkBitVecSort(32)));
+
+                                for (int k = 0; k < arrayLength; k++) {
+                                    // bắt z3 phải giải giá trị của ô k là bao nhiêu
+                                    Expr kExpr = ctx.mkBV(k, 32);
+                                    Expr selectExpr = ctx.mkSelect((ArrayExpr) z3ArrayBase, kExpr);
+
+                                    // hỏi trực tiếp Model
+                                    Expr evaluatedElement = model.evaluate(selectExpr, true);
+
+                                    String valStr = "0";
+                                    if (evaluatedElement instanceof BitVecNum) {
+                                        valStr = String.valueOf(((BitVecNum) evaluatedElement).getInt());
+                                    }
+
+                                    arrStr.append(valStr);
+                                    if (k < arrayLength - 1) arrStr.append(",");
+                                }
+                            } catch (Exception e) {
+                                System.out.println("   ---> Lỗi lấy mảng Z3: " + e.getMessage());
                             }
+
                             result.append(arrStr.toString());
+
                         } else {
+                            // Biến bình thường thì lấy từ map ta đã quét ở trên
                             result.append(evaluatedValues.getOrDefault(paramName, "0"));
                         }
                     }
@@ -737,7 +782,7 @@ public class SymbolicExecutionRewrite {
                 try {
                     // lấy index của array node
                     int index = Integer.parseInt(((NumberLiteral) node.getIndex()).getToken());
-                    
+
                     if (index >= 0) {
                         //
                         maxIndex = Math.max(maxIndex, index);
@@ -838,15 +883,40 @@ public class SymbolicExecutionRewrite {
     }
 
     private static Object createRandomArrayVariableData(Class<?> parameterClass) {
-        int totalDimentsions = 1;
-        for (Class<?> componentType = parameterClass.getComponentType(); ; ) {
-            if (componentType.isArray()) {
-                totalDimentsions++;
-                componentType = componentType.getComponentType();
-            } else {
-                int[] dimensions = new int[totalDimentsions];
-                Arrays.fill(dimensions, 10);
-                return Array.newInstance(componentType, dimensions);
+        // đếm số chiều và tìm kiểu dữ liệu gốc
+        int totalDimensions = 1;
+        Class<?> componentType = parameterClass.getComponentType();
+        while (componentType.isArray()) {
+            totalDimensions++;
+            componentType = componentType.getComponentType();
+        }
+
+        // tạo mảng với kích thước mặc định
+        int[] dimensions = new int[totalDimensions];
+        Arrays.fill(dimensions, 10);
+        Object arrayInstance = Array.newInstance(componentType, dimensions);
+
+        // thêm dữ liệu random vào từng ô của mảng
+        fillArrayWithRandomData(arrayInstance, componentType, totalDimensions);
+
+        return arrayInstance;
+    }
+
+    // hàm đệ quy bơm dữ liệu random vào mảng
+    private static void fillArrayWithRandomData(Object arrayObj, Class<?> baseComponentType, int currentDimension) {
+        int length = Array.getLength(arrayObj);
+
+        if (currentDimension == 1) {
+            // mảng 1 chiều
+            for (int i = 0; i < length; i++) {
+                Object randomVal = createRandomPrimitiveVariableData(baseComponentType);
+                Array.set(arrayObj, i, randomVal);
+            }
+        } else {
+            // mảng nhiều chiều ta bóc từng lớp mảng con ra đệ quy tiếp
+            for (int i = 0; i < length; i++) {
+                Object subArray = Array.get(arrayObj, i);
+                fillArrayWithRandomData(subArray, baseComponentType, currentDimension - 1);
             }
         }
     }

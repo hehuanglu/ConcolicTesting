@@ -5,14 +5,14 @@ import com.microsoft.z3.Expr;
 import core.Z3Vars.Z3VariableWrapper;
 import core.ast.AstNode;
 import core.ast.Expression.ExpressionNode;
-import core.ast.Expression.Literal.LiteralNode;
 import core.ast.Expression.Name.NameNode;
+import core.ast.Expression.OperationExpression.OperationExpressionNode;
 import core.symbolicExecution.MemoryModel;
 import org.eclipse.jdt.core.dom.ArrayAccess;
 
 import java.util.List;
 
-import static core.ast.Expression.OperationExpression.OperationExpressionNode.getDuplicateVariableIndex;
+import static core.symbolicExecution.SymbolicExecutionRewrite.z3ArrayStateMap;
 
 public class ArrayAccessNode extends ExpressionNode {
 
@@ -44,37 +44,32 @@ public class ArrayAccessNode extends ExpressionNode {
 
     public static Expr createZ3ArrayAccessExpression(ArrayAccessNode arrayAccess, MemoryModel memoryModel,
                                                      Context ctx, List<Z3VariableWrapper> vars) {
+
         // lấy tên mảng
         String arrayName = arrayAccess.getArrayName();
 
-        // lấy chỉ số
-        ExpressionNode indexNode = arrayAccess.getIndex();
-        int concreteIndex = 0;
 
-        // Lấy node từ memoryModel
+        // lấy phiên bản mảng mới nhất
+        Expr z3ArrayBase = z3ArrayStateMap.get().get(arrayName);
+
+        if (z3ArrayBase == null) {
+            z3ArrayBase = ctx.mkConst(arrayName, ctx.mkArraySort(ctx.mkBitVecSort(32), ctx.mkBitVecSort(32)));
+            z3ArrayStateMap.get().put(arrayName, z3ArrayBase); // Lưu ngược lại sổ
+        }
+
+        // lấy chỉ số và dịch sang z3
+        ExpressionNode indexNode = arrayAccess.getIndex();
+
+        // nếu node từ memory model thì lấy
         if (indexNode instanceof NameNode) {
             indexNode = NameNode.executeNameNode((NameNode) indexNode, memoryModel);
         }
 
-        // Chuyển thành số int
-        if (indexNode instanceof LiteralNode) {
-            concreteIndex = LiteralNode.changeLiteralNodeToInteger((LiteralNode) indexNode);
-        } else {
-            throw new RuntimeException("Không thể tính index của mảng hiện tại");
-        }
+        Expr z3IndexExpr = OperationExpressionNode.createZ3Expression(indexNode, ctx, vars, memoryModel);
 
-        // ghép tên mảng và index thành 1 biến riêng
-        String flatName = arrayName + "_" + concreteIndex;
-        System.out.println("Đã trải: " + arrayName + "[" + concreteIndex + "] thành biến Z3: " + flatName);
+        System.out.println("Đã dịch phép " + arrayName + ", " + z3IndexExpr);
 
-        // khai báo biến cho z3
-        Expr z3ArrayElement = ctx.mkBVConst(flatName, 32);
-
-        Z3VariableWrapper wrapper = new Z3VariableWrapper(z3ArrayElement);
-        if (getDuplicateVariableIndex(wrapper, vars) == -1) {
-            vars.add(wrapper);
-        }
-
-        return z3ArrayElement;
+        // Kết quả sẽ là 1 giá trị Int.
+        return ctx.mkSelect((com.microsoft.z3.ArrayExpr) z3ArrayBase, z3IndexExpr);
     }
 }
