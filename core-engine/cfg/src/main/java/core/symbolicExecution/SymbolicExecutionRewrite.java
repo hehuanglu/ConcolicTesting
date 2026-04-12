@@ -149,8 +149,27 @@ public class SymbolicExecutionRewrite {
                             className = methodInvocation.getExpression().toString();
                         }
 
+                        ASTNode parentNode = methodInvocation.getParent();
+                        String currentTestingMethodName = "";
+
+                        // đi lùi lên trên cho đến khi gặp Node khai báo hàm
+                        while (parentNode != null && !(parentNode instanceof MethodDeclaration)) {
+                            parentNode = parentNode.getParent();
+                        }
+
+                        // Khi đã tìm thấy khung hàm, lấy ra
+                        if (parentNode instanceof MethodDeclaration) {
+                            currentTestingMethodName = ((MethodDeclaration) parentNode).getName().getIdentifier();
+                        }
+
+                        // nếu hàm đang gọi trùng với hàm đang phân tích thì coi Nó là đệ quy và không mock
+                        if (methodName.equals(currentTestingMethodName)) {
+                            return super.visit(methodInvocation);
+                        }
+                        // =================================================================
+
                         // Ta đã xử lý các hàm thư viện ở phía trước rồi nên bỏ qua
-                        java.util.List<String> blackList = java.util.Arrays.asList("Math", "String",
+                        List<String> blackList = Arrays.asList("Math", "String",
                                 "System", "Integer", "Double", "Thread");
                         if (blackList.contains(className)) {
                             System.out.println("không mock class thư viện: " + className);
