@@ -189,9 +189,20 @@ public final class TestDriverGenerator {
                 Object value = testData[i];
                 if (value == null) {
                     valueAsString = "null";
-                } else if (value.getClass().isArray() && value instanceof int[]) {
-                    // Xử lý mảng số nguyên
-                    valueAsString = "new int[]" + java.util.Arrays.toString((int[]) value).replace('[', '{').replace(']', '}');
+                } else if (value.getClass().isArray()) {
+                    if (value instanceof int[]) {
+                        valueAsString = "new int[]" + java.util.Arrays.toString((int[]) value).replace('[', '{').replace(']', '}');
+                    } else if (value instanceof long[]) {
+                        valueAsString = "new long[]" + java.util.Arrays.toString((long[]) value).replace('[', '{').replace(']', '}');
+                    } else if (value instanceof double[]) {
+                        valueAsString = "new double[]" + java.util.Arrays.toString((double[]) value).replace('[', '{').replace(']', '}');
+                    } else if (value instanceof float[]) {
+                        valueAsString = "new float[]" + java.util.Arrays.toString((float[]) value).replace('[', '{').replace(']', '}');
+                    } else if (value instanceof boolean[]) {
+                        valueAsString = "new boolean[]" + java.util.Arrays.toString((boolean[]) value).replace('[', '{').replace(']', '}');
+                    } else {
+                        valueAsString = "null"; // Fallback an toàn
+                    }
                 } else {
                     // Xử lý các kiểu dữ liệu nguyên thủy và chuỗi
                     valueAsString = String.valueOf(value);

@@ -155,7 +155,6 @@ public final class CloneProject {
 
                         createCloneFile(destinationDirPath, fileName);
                         writeDataToFile(originalCode, destinationDirPath + "/" + fileName);
-                        System.out.println("   [CLONE] Đã đưa file liên quan: " + fileName);
                     } catch (Exception e) {
                         e.printStackTrace();
                     }

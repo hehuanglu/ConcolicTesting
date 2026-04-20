@@ -552,9 +552,27 @@ public class SymbolicExecutionRewrite {
                             int arrayLength = parameterArrayLengths.getOrDefault(paramName, 1);
                             StringBuilder arrStr = new StringBuilder();
 
+                            // lấy kiểu dữ liệu của mảng từ AST
+                            ArrayType arrayType = (ArrayType) decl.getType();
+                            String elementTypeName = arrayType.getElementType().toString();
+
                             try {
-                                // Dựng lại tham chiếu đến mảng gốc ban đầu
-                                Expr z3ArrayBase = ctx.mkConst(paramName, ctx.mkArraySort(ctx.mkBitVecSort(32), ctx.mkBitVecSort(32)));
+                                // Chọn kích thước sort theo kiểu dữ liệu
+                                Sort domainSort = ctx.mkBitVecSort(32);
+                                Sort rangeSort;
+
+                                if (elementTypeName.equals("long")) {
+                                    rangeSort = ctx.mkBitVecSort(64);
+                                } else if (elementTypeName.equals("double")) {
+                                    rangeSort = ctx.mkFPSortDouble();
+                                } else if (elementTypeName.equals("float")) {
+                                    rangeSort = ctx.mkFPSortSingle();
+                                } else {
+                                    rangeSort = ctx.mkBitVecSort(32);
+                                }
+
+                                // dựng lại tham chiếu đến mảng gốc ban đầu với đúng sort
+                                Expr z3ArrayBase = ctx.mkConst(paramName, ctx.mkArraySort(domainSort, rangeSort));
 
                                 for (int k = 0; k < arrayLength; k++) {
                                     // bắt z3 phải giải giá trị của ô k là bao nhiêu
@@ -563,10 +581,36 @@ public class SymbolicExecutionRewrite {
 
                                     // hỏi trực tiếp Model
                                     Expr evaluatedElement = model.evaluate(selectExpr, true);
-
                                     String valStr = "0";
+
+
                                     if (evaluatedElement instanceof BitVecNum) {
-                                        valStr = String.valueOf(((BitVecNum) evaluatedElement).getInt());
+                                        BitVecNum bvNum = (BitVecNum) evaluatedElement;
+                                        BigInteger val = bvNum.getBigInteger();
+                                        if (elementTypeName.equals("long")) {
+                                            valStr = String.valueOf(val.longValue());
+                                        } else {
+                                            valStr = String.valueOf(val.intValue());
+                                        }
+                                    } else if (evaluatedElement instanceof FPNum) {
+                                        FPNum fpNum = (FPNum) evaluatedElement;
+                                        if (fpNum.isNaN()) {
+                                            valStr = "Double.NaN";
+                                        } else if (fpNum.isInf()) {
+                                            valStr = fpNum.isNegative() ? "Double.NEGATIVE_INFINITY" : "Double.POSITIVE_INFINITY";
+                                        } else {
+                                            Expr bvExpr = ctx.mkFPToIEEEBV(fpNum).simplify();
+                                            if (bvExpr instanceof BitVecNum) {
+                                                BigInteger bits = ((BitVecNum) bvExpr).getBigInteger();
+                                                if (elementTypeName.equals("float")) {
+                                                    valStr = String.valueOf(Float.intBitsToFloat(bits.intValue()));
+                                                } else {
+                                                    valStr = String.valueOf(Double.longBitsToDouble(bits.longValue()));
+                                                }
+                                            } else {
+                                                valStr = fpNum.toString();
+                                            }
+                                        }
                                     }
 
                                     arrStr.append(valStr);
@@ -579,7 +623,7 @@ public class SymbolicExecutionRewrite {
                             result.append(arrStr.toString());
 
                         } else {
-                            // Biến bình thường thì lấy từ map ta đã quét ở trên
+                            // biến bình thường thì lấy từ map ta đã quét ở trên
                             result.append(evaluatedValues.getOrDefault(paramName, "0"));
                         }
                     }

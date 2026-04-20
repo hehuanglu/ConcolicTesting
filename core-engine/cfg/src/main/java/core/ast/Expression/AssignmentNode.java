@@ -1,8 +1,10 @@
 package core.ast.Expression;
 
 
+import com.microsoft.z3.ArrayExpr;
 import com.microsoft.z3.Context;
 import com.microsoft.z3.Expr;
+import com.microsoft.z3.Sort;
 import core.Z3Vars.Z3VariableWrapper;
 import core.ast.AstNode;
 import core.ast.Expression.Array.ArrayAccessNode;
@@ -30,10 +32,8 @@ public class AssignmentNode extends ExpressionNode {
         assignmentNode.rightHandSide = (ExpressionNode) ExpressionNode.executeExpression(assignment.getRightHandSide(), memoryModel);
         assignmentNode.leftHandSide = (ExpressionNode) ExpressionNode.executeExpression(assignment.getLeftHandSide(), memoryModel);
 
-
         ExpressionNode assignValue = analyzeAssignValue(assignmentNode.leftHandSide, assignmentNode.rightHandSide, assignmentNode.operator);
         Expression leftHandSide = assignment.getLeftHandSide();
-
 
         if (leftHandSide instanceof Name) {
             String key = NameNode.getStringName((Name) leftHandSide);
@@ -41,13 +41,12 @@ public class AssignmentNode extends ExpressionNode {
         } else if (leftHandSide instanceof ArrayAccess) {
             ArrayAccess arrayAccess = (ArrayAccess) leftHandSide;
 
-            // Index có thể ra LitNode như 0 hoặc NameNode như i
-            ExpressionNode arrayIndex = (ExpressionNode) AstNode.executeASTNode(arrayAccess.getIndex(), memoryModel);
+            // 1. Index "luộc chín" (Dành riêng cho việc lưu RAM)
+            ExpressionNode cookedArrayIndex = (ExpressionNode) AstNode.executeASTNode(arrayAccess.getIndex(), memoryModel);
 
             // Chỉ gán vào RAM nếu Index là số cụ thể.
-            // Nếu là biến Symbolic, ta cho Z3 mkStore xử lý!
-            if (arrayIndex instanceof LiteralNode) {
-                int index = LiteralNode.changeLiteralNodeToInteger((LiteralNode) arrayIndex);
+            if (cookedArrayIndex instanceof LiteralNode) {
+                int index = LiteralNode.changeLiteralNodeToInteger((LiteralNode) cookedArrayIndex);
                 Expression arrayExpression = arrayAccess.getArray();
                 ArrayNode arrayNode;
                 if (arrayExpression instanceof ArrayAccess) {
@@ -60,10 +59,10 @@ public class AssignmentNode extends ExpressionNode {
                 }
                 arrayNode.assignElements(index, assignValue);
             } else {
-                System.out.println("Bỏ qua gán ran do Index là symbolic");
+                System.out.println("Bỏ qua gán RAM do Index là symbolic");
             }
 
-            // Gọi mkStore lưu lịch sử mảng
+            // 2. GỌI mkStore LƯU LỊCH SỬ CHO Z3
             try {
                 String arrayName = arrayAccess.getArray().toString();
 
@@ -75,15 +74,26 @@ public class AssignmentNode extends ExpressionNode {
                     // Lấy mảng cũ
                     Expr z3OldArray = stateMap.get(arrayName);
                     if (z3OldArray == null) {
-                        z3OldArray = ctx.mkConst(arrayName, ctx.mkArraySort(ctx.mkBitVecSort(32), ctx.mkBitVecSort(32)));
+                        // Tự động suy luận Sort từ variableTypeMap
+                        Sort rangeSort = ctx.mkBitVecSort(32);
+                        Map<String, org.eclipse.jdt.core.dom.PrimitiveType.Code> typeMap = core.symbolicExecution.SymbolicExecutionRewrite.variableTypeMap;
+
+                        if (typeMap != null && typeMap.get(arrayName) != null) {
+                            String typeStr = typeMap.get(arrayName).toString();
+                            if (typeStr.equals("long")) rangeSort = ctx.mkBitVecSort(64);
+                            else if (typeStr.equals("double")) rangeSort = ctx.mkFPSortDouble();
+                            else if (typeStr.equals("float")) rangeSort = ctx.mkFPSortSingle();
+                        }
+                        z3OldArray = ctx.mkConst(arrayName, ctx.mkArraySort(ctx.mkBitVecSort(32), rangeSort));
                     }
 
-                    // Dịch Index và Value
-                    Expr z3Index = OperationExpressionNode.createZ3Expression(arrayIndex, ctx, vars, memoryModel);
+                    Expr z3Index = OperationExpressionNode.createZ3Expression(cookedArrayIndex, ctx, vars, memoryModel);
+
+                    // Dịch Value
                     Expr z3Value = OperationExpressionNode.createZ3Expression(assignValue, ctx, vars, memoryModel);
 
                     // Đẻ mảng mới và cập nhật vô sổ tay
-                    Expr z3NewArray = ctx.mkStore((com.microsoft.z3.ArrayExpr) z3OldArray, z3Index, z3Value);
+                    Expr z3NewArray = ctx.mkStore((ArrayExpr) z3OldArray, z3Index, z3Value);
                     stateMap.put(arrayName, z3NewArray);
                 }
             } catch (Exception e) {

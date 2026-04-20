@@ -1,11 +1,10 @@
 package core.ast.Expression;
 
-import com.microsoft.z3.BitVecExpr;
-import com.microsoft.z3.BoolExpr;
-import com.microsoft.z3.Context;
-import com.microsoft.z3.Expr;
+import com.microsoft.z3.*;
 import core.Z3Vars.Z3VariableWrapper;
 import core.ast.AstNode;
+import core.ast.Expression.Literal.LiteralNode;
+import core.ast.Expression.Literal.NumberLiteral.NumberLiteralNode;
 import core.ast.Expression.Name.SimpleNameNode;
 import core.ast.Expression.OperationExpression.OperationExpressionNode;
 import core.ast.VariableDeclaration.SingleVariableDeclarationNode;
@@ -13,6 +12,7 @@ import core.symbolicExecution.MemoryModel;
 import core.testDriver.TestDriverUtils;
 import core.testGeneration.TestGeneration;
 import org.eclipse.jdt.core.dom.*;
+import org.eclipse.jdt.core.dom.AST;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -206,6 +206,51 @@ public class MethodInvocationNode extends ExpressionNode {
                     System.out.println("Đã dịch Math.min sang Z3");
 
                     return ctx.mkITE(a_lt_b, a, b);
+                }
+            } else if ("pow".equals(methodName)) {
+                ExpressionNode baseNode = (ExpressionNode) args.get(0);
+                ExpressionNode powNode = (ExpressionNode) args.get(1);
+
+                Expr z3Base = OperationExpressionNode.createZ3Expression(powNode, ctx, vars, memoryModel);
+
+                boolean isSquare = false;
+
+                if (powNode instanceof LiteralNode) {
+                    LiteralNode literalExp = (LiteralNode) powNode;
+
+                    // check xem nó có là số không
+                    if (literalExp.isNumberLiteralNode()) {
+                        // ép kiểu
+                        NumberLiteralNode numNode =
+                                (NumberLiteralNode) literalExp;
+
+                        String val = numNode.getTokenValue();
+
+                        // bắt cả số nguyên và số thực
+                        if (val.equals("2") || val.equals("2.0")) {
+                            isSquare = true;
+                        }
+                    }
+                }
+
+                if (isSquare) {
+                    if (z3Base instanceof BitVecExpr) {
+                        return ctx.mkBVMul((BitVecExpr) z3Base, (BitVecExpr) z3Base);
+                    } else if (z3Base instanceof FPExpr) {
+                        return ctx.mkFPMul(ctx.mkFPRoundNearestTiesToEven(), (FPExpr) z3Base, (FPExpr) z3Base);
+                    }
+                } else {
+                    return null;
+                }
+            } else if ("sqrt".equals(methodName)) {
+                ExpressionNode argNode = (ExpressionNode) args.get(0);
+                Expr z3Arg = OperationExpressionNode.createZ3Expression(argNode, ctx, vars, memoryModel);
+
+                if (z3Arg instanceof FPExpr) {
+                    return ctx.mkFPSqrt(ctx.mkFPRoundNearestTiesToEven(), (FPExpr) z3Arg);
+                } else if (z3Arg instanceof BitVecExpr) {
+                    ;
+                    return null;
                 }
             }
         }
