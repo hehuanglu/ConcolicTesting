@@ -49,7 +49,7 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
     private ConcolicTestingWithStub4Libs() {
     }
 
-    public static TestResult runFullConcolic(int id, String path, String methodName, String className, TestGeneration.Coverage coverage) throws IOException, NoSuchMethodException, InvocationTargetException, IllegalAccessException, ClassNotFoundException, NoSuchFieldException, InterruptedException {
+    public static TestResult runFullConcolic(int id, String path, String methodName, String className, TestGeneration.Coverage coverage) throws Exception {
         setup(path, className, methodName, coverage);
         setupCfgTree(coverage);
         setupParameters(methodName);
@@ -73,7 +73,7 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
         return result;
     }
 
-    private static TestResult startGenerating(int id, TestGeneration.Coverage coverage) throws InvocationTargetException, IllegalAccessException, ClassNotFoundException, NoSuchFieldException, IOException, InterruptedException, NoSuchMethodException {
+    private static TestResult startGenerating(int id, TestGeneration.Coverage coverage) throws Exception {
         DecimalFormat df = new DecimalFormat("#.##");
         List<Double> memorySamples = Collections.synchronizedList(new ArrayList<>());
         AtomicBoolean isRunning = new AtomicBoolean(true);
@@ -498,8 +498,21 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
         return classes.get(0).getName().toString();
     }
 
-    private static double calculateFullTestSuiteCoverage(Coverage coverage) throws ClassNotFoundException, NoSuchFieldException, IllegalAccessException {
-        Field field = Class.forName(fullyClonedClassName).getField(getTotalFunctionCoverageVariableName((MethodDeclaration) TestGeneration.testFunc, coverage));
+    private static Class<?> loadLatestClass(String className) throws Exception {
+        // Đường dẫn đến thư mục root chứa các package (src/main/java)
+        String rootPath = System.getProperty("user.dir") + File.separator + "core-engine" + File.separator + "cfg" + File.separator + "src" + File.separator + "main" + File.separator + "java";
+        File file = new File(rootPath);
+        java.net.URL[] urls = new java.net.URL[]{file.toURI().toURL()};
+
+        // Sử dụng URLClassLoader để nạp class mới nhất từ đĩa
+        try (java.net.URLClassLoader cl = new java.net.URLClassLoader(urls, null)) {
+            return cl.loadClass(className);
+        }
+    }
+
+    private static double calculateFullTestSuiteCoverage(Coverage coverage) throws Exception {
+        Class<?> latestClass = loadLatestClass(fullyClonedClassName);
+        Field field = latestClass.getField(getTotalFunctionCoverageVariableName((MethodDeclaration) TestGeneration.testFunc, coverage));
         field.setAccessible(true);
         int totalFunctionStatement = (int) field.get(null);
         int totalCovered = 0;
@@ -511,9 +524,12 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
         return (totalCovered * 100.0) / totalFunctionStatement;
     }
 
-    private static double calculateRequiredCoverage(TestGeneration.Coverage coverage) throws ClassNotFoundException, NoSuchFieldException, IllegalAccessException {
-        Field field = Class.forName(fullyClonedClassName).getField(getTotalFunctionCoverageVariableName((MethodDeclaration) TestGeneration.testFunc, coverage));
+    private static double calculateRequiredCoverage(TestGeneration.Coverage coverage) throws Exception {
+        System.out.println("đã chạy qua đây !");
+        Class<?> latestClass = loadLatestClass(fullyClonedClassName);
+        Field field = latestClass.getField(getTotalFunctionCoverageVariableName((MethodDeclaration) TestGeneration.testFunc, coverage));
         field.setAccessible(true);
+
         int totalFunctionCoverage = (int) field.get(null);
         int totalCovered = 0;
         if (coverage == TestGeneration.Coverage.STATEMENT) {
@@ -525,16 +541,18 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
         return (totalCovered * 100.0) / totalFunctionCoverage;
     }
 
-    private static double calculateFunctionCoverage() throws ClassNotFoundException, NoSuchFieldException, IllegalAccessException {
-        Field field = Class.forName(fullyClonedClassName).getField(getTotalFunctionCoverageVariableName((MethodDeclaration) TestGeneration.testFunc, TestGeneration.Coverage.STATEMENT));
+    private static double calculateFunctionCoverage() throws Exception {
+        Class<?> latestClass = loadLatestClass(fullyClonedClassName);
+        Field field = latestClass.getField(getTotalFunctionCoverageVariableName((MethodDeclaration) TestGeneration.testFunc, TestGeneration.Coverage.STATEMENT));
         field.setAccessible(true);
         int totalFunctionStatement = (int) field.get(null);
         int totalCoveredStatement = MarkedPath.getTotalCoveredStatement();
         return (totalCoveredStatement * 100.0) / (totalFunctionStatement * 1.0);
     }
 
-    private static double calculateSourceCodeCoverage() throws ClassNotFoundException, NoSuchFieldException, IllegalAccessException {
-        Field field = Class.forName(fullyClonedClassName).getField(getTotalClassCoverageVariableName());
+    private static double calculateSourceCodeCoverage() throws Exception {
+        Class<?> latestClass = loadLatestClass(fullyClonedClassName);
+        Field field = latestClass.getField(getTotalClassCoverageVariableName());
         field.setAccessible(true);
         int totalClassStatement = (int) field.get(null);
         int totalCoveredStatement = MarkedPath.getTotalCoveredStatement();
@@ -604,8 +622,7 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
     }
 
     private static boolean solveAndRunTest(Path path, TestResult testResult, TestGeneration.Coverage coverage)
-            throws IOException, InterruptedException, InvocationTargetException,
-            IllegalAccessException, NoSuchMethodException, ClassNotFoundException, NoSuchFieldException {
+            throws Exception {
 
         SymbolicExecutionRewrite solution = new SymbolicExecutionRewrite(path, TestGeneration.parameters);
 

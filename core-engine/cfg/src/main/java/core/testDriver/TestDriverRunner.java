@@ -50,6 +50,7 @@ public final class TestDriverRunner {
                     System.out.println("[COMPILE LOG] " + line);
                 }
             }
+
             pCompile.waitFor();
 
             // Lệnh Chạy (java)
