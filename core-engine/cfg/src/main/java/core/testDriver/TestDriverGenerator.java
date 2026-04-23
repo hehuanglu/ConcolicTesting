@@ -193,11 +193,27 @@ public final class TestDriverGenerator {
                     if (value instanceof int[]) {
                         valueAsString = "new int[]" + java.util.Arrays.toString((int[]) value).replace('[', '{').replace(']', '}');
                     } else if (value instanceof long[]) {
-                        valueAsString = "new long[]" + java.util.Arrays.toString((long[]) value).replace('[', '{').replace(']', '}');
+                        // tự duyệt mảng và thêm chữ 'L' cho từng phần tử
+                        long[] arr = (long[]) value;
+                        StringBuilder arrBuilder = new StringBuilder("new long[]{");
+                        for (int k = 0; k < arr.length; k++) {
+                            arrBuilder.append(arr[k]).append("L");
+                            if (k < arr.length - 1) arrBuilder.append(", ");
+                        }
+                        arrBuilder.append("}");
+                        valueAsString = arrBuilder.toString();
                     } else if (value instanceof double[]) {
                         valueAsString = "new double[]" + java.util.Arrays.toString((double[]) value).replace('[', '{').replace(']', '}');
                     } else if (value instanceof float[]) {
-                        valueAsString = "new float[]" + java.util.Arrays.toString((float[]) value).replace('[', '{').replace(']', '}');
+                        // tự duyệt mảng và thêm chữ 'f' cho từng phần tử
+                        float[] arr = (float[]) value;
+                        StringBuilder arrBuilder = new StringBuilder("new float[]{");
+                        for (int k = 0; k < arr.length; k++) {
+                            arrBuilder.append(arr[k]).append("f");
+                            if (k < arr.length - 1) arrBuilder.append(", ");
+                        }
+                        arrBuilder.append("}");
+                        valueAsString = arrBuilder.toString();
                     } else if (value instanceof boolean[]) {
                         valueAsString = "new boolean[]" + java.util.Arrays.toString((boolean[]) value).replace('[', '{').replace(']', '}');
                     } else {

@@ -48,8 +48,26 @@ public abstract class OperationExpressionNode extends ExpressionNode {
             NameNode n = (NameNode) operand;
             String name = NameNode.getStringNameNode(n);
 
+            if (name == null) {
+                name = n.toString();
+            }
+
             if (operand.isFake()) {
                 return ctx.mkIntConst(name);   // bypass memory + không gọi toString()
+            }
+
+            if (name != null && name.endsWith(".length")) {
+                System.out.println("đưa " + name + " cho Z3 giải quyết!");
+
+                // Tạo hẳn 1 ẩn số 32-bit cho Z3
+                Expr lengthVar = ctx.mkBVConst(name, 32);
+
+                Z3VariableWrapper wrapper = new Z3VariableWrapper(lengthVar);
+                if (getDuplicateVariableIndex(wrapper, vars) == -1) {
+                    vars.add(wrapper);
+                }
+
+                return lengthVar;
             }
             return createZ3Variable(n, ctx, vars, memoryModel);
         } else if (operand instanceof LiteralNode) {

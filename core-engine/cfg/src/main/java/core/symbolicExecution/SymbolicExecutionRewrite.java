@@ -42,7 +42,7 @@ public class SymbolicExecutionRewrite {
     public String globalZ3Result = "";
     // Map để đếm số lần một hàm được gọi --> tạo biến gỉa không bị trùng lặp
     private Map<String, Integer> mockMethodCounter = new HashMap<>();
-    private final Map<String, Integer> parameterArrayLengths = new HashMap<>();
+    public static final Map<String, Integer> parameterArrayLengths = new HashMap<>();
     // Map này lưu các biểu thức index symbolic theo từng tên mảng.
     // Điểm quan trọng
     // - không solve riêng index bằng một solver/context phụ
@@ -410,27 +410,38 @@ public class SymbolicExecutionRewrite {
                     }
                 }
             } else if (variable instanceof ArrayTypeVariable) {
-                // khia báo mảng mới
-
-                // Định nghĩa tập xác định
+                // Khai báo mảng mới
+                // Chỉ số mảng luôn là int 32-bit
                 Sort domain = ctx.mkBitVecSort(32);
 
-                //Định nghĩa tập giá trị. Ta sẽ mặc định nó là Int và sẽ mở rộng sau
+                // lấy đúng kích thước sort
                 Sort range = ctx.mkBitVecSort(32);
+                if (declaration.getType().isArrayType()) {
+                    ArrayType arrType = (ArrayType) declaration.getType();
+                    String elementTypeName = arrType.getElementType().toString();
 
-                // Tạp kiểu mảng z3
+                    if (elementTypeName.equals("long")) {
+                        range = ctx.mkBitVecSort(64);
+                    } else if (elementTypeName.equals("double")) {
+                        range = ctx.mkFPSortDouble();
+                    } else if (elementTypeName.equals("float")) {
+                        range = ctx.mkFPSortSingle();
+                    }
+                }
+
+                // Tạo kiểu mảng z3
                 ArraySort z3ArraySort = ctx.mkArraySort(domain, range);
 
-                // khai báo mảng gốc với z3
+                // Khai báo mảng gốc với z3
                 Expr z3ArrayBase = ctx.mkConst(name, z3ArraySort);
 
-                // bọc xong đưa vào danh sách Z3Vars để đi luồng chính
+                // Bọc xong đưa vào danh sách Z3Vars để đi luồng chính
                 Z3VariableWrapper z3VariableWrapper = new Z3VariableWrapper(z3ArrayBase);
                 if (!haveDuplicateVariable(z3VariableWrapper, z3Vars)) {
                     z3Vars.add(z3VariableWrapper);
                 }
 
-                this.z3ArrayStateMap.get().put(name, z3ArrayBase);
+                SymbolicExecutionRewrite.z3ArrayStateMap.get().put(name, z3ArrayBase);
             } else {
                 throw new RuntimeException("Invalid type variable");
             }
@@ -499,7 +510,7 @@ public class SymbolicExecutionRewrite {
                                 stringValue = String.valueOf(val.intValue() & 0xFFFF);
                                 break;
                             case "long":
-                                stringValue = String.valueOf(val.longValue());
+                                stringValue = String.valueOf(val.longValue()) + "L";
                                 break;
                             default:
                                 stringValue = String.valueOf(val.intValue());
@@ -550,6 +561,23 @@ public class SymbolicExecutionRewrite {
 
                         if (decl.getType().isArrayType()) {
                             int arrayLength = parameterArrayLengths.getOrDefault(paramName, 1);
+
+                            try {
+                                Expr lengthVar = ctx.mkBVConst(paramName + ".length", 32);
+                                Expr evaluatedLength = model.evaluate(lengthVar, true);
+
+                                if (evaluatedLength instanceof BitVecNum) {
+                                    int z3SolvedLength = ((BitVecNum) evaluatedLength).getInt();
+                                    // kiểm tra xem z3 có giải ra độ dài hợp lý hay ko
+                                    if (z3SolvedLength > 0 && z3SolvedLength <= 1000) {
+                                        arrayLength = z3SolvedLength;
+                                        System.out.println("  z3 giải ra độ dài của mảng là " + paramName + " là: " + arrayLength);
+                                    }
+                                }
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                            }
+
                             StringBuilder arrStr = new StringBuilder();
 
                             // lấy kiểu dữ liệu của mảng từ AST
@@ -588,7 +616,7 @@ public class SymbolicExecutionRewrite {
                                         BitVecNum bvNum = (BitVecNum) evaluatedElement;
                                         BigInteger val = bvNum.getBigInteger();
                                         if (elementTypeName.equals("long")) {
-                                            valStr = String.valueOf(val.longValue());
+                                            valStr = String.valueOf(val.longValue()) + "L";
                                         } else {
                                             valStr = String.valueOf(val.intValue());
                                         }
@@ -686,14 +714,30 @@ public class SymbolicExecutionRewrite {
     }
 
     private Object parsePrimitiveString(String valStr, String type) {
+        valStr = valStr.trim();
+
         if ("int".equals(type)) return Integer.parseInt(valStr);
         if ("boolean".equals(type)) return Boolean.parseBoolean(valStr);
         if ("byte".equals(type)) return Byte.parseByte(valStr);
         if ("short".equals(type)) return Short.parseShort(valStr);
         if ("char".equals(type)) return (char) Integer.parseInt(valStr);
-        if ("long".equals(type)) return Long.parseLong(valStr);
-        if ("float".equals(type)) return Float.parseFloat(valStr);
+
+        if ("long".equals(type)) {
+            if (valStr.toUpperCase().endsWith("L")) {
+                valStr = valStr.substring(0, valStr.length() - 1);
+            }
+            return Long.parseLong(valStr);
+        }
+
+        if ("float".equals(type)) {
+            if (valStr.toUpperCase().endsWith("F")) {
+                valStr = valStr.substring(0, valStr.length() - 1);
+            }
+            return Float.parseFloat(valStr);
+        }
+
         if ("double".equals(type)) return Double.parseDouble(valStr);
+
         throw new RuntimeException("Chưa hỗ trợ ép kiểu Z3 cho: " + type);
     }
 
