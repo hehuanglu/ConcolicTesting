@@ -9,6 +9,7 @@ import core.ast.Expression.ExpressionNode;
 import core.ast.Expression.Literal.BooleanLiteralNode;
 import core.ast.Expression.Literal.CharacterLiteralNode;
 import core.ast.Expression.Literal.LiteralNode;
+import core.ast.Expression.Literal.StringLiteralNode;
 import core.ast.Expression.Literal.NumberLiteral.IntegerLiteralNode;
 import core.ast.Expression.Literal.NumberLiteral.NumberLiteralNode;
 import core.ast.Expression.MethodInvocationNode;
@@ -17,6 +18,7 @@ import core.symbolicExecution.MemoryModel;
 import core.variable.Variable;
 import org.eclipse.jdt.core.dom.*;
 
+import javax.print.DocFlavor;
 import java.util.List;
 
 public abstract class OperationExpressionNode extends ExpressionNode {
@@ -91,7 +93,10 @@ public abstract class OperationExpressionNode extends ExpressionNode {
                 return ctx.mkBool(((BooleanLiteralNode) operand).getValue());
             } else if (operand instanceof CharacterLiteralNode) {
                 return ctx.mkBV(((CharacterLiteralNode) operand).getCharacterValue(), 16);
-            } else {
+            } else if (operand instanceof StringLiteralNode){
+                return ctx.mkString(((StringLiteralNode) operand).getStringValue());
+            }
+            else {
                 throw new RuntimeException("Invalid Literal");
             }
         } else if (operand instanceof ArrayAccessNode) {
@@ -107,6 +112,7 @@ public abstract class OperationExpressionNode extends ExpressionNode {
 
     private static Expr createZ3Variable(NameNode variableName, Context ctx, List<Z3VariableWrapper> vars, MemoryModel memoryModel) {
         String stringName = NameNode.getStringNameNode(variableName);
+
         Expr variable = Variable.createZ3Variable(memoryModel.getVariable(stringName), ctx);
         Z3VariableWrapper z3VariableWrapper = new Z3VariableWrapper(variable);
         //Check duplicate and add to vars

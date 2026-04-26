@@ -118,7 +118,88 @@ public class InfixExpressionNode extends OperationExpressionNode {
                 throw new RuntimeException("Invalid operator for floating-point operands: " + operator);
             }
         }
+        else if (Z3LeftOperand instanceof SeqExpr || Z3RightOperand instanceof SeqExpr) {
 
+            // 1. Kiểm tra và chặn các trường hợp chưa ép kiểu (String Promotion)
+            if (!(Z3LeftOperand instanceof SeqExpr) || !(Z3RightOperand instanceof SeqExpr)) {
+                throw new RuntimeException("Cần thực hiện ép kiểu (Coerce to String) trước khi xử lý chuỗi trong Z3. " +
+                        "Left: " + Z3LeftOperand.getClass().getSimpleName() +
+                        ", Right: " + Z3RightOperand.getClass().getSimpleName());
+            }
+
+            // Ép kiểu an toàn do đã qua bước kiểm tra phía trên
+            SeqExpr leftSeq = (SeqExpr) Z3LeftOperand;
+            SeqExpr rightSeq = (SeqExpr) Z3RightOperand;
+
+            // 2. Map các toán tử Java sang API của Z3
+            if (operator.equals(InfixExpression.Operator.PLUS)) {
+                // Phép nối chuỗi (ĐÃ SỬA: Bổ sung từ khóa return)
+                return ctx.mkConcat(leftSeq, rightSeq);
+
+            } else if (operator.equals(InfixExpression.Operator.EQUALS)) {
+                // Phép so sánh bằng
+                return ctx.mkEq(leftSeq, rightSeq);
+
+            } else if (operator.equals(InfixExpression.Operator.NOT_EQUALS)) {
+                // Phép so sánh khác
+                return ctx.mkDistinct(leftSeq, rightSeq);
+
+            } else {
+                // Chặn các toán tử không hợp lệ với String (như -, *, /, %, <<, >>, v.v.)
+                throw new RuntimeException("Toán tử không hợp lệ đối với chuỗi (String): " + operator);
+            }
+        }
+        else if (Z3LeftOperand instanceof IntExpr || Z3RightOperand instanceof IntExpr) {
+
+            IntExpr left;
+            IntExpr right;
+
+            // 1. Xử lý vế trái (Left Operand)
+            if (Z3LeftOperand instanceof IntExpr) {
+                left = (IntExpr) Z3LeftOperand;
+            } else if (Z3LeftOperand instanceof BitVecExpr) {
+                // Dùng BitVecExpr thay vì BitVecNum để hỗ trợ cả biến Symbolic (biến chưa biết giá trị)
+                left = ctx.mkBV2Int((BitVecExpr) Z3LeftOperand, true); // Dùng true (có dấu) nếu là kiểu int của Java
+            } else {
+                throw new RuntimeException("Kiểu dữ liệu vế trái không hợp lệ để so sánh số nguyên: " + Z3LeftOperand.getClass());
+            }
+
+            // 2. Xử lý vế phải (Right Operand)
+            if (Z3RightOperand instanceof IntExpr) {
+                right = (IntExpr) Z3RightOperand;
+            } else if (Z3RightOperand instanceof BitVecExpr) {
+                right = ctx.mkBV2Int((BitVecExpr) Z3RightOperand, true);
+            } else {
+                throw new RuntimeException("Kiểu dữ liệu vế phải không hợp lệ để so sánh số nguyên: " + Z3RightOperand.getClass());
+            }
+
+            // 3. Thực hiện tính toán hoặc so sánh (Lúc này left và right đều chắc chắn 100% là IntExpr)
+            if (operator.equals(InfixExpression.Operator.PLUS)) {
+                return ctx.mkAdd(left, right);
+            } else if (operator.equals(InfixExpression.Operator.MINUS)) {
+                return ctx.mkSub(left, right);
+            } else if (operator.equals(InfixExpression.Operator.TIMES)) {
+                return ctx.mkMul(left, right);
+            } else if (operator.equals(InfixExpression.Operator.DIVIDE)) {
+                return ctx.mkDiv(left, right);
+            } else if (operator.equals(InfixExpression.Operator.REMAINDER)) {
+                return ctx.mkMod(left, right);
+            } else if (operator.equals(InfixExpression.Operator.LESS)) {
+                return ctx.mkLt(left, right);
+            } else if (operator.equals(InfixExpression.Operator.GREATER)) {
+                return ctx.mkGt(left, right);
+            } else if (operator.equals(InfixExpression.Operator.LESS_EQUALS)) {
+                return ctx.mkLe(left, right);
+            } else if (operator.equals(InfixExpression.Operator.GREATER_EQUALS)) {
+                return ctx.mkGe(left, right);
+            } else if (operator.equals(InfixExpression.Operator.EQUALS)) {
+                return ctx.mkEq(left, right);
+            } else if (operator.equals((InfixExpression.Operator.NOT_EQUALS))) {
+                return ctx.mkNot(ctx.mkEq(left, right));
+            } else {
+                throw new RuntimeException("Chưa hỗ trợ toán tử " + operator + " cho kiểu IntExpr");
+            }
+        }
         //Xử lý phép toán BitVec
         boolean isShift = operator.equals(InfixExpression.Operator.LEFT_SHIFT)
                 || operator.equals(InfixExpression.Operator.RIGHT_SHIFT_SIGNED)

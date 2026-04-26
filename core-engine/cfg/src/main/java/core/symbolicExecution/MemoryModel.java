@@ -4,9 +4,11 @@ import core.ast.AstNode;
 import core.ast.Expression.Name.NameNode;
 import core.variable.ArrayTypeVariable;
 import core.variable.PrimitiveTypeVariable;
+import core.variable.SimpleTypeVariable;
 import core.variable.Variable;
 import org.eclipse.jdt.core.dom.ArrayType;
 import org.eclipse.jdt.core.dom.PrimitiveType;
+import org.eclipse.jdt.core.dom.SimpleType;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -33,7 +35,9 @@ public class MemoryModel { // ONLY FOR PRIMITIVE TYPES!!!!
     public void declareArrayTypeVariable(ArrayType type, String name, int numberOfDimensions, AstNode element) {
         S.put(new ArrayTypeVariable(type, name, numberOfDimensions), element);
     }
-
+    public void declareStringTypeVarialbe(SimpleType type, String name,AstNode element){
+        S.put(new SimpleTypeVariable(type,name),element);
+    }
     public AstNode getValue(String name) {
         for (Map.Entry<Variable, AstNode> set : S.entrySet()) {
             if (set.getKey().getName().equals(name)) {

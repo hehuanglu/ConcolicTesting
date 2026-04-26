@@ -14,6 +14,8 @@ import java.util.List;
 
 public class ArrayCreationWithNewKeyWord implements ArrayCreationStrategy {
 
+
+
     @Override
     public ArrayNode execute(ArrayCreation arrayCreation, MemoryModel memoryModel) {
         List<ASTNode> dimensions = arrayCreation.dimensions();

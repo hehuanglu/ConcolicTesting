@@ -15,12 +15,14 @@ import core.ast.Expression.Name.NameNode;
 import core.ast.Expression.OperationExpression.OperationExpressionNode;
 import core.ast.Expression.OperationExpression.PrefixExpressionNode;
 import core.ast.Type.AnnotatableType.PrimitiveTypeNode;
+import core.ast.Type.AnnotatableType.SimpleTypeNode;
 import core.ast.additionalNodes.Node;
 import core.cfg.CfgBoolExprNode;
 import core.cfg.CfgNode;
 import core.path.Path;
 import core.variable.ArrayTypeVariable;
 import core.variable.PrimitiveTypeVariable;
+import core.variable.SimpleTypeVariable;
 import core.variable.Variable;
 import org.eclipse.jdt.core.dom.*;
 import org.eclipse.jdt.core.dom.AST;
@@ -96,6 +98,7 @@ public class SymbolicExecutionRewrite {
 
         BoolExpr finalZ3Expression = null;
 
+
         if (this.parameters != null) {
             for (ASTNode param : this.parameters) {
                 if (param instanceof SingleVariableDeclaration) {
@@ -162,11 +165,19 @@ public class SymbolicExecutionRewrite {
                             currentTestingMethodName = ((MethodDeclaration) parentNode).getName().getIdentifier();
                         }
 
-                        // nếu hàm đang gọi trùng với hàm đang phân tích thì coi Nó là đệ quy và không mock
-                        if (methodName.equals(currentTestingMethodName)) {
-                            return super.visit(methodInvocation);
+                        // Nếu expression là một biến đã tồn tại trong bộ nhớ (ví dụ: String input) 
+                        // thì đây là gọi hàm từ object, không phải gọi hàm static từ Class -> KHÔNG MOCK
+                        if (methodInvocation.getExpression() != null) {
+                            String expressionStr = methodInvocation.getExpression().toString();
+                            try {
+                                if (symbolicMap.getVariable(expressionStr) != null) {
+                                    System.out.println("Bỏ qua mock vì " + expressionStr + " là một biến đối tượng.");
+                                    return super.visit(methodInvocation);
+                                }
+                            } catch (Exception ignored) {
+                                // Nếu không tìm thấy trong symbolicMap thì có thể là tên Class thật
+                            }
                         }
-                        // =================================================================
 
                         // Ta đã xử lý các hàm thư viện ở phía trước rồi nên bỏ qua
                         List<String> blackList = Arrays.asList("Math", "String",
@@ -251,7 +262,7 @@ public class SymbolicExecutionRewrite {
                         return super.visit(methodInvocation);
                     }
                 });
-
+                // thay các biểu thức trong astNode hiện tại với các giá trị trong symbolicMap
                 AstNode executedAstNode = Rewrite.reStm(astNode, symbolicMap);
 
                 if (currentNode.getData() instanceof CfgBoolExprNode) { // Condition
@@ -281,6 +292,7 @@ public class SymbolicExecutionRewrite {
                         continue;
                     }
 
+                    // xây dựng expr mà z3 có thể hiểu bằng astNode đã thực thi bên trên
                     Expr expr = OperationExpressionNode.createZ3Expression(
                             (ExpressionNode) executedAstNode, ctx, Z3Vars, symbolicMap);
 
@@ -310,6 +322,14 @@ public class SymbolicExecutionRewrite {
                                 symbolicMap.declarePrimitiveTypeVariable(type, name,
                                         ExpressionNode.executeExpression(initializer, symbolicMap));
 
+                            } else if (stm.getType() instanceof SimpleType) {
+                                SimpleType type = (SimpleType) stm.getType();
+                                if (type.getName().getFullyQualifiedName().equals("String")) {
+                                    symbolicMap.declareStringTypeVarialbe(type, name,
+                                            ExpressionNode.executeExpression(initializer, symbolicMap));
+                                } else {
+                                    throw new RuntimeException("Only deal with PrimitiveType and String!!");
+                                }
                             } else if (stm.getType() instanceof ArrayType) {
                                 ArrayType type = (ArrayType) stm.getType();
                                 ArrayCreation arrayCreation = (ArrayCreation) initializer;
@@ -348,8 +368,15 @@ public class SymbolicExecutionRewrite {
                                 symbolicMap.declarePrimitiveTypeVariable(type, name,
                                         PrimitiveTypeNode.changePrimitiveTypeToLiteralInitialization(type));
 
+                            } else if (stm.getType() instanceof SimpleType) {
+                                SimpleType type = (SimpleType) stm.getType();
+                                if (type.getName().getFullyQualifiedName().equals("String")) {
+                                    symbolicMap.declareStringTypeVarialbe(type, name, SimpleTypeNode.initializeString());
+                                } else {
+                                    throw new RuntimeException("Only deal with PrimitiveType and String!!");
+                                }
                             } else {
-                                throw new RuntimeException("Only deal with PrimitiveType!!");
+                                throw new RuntimeException("Only deal with PrimitiveType and String!!");
                             }
                         }
                     }
@@ -431,7 +458,12 @@ public class SymbolicExecutionRewrite {
                 }
 
                 this.z3ArrayStateMap.get().put(name, z3ArrayBase);
-            } else {
+            } else if(variable instanceof SimpleTypeVariable){
+                Expr z3Variable = ((SimpleTypeVariable) variable).createSimpleTypeVarible(variable,ctx);
+                Z3VariableWrapper z3VariableWrapper = new Z3VariableWrapper(z3Variable);
+                z3Vars.add(z3VariableWrapper);
+            }
+            else {
                 throw new RuntimeException("Invalid type variable");
             }
         } else {
@@ -465,6 +497,7 @@ public class SymbolicExecutionRewrite {
         if (satisfaction != Status.SATISFIABLE) {
             throw new RuntimeException("Expression is UNSATISFIABLE");
         } else {
+
             return s.getModel();
         }
     }
@@ -677,7 +710,10 @@ public class SymbolicExecutionRewrite {
 
                 // Thêm mảng hoàn chỉnh vào danh sách kết quả
                 result.add(arrayInstance);
-            } else {
+            } else if (parameterClass == String.class){
+                result.add(lineData);
+            }
+            else {
                 result.add(null);
             }
         }
@@ -941,8 +977,21 @@ public class SymbolicExecutionRewrite {
             return createRandomPrimitiveVariableData(parameterClass);
         } else if (parameterClass.isArray()) {
             return createRandomArrayVariableData(parameterClass);
+        } else if (parameterClass == String.class){ // xử lý String
+            return createRandomStringVaribleData(parameterClass);
         }
         throw new RuntimeException("Unsupported type: " + parameterClass.getName());
+    }
+    //tạo random String bằng cách lấy ngẫu nhiên một kí tự trong chuỗi ALPHA_NUMERIC qua mỗi vòng lặp
+    private static Object createRandomStringVaribleData(Class<?> parameterClass){
+        Random random = new Random();
+        String ALPHA_NUMERIC = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+        StringBuilder sb = new StringBuilder();
+        for(int i = 0 ; i<ALPHA_NUMERIC.length();i++){
+            int index = random.nextInt(ALPHA_NUMERIC.length());
+            sb.append(ALPHA_NUMERIC.charAt(index));
+        }
+        return sb.toString();
     }
 
     private static Object createRandomArrayVariableData(Class<?> parameterClass) {
@@ -1011,6 +1060,8 @@ public class SymbolicExecutionRewrite {
             return 8.0;
         } else if ("void".equals(className)) {
             return null;
+        } else if ("java.lang.String".equals(className)){
+            System.out.println("Xu ly String cho nay");
         }
         throw new RuntimeException("Unsupported type: " + className);
     }
