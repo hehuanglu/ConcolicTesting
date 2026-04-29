@@ -450,8 +450,8 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
     }
 
     private static void setup(String path, String className, String methodName, TestGeneration.Coverage coverage) throws IOException, InterruptedException {
-        TestGeneration.funcAstNodeList = ProjectParser.parseFile(path);
         TestGeneration.compilationUnit = ProjectParser.parseFileToCompilationUnit(path);
+        TestGeneration.funcAstNodeList = ProjectParser.parseFile(path, TestGeneration.compilationUnit);
         classKey = (TestGeneration.compilationUnit.getPackage() != null ? TestGeneration.compilationUnit.getPackage().getName().toString() : "") + className.replace(".java", "") + "totalStatement";
 
         setupFullyClonedClassName(className, path, coverage);
@@ -626,12 +626,16 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
 
         SymbolicExecutionRewrite solution = new SymbolicExecutionRewrite(path, TestGeneration.parameters);
 
+        solution.execute();
+
+/*
         try {
             solution.execute();
         } catch (RuntimeException e) {
             System.out.println("UNSATISFIABLE");
             return false;
         }
+ */
 
         TestGeneration.parameterNames = TestDriverUtils.getParameterNames(TestGeneration.parameters);
         TestGeneration.parameterClasses = TestDriverUtils.getParameterClasses(TestGeneration.parameters);

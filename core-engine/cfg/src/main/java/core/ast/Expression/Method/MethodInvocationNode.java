@@ -56,6 +56,24 @@ public class MethodInvocationNode extends ExpressionNode {
         if (methodInvocation.getExpression() != null) { // method invocation in the same class
             String className = methodInvocation.getExpression().toString();
 
+            IMethodBinding methodBinding = methodInvocation.resolveMethodBinding();
+            if (methodBinding != null) {
+                ITypeBinding declaringClass = methodBinding.getDeclaringClass();
+                if (declaringClass != null) {
+                    className = declaringClass.getQualifiedName();
+                }
+            }
+
+            if (className.equals("String") || className.equals("java.lang.String")) {
+                List<AstNode> arguments = new ArrayList<>();
+                for (int i = 0; i < methodInvocation.arguments().size(); i++) {
+                    AstNode argNode = ExpressionNode.executeExpression((Expression) methodInvocation.arguments().get(i), memoryModel);
+                    arguments.add(argNode);
+                }
+                AstNode target = ExpressionNode.executeExpression(methodInvocation.getExpression(), memoryModel);
+                return new StringMethodNode(target, methodName, arguments);
+            }
+
             if (className.equals("Math") && (methodName.equals("abs") || methodName.equals("max") || methodName.equals("min"))) {
                 List<AstNode> arguments = new ArrayList<>();
                 for (int i = 0; i < methodInvocation.arguments().size(); i++) {
@@ -74,6 +92,7 @@ public class MethodInvocationNode extends ExpressionNode {
     }
 
     private static MethodDeclaration getInvokedMethodAST(String methodName) {
+
         ArrayList<ASTNode> funcAstNodeList = TestGeneration.getFuncAstNodeList();
         for (ASTNode astNode : funcAstNodeList) {
             if (((MethodDeclaration) astNode).getName().getIdentifier().equals(methodName)) {

@@ -3,6 +3,7 @@ package core.ast.VariableDeclaration;
 import core.ast.AstNode;
 import core.ast.Expression.ArrayNode;
 import core.ast.Expression.Name.SimpleNameNode;
+import core.ast.Type.AnnotatableType.SimpleTypeNode;
 import core.symbolicExecution.MemoryModel;
 import org.eclipse.jdt.core.dom.*;
 
@@ -29,17 +30,13 @@ public class SingleVariableDeclarationNode extends VariableDeclarationNode {
         } else if (type instanceof ArrayType) {
             ArrayType arrayType = (ArrayType) type;
             memoryModel.declareArrayTypeVariable(arrayType, key, arrayType.getDimensions(), createMultiDimensionsInitializationArray(key, 0, arrayType.getDimensions(), arrayType.getElementType(), memoryModel));
+        } else if (type instanceof SimpleType) {
+            SimpleTypeNode node = new SimpleTypeNode((SimpleType) type, key);
+            simpleNameNode.setTarget(node);
+            memoryModel.declareSimpleTypeVariable((SimpleType) type, key, simpleNameNode);
         } else { // OTHER TYPES
             throw new RuntimeException("Invalid type");
         }
-
-
-//        if(type instanceof PrimitiveType) {
-//            memoryModel.put(key, PrimitiveTypeNode.changePrimitiveTypeToLiteralInitialization((PrimitiveType) type));
-//        } else {
-//            /*????*/
-//            throw new RuntimeException("Did not handle other type yet");
-//        }
     }
 
     public static AstNode createMultiDimensionsInitializationArray(String identifier,
