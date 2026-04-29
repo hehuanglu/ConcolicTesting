@@ -1,7 +1,6 @@
 package core.ast.Expression.Name;
 
 
-import core.ast.AstNode;
 import core.ast.Expression.ExpressionNode;
 import core.ast.Expression.Literal.NumberLiteral.IntegerLiteralNode;
 import core.symbolicExecution.MemoryModel;
@@ -26,26 +25,8 @@ public class QualifiedNameNode extends NameNode {
             return minNode;
         }
 
-
         QualifiedNameNode qualifiedNameNode = new QualifiedNameNode();
-
-        if (fullName.endsWith(".length")) {
-            // dùng một MemoryModel rỗng
-            // khi không tìm thấy "data" trong ram giả, hệ thống sẽ trả về NameNode thuần túy
-            MemoryModel emptyModel = new MemoryModel();
-            qualifiedNameNode.qualifier = (NameNode) NameNode.executeName(qualifiedName.getQualifier(), emptyModel);
-            qualifiedNameNode.name = (SimpleNameNode) SimpleNameNode.executeSimpleName(qualifiedName.getName(), emptyModel);
-            return qualifiedNameNode;
-        }
-
-        AstNode qualifierAst = NameNode.executeName(qualifiedName.getQualifier(), memoryModel);
-
-        if (qualifierAst instanceof NameNode) {
-            qualifiedNameNode.qualifier = (NameNode) qualifierAst;
-        } else {
-            System.out.println("Qualifier không phải NameNode (nó là " + qualifierAst.getClass().getSimpleName() + "). Bỏ qua ép kiểu để tránh crash");
-        }
-
+        qualifiedNameNode.qualifier = (NameNode) NameNode.executeName(qualifiedName.getQualifier(), memoryModel);
         qualifiedNameNode.name = (SimpleNameNode) SimpleNameNode.executeSimpleName(qualifiedName.getName(), memoryModel);
         return qualifiedNameNode;
 
@@ -64,14 +45,6 @@ public class QualifiedNameNode extends NameNode {
     }
 
     public static String getStringQualifiedNameNode(QualifiedNameNode qualifiedNameNode) {
-        if (qualifiedNameNode == null) return null;
-
-        // Lấy vế trái
-        String qualifierStr = NameNode.getStringNameNode(qualifiedNameNode.qualifier);
-
-        // Lấy vế phải
-        String nameStr = SimpleNameNode.getStringSimpleNameNode(qualifiedNameNode.name);
-
-        return qualifierStr + "." + nameStr;
+        return null;
     }
 }

@@ -24,7 +24,6 @@ import core.variable.ArrayTypeVariable;
 import core.variable.PrimitiveTypeVariable;
 import core.variable.SimpleTypeVariable;
 import core.variable.Variable;
-import lombok.extern.slf4j.Slf4j;
 import org.eclipse.jdt.core.dom.*;
 import org.eclipse.jdt.core.dom.AST;
 
@@ -34,7 +33,6 @@ import java.lang.reflect.Array;
 import java.math.BigInteger;
 import java.util.*;
 
-@Slf4j
 public class SymbolicExecutionRewrite {
     private MemoryModel symbolicMap;
     private List<Z3VariableWrapper> Z3Vars;
@@ -46,7 +44,7 @@ public class SymbolicExecutionRewrite {
     public String globalZ3Result = "";
     // Map để đếm số lần một hàm được gọi --> tạo biến gỉa không bị trùng lặp
     private Map<String, Integer> mockMethodCounter = new HashMap<>();
-    public static final Map<String, Integer> parameterArrayLengths = new HashMap<>();
+    private final Map<String, Integer> parameterArrayLengths = new HashMap<>();
     // Map này lưu các biểu thức index symbolic theo từng tên mảng.
     // Điểm quan trọng
     // - không solve riêng index bằng một solver/context phụ
@@ -167,7 +165,7 @@ public class SymbolicExecutionRewrite {
                             currentTestingMethodName = ((MethodDeclaration) parentNode).getName().getIdentifier();
                         }
 
-                        // Nếu expression là một biến đã tồn tại trong bộ nhớ (ví dụ: String input)
+                        // Nếu expression là một biến đã tồn tại trong bộ nhớ (ví dụ: String input) 
                         // thì đây là gọi hàm từ object, không phải gọi hàm static từ Class -> KHÔNG MOCK
                         if (methodInvocation.getExpression() != null) {
                             String expressionStr = methodInvocation.getExpression().toString();
@@ -180,13 +178,12 @@ public class SymbolicExecutionRewrite {
                                 // Nếu không tìm thấy trong symbolicMap thì có thể là tên Class thật
                             }
                         }
-                        // =================================================================
 
                         // Ta đã xử lý các hàm thư viện ở phía trước rồi nên bỏ qua
                         List<String> blackList = Arrays.asList("Math", "String",
                                 "System", "Integer", "Double", "Thread");
                         if (blackList.contains(className)) {
-                            log.debug("Bỏ qua class thư viện chuẩn: {}", className);
+                            System.out.println("không mock class thư viện: " + className);
                             return super.visit(methodInvocation); // Trả về bình thường
                         }
 
@@ -246,7 +243,7 @@ public class SymbolicExecutionRewrite {
                                     // Đưa vào memory map dưới dạng Parameter để Tool nhận nó là biến Symbolic
                                     AstNode.executeASTNode(fakeParam, symbolicMap);
                                 } catch (Exception e) {
-                                    log.error("Lỗi tạo fake parameter cho hàm mock [{}]: {}", mockVariableName, e.getMessage(), e);
+                                    System.out.println("   ---> Lỗi tạo fake parameter: " + e.getMessage());
                                 }
                             }
 
@@ -256,10 +253,10 @@ public class SymbolicExecutionRewrite {
                                 org.eclipse.jdt.core.dom.StructuralPropertyDescriptor location = methodInvocation.getLocationInParent();
                                 if (location != null) {
                                     methodInvocation.getParent().setStructuralProperty(location, mockNameNode);
-                                    log.debug("Đã thay thế thành công lời gọi hàm thành biến Mock: {}", mockVariableName);
+                                    System.out.println("   ---> Đã thay thế thành công lời gọi hàm thành biến" + mockVariableName);
                                 }
                             } catch (Exception e) {
-                                log.error("Lỗi thay thế cây AST tại hàm [{}]: {}", methodName, e.getMessage(), e);
+                                System.out.println("   ---> Lỗi thay thế AST: " + e.getMessage());
                             }
                         }
                         return super.visit(methodInvocation);
@@ -379,7 +376,7 @@ public class SymbolicExecutionRewrite {
                                     throw new RuntimeException("Only deal with PrimitiveType and String!!");
                                 }
                             } else {
-                                throw new RuntimeException("Only deal with PrimitiveType!!");
+                                throw new RuntimeException("Only deal with PrimitiveType and String!!");
                             }
                         }
                     }
@@ -394,13 +391,9 @@ public class SymbolicExecutionRewrite {
         }
 
         currentCfgNode = null;
-        if (finalZ3Expression != null) {
-            log.info("=== XÂY DỰNG XONG PHƯƠNG TRÌNH Z3 CHÍNH ===");
-            log.debug(" - Raw Constraint: \n{}", finalZ3Expression.toString());
-            log.info(" - Simplified Constraint: \n{}", finalZ3Expression.simplify());
-        } else {
-            log.warn("Không thu thập được bất kỳ Z3 Constraint nào trong hàm này!");
-        }
+        System.out.println("=== Final Z3 Constraint ===");
+        System.out.println(finalZ3Expression.simplify());
+        System.out.println(finalZ3Expression.toString());
 
         model = createModel(ctx, (BoolExpr) finalZ3Expression);
         // Sau khi đã có model chính, mới evaluate các index symbolic đã thu được trước đó.
@@ -465,7 +458,12 @@ public class SymbolicExecutionRewrite {
                 }
 
                 this.z3ArrayStateMap.get().put(name, z3ArrayBase);
-            } else {
+            } else if(variable instanceof SimpleTypeVariable){
+                Expr z3Variable = ((SimpleTypeVariable) variable).createSimpleTypeVarible(variable,ctx);
+                Z3VariableWrapper z3VariableWrapper = new Z3VariableWrapper(z3Variable);
+                z3Vars.add(z3VariableWrapper);
+            }
+            else {
                 throw new RuntimeException("Invalid type variable");
             }
         } else {
@@ -499,6 +497,7 @@ public class SymbolicExecutionRewrite {
         if (satisfaction != Status.SATISFIABLE) {
             throw new RuntimeException("Expression is UNSATISFIABLE");
         } else {
+
             return s.getModel();
         }
     }
@@ -711,7 +710,10 @@ public class SymbolicExecutionRewrite {
 
                 // Thêm mảng hoàn chỉnh vào danh sách kết quả
                 result.add(arrayInstance);
-            } else {
+            } else if (parameterClass == String.class){
+                result.add(lineData);
+            }
+            else {
                 result.add(null);
             }
         }
@@ -975,8 +977,21 @@ public class SymbolicExecutionRewrite {
             return createRandomPrimitiveVariableData(parameterClass);
         } else if (parameterClass.isArray()) {
             return createRandomArrayVariableData(parameterClass);
+        } else if (parameterClass == String.class){ // xử lý String
+            return createRandomStringVaribleData(parameterClass);
         }
         throw new RuntimeException("Unsupported type: " + parameterClass.getName());
+    }
+    //tạo random String bằng cách lấy ngẫu nhiên một kí tự trong chuỗi ALPHA_NUMERIC qua mỗi vòng lặp
+    private static Object createRandomStringVaribleData(Class<?> parameterClass){
+        Random random = new Random();
+        String ALPHA_NUMERIC = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+        StringBuilder sb = new StringBuilder();
+        for(int i = 0 ; i<ALPHA_NUMERIC.length();i++){
+            int index = random.nextInt(ALPHA_NUMERIC.length());
+            sb.append(ALPHA_NUMERIC.charAt(index));
+        }
+        return sb.toString();
     }
 
     private static Object createRandomArrayVariableData(Class<?> parameterClass) {
@@ -1045,6 +1060,8 @@ public class SymbolicExecutionRewrite {
             return 8.0;
         } else if ("void".equals(className)) {
             return null;
+        } else if ("java.lang.String".equals(className)){
+            System.out.println("Xu ly String cho nay");
         }
         throw new RuntimeException("Unsupported type: " + className);
     }
