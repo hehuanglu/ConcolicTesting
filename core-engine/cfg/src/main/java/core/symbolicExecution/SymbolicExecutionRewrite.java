@@ -31,7 +31,6 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.lang.reflect.Array;
 import java.math.BigInteger;
-import java.nio.file.Paths;
 import java.util.*;
 
 @Slf4j
@@ -518,7 +517,9 @@ public class SymbolicExecutionRewrite {
                     String name = primitiveVar.toString();
                     String stringValue = "0";
 
-                    String typeName = variableTypeMap.get(name);
+                    Object originalTypeCode = variableTypeMap.get(name);
+                    String typeName = (originalTypeCode != null) ? originalTypeCode.toString() : "";
+
 
                     if (evaluateResult instanceof BitVecNum) {
                         BitVecNum bvNum = (BitVecNum) evaluateResult;

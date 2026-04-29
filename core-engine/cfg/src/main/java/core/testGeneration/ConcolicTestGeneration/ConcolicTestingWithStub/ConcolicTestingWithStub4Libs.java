@@ -656,6 +656,7 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
         try {
             solution.execute();
         } catch (RuntimeException e) {
+            log.error("HỆ THỐNG CRASH SAU KHI GIẢI PATH: {}", e.getMessage(), e);
             log.warn("Path hiện tại UNSATISFIABLE (Z3 không thể giải). Bỏ qua path này.");
             return false;
         }
