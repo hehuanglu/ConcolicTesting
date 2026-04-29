@@ -23,10 +23,7 @@ public abstract class Variable {
         } else if(variable instanceof ArrayTypeVariable) {
             return null;
 //            throw new RuntimeException("Invalid type");
-        } else if (variable instanceof SimpleTypeVariable){
-            return SimpleTypeVariable.createSimpleTypeVarible(variable,ctx);
-        }
-        else {
+        } else {
             throw new RuntimeException("Invalid type");
         }
     }

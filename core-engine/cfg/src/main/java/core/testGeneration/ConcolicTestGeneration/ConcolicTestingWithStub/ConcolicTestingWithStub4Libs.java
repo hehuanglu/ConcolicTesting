@@ -525,7 +525,7 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
     }
 
     private static double calculateRequiredCoverage(TestGeneration.Coverage coverage) throws Exception {
-
+        System.out.println("đã chạy qua đây !");
         Class<?> latestClass = loadLatestClass(fullyClonedClassName);
         Field field = latestClass.getField(getTotalFunctionCoverageVariableName((MethodDeclaration) TestGeneration.testFunc, coverage));
         field.setAccessible(true);

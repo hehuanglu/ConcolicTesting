@@ -14,12 +14,11 @@ import java.util.List;
 public final class TestDriverGenerator {
 
     private static String markMethodUtility =
-            "private static boolean mark(String statement, boolean isTrueCondition, boolean isFalseCondition, int id) {\n" +
+            "private static boolean mark(String statement, boolean isTrueCondition, boolean isFalseCondition) {\n" +
                     "StringBuilder markResult = new StringBuilder();\n" +
                     "markResult.append(statement).append(\"===\");\n" +
                     "markResult.append(isTrueCondition).append(\"===\");\n" +
-                    "markResult.append(isFalseCondition).append(\"===\");\n" +
-                    "markResult.append(id).append(\"---end---\");\n" +
+                    "markResult.append(isFalseCondition).append(\"---end---\");\n" +
                     "writeDataToFile(markResult.toString(), \"" + FilePath.concreteExecuteResultPath + "\", true);\n" +
                     "if (!isTrueCondition && !isFalseCondition) return true;\n" +
                     "return !isFalseCondition;\n" +
@@ -86,13 +85,6 @@ public final class TestDriverGenerator {
         for (int i = 0; i < testData.length; i++) {
             if (testData[i] instanceof Character) {
                 result.append("'").append(testData[i]).append("'");
-            } else if (testData[i] instanceof String) {
-                String s = (String) testData[i];
-                if (s.length() >= 2 && s.startsWith("\"") && s.endsWith("\"")) {
-                    result.append(s);
-                } else {
-                    result.append("\"").append(s.replace("\"", "\\\"")).append("\"");
-                }
             } else {
                 result.append(testData[i]);
             }
@@ -155,22 +147,11 @@ public final class TestDriverGenerator {
                         int z3Index = method.parameters().size() + j;
                         if (testData != null && z3Index < testData.length) {
                             Object value = testData[z3Index];
-                            if (value != null) {
-                                if (value instanceof String) {
-                                    valueAsString = "\"" + ((String) value).replace("\"", "\\\"") + "\"";
-                                } else {
-                                    valueAsString = String.valueOf(value);
-                                }
-                            }
+                            if (value != null) valueAsString = String.valueOf(value);
                         }
 
                         if (innerMock.solveValue != null) {
-                            valueAsString = innerMock.solveValue;
-                            // Nếu solveValue là chuỗi và chưa có ngoặc kép, hãy thêm vào
-                            if (!valueAsString.startsWith("\"") && innerMock.solveValue.matches(".*[a-zA-Z]+.*")) {
-                                 // Kiểm tra đơn giản nếu là chữ thì bọc ngoặc
-                                 // Tuy nhiên solveValue thường đã được xử lý ở SymbolicExecutionRewrite
-                            }
+                            valueAsString = String.valueOf(innerMock.solveValue);
                         }
 
                         // Cắm lệnh thenReturn cho từng hàm
@@ -224,24 +205,16 @@ public final class TestDriverGenerator {
                     }
                 } else {
                     // Xử lý các kiểu dữ liệu nguyên thủy và chuỗi
-                    if (value instanceof String) {
-                        String s = (String) value;
-                        if (s.length() >= 2 && s.startsWith("\"") && s.endsWith("\"")) {
-                            valueAsString = s;
-                        } else {
-                            valueAsString = "\"" + s.replace("\"", "\\\"") + "\"";
-                        }
-                    } else {
-                        valueAsString = String.valueOf(value);
-                        if (value instanceof Long) valueAsString += "L";
-                        else if (value instanceof Character) valueAsString = "'" + valueAsString + "'";
-                        else if (value instanceof Float) valueAsString += "f";
-                        else if (value instanceof Double) {
-                            Double dVal = (Double) value;
-                            if (Double.isNaN(dVal)) valueAsString = "Double.NaN";
-                            else if (Double.isInfinite(dVal))
-                                valueAsString = dVal > 0 ? "Double.POSITIVE_INFINITY" : "Double.NEGATIVE_INFINITY";
-                        }
+                    valueAsString = String.valueOf(value);
+                    if (value instanceof String) valueAsString = "\"" + valueAsString + "\"";
+                    else if (value instanceof Long) valueAsString += "L";
+                    else if (value instanceof Character) valueAsString = "'" + valueAsString + "'";
+                    else if (value instanceof Float) valueAsString += "f";
+                    else if (value instanceof Double) {
+                        Double dVal = (Double) value;
+                        if (Double.isNaN(dVal)) valueAsString = "Double.NaN";
+                        else if (Double.isInfinite(dVal))
+                            valueAsString = dVal > 0 ? "Double.POSITIVE_INFINITY" : "Double.NEGATIVE_INFINITY";
                     }
                 }
             }

@@ -118,7 +118,7 @@ public final class SymbolicExecution {
                 if (!haveDuplicateVariable(z3VariableWrapper)) {
                     Z3Vars.add(z3VariableWrapper);
                 }
-            }else {
+            } else {
                 throw new RuntimeException("Invalid type variable");
             }
         } else {
@@ -182,8 +182,6 @@ public final class SymbolicExecution {
                     } else if (evaluateResult instanceof RealExpr) {
 
                         result.append("1.0");
-                    } else if (evaluateResult.isString()) {
-                        result.append(( evaluateResult).getString());
                     } else if (evaluateResult instanceof BoolExpr) {
 
                         BoolExpr boolExpr = (BoolExpr) evaluateResult;

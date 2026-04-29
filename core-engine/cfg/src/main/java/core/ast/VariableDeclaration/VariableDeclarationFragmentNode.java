@@ -31,12 +31,7 @@ public class VariableDeclarationFragmentNode extends VariableDeclarationNode {
             if(baseType instanceof PrimitiveType) {
                 PrimitiveType type = (PrimitiveType) baseType;
                 memoryModel.declarePrimitiveTypeVariable(type, name, PrimitiveTypeNode.changePrimitiveTypeToLiteralInitialization(type));
-            }
-//            else if (baseType instanceof SimpleType){
-//                SimpleType type = (SimpleType) baseType;
-//                memoryModel.declareStringTypeVarialbe(type,name,ExpressionNode.executeExpression(initializer, memoryModel));
-//            }
-            else {
+            } else {
                 throw new RuntimeException("Only deal with PrimitiveType!!");
             }
         }

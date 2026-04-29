@@ -177,11 +177,7 @@ public final class TestDriverUtils {
         try {
             return Class.forName(className);
         } catch (ClassNotFoundException e) {
-            try {
-                return Class.forName("java.lang." + className);
-            } catch (ClassNotFoundException ex) {
-                throw new RuntimeException("Class not found: " + className, ex);
-            }
+            throw new RuntimeException("Class not found: " + className, e);
         }
     }
 }

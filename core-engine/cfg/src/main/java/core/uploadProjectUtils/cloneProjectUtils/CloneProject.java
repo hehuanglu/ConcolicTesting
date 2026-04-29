@@ -617,11 +617,8 @@ public final class CloneProject {
             lineNumber = classCompilationUnit.getLineNumber(startPos) - firstLine;
         }
 
-        // Bước 1: Tạo bản sao của condition đã được thoát chuỗi
-        String escapedCondition = condition.toString().replace("\"", "\\\"");
-
-        return "((" + condition + ") && mark(\"" + escapedCondition + "\", true, false, " + lineNumber + "))" +
-                " || mark(\"" + escapedCondition+ "\", false, true, " + lineNumber + ")";
+        return "((" + condition + ") && mark(\"" + condition + "\", true, false, " + lineNumber + "))" +
+                " || mark(\"" + condition + "\", false, true, " + lineNumber + ")";
     }
 
     private static String generateCodeForConditionForMCDCCoverage(Expression condition) {

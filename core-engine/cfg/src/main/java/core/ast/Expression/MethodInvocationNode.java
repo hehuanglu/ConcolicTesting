@@ -11,8 +11,6 @@ import core.ast.VariableDeclaration.SingleVariableDeclarationNode;
 import core.symbolicExecution.MemoryModel;
 import core.testDriver.TestDriverUtils;
 import core.testGeneration.TestGeneration;
-import core.variable.SimpleTypeVariable;
-import core.variable.Variable;
 import org.eclipse.jdt.core.dom.*;
 import org.eclipse.jdt.core.dom.AST;
 
@@ -26,14 +24,9 @@ public class MethodInvocationNode extends ExpressionNode {
     private String className;
     private String methodName;
     private List<AstNode> arguments = new ArrayList<>();
-    private ExpressionNode receiver;
+
     public MethodInvocationNode(String className, String methodName, List<AstNode> arguments) {
         this.className = className;
-        this.methodName = methodName;
-        this.arguments = arguments;
-    }
-    public MethodInvocationNode(ExpressionNode receiver, String methodName, List<AstNode> arguments) {
-        this.receiver = receiver;
         this.methodName = methodName;
         this.arguments = arguments;
     }
@@ -58,40 +51,6 @@ public class MethodInvocationNode extends ExpressionNode {
 
         String methodName = methodInvocation.getName().toString();
 
-        // Logic xét kiểu nếu caller là String
-        Expression expression = methodInvocation.getExpression();
-        if (expression != null) {
-            boolean isString = false;
-            if (expression instanceof StringLiteral) {
-                isString = true;
-            } else {
-                try {
-                    // Tìm biến trong memoryModel để kiểm tra kiểu
-                    Variable var = memoryModel.getVariable(expression.toString());
-                    if (var instanceof SimpleTypeVariable) {
-                        SimpleTypeVariable simpleVar = (SimpleTypeVariable) var;
-                        // Kiểm tra nếu kiểu là String
-                        if (simpleVar.getType().toString().equals("String")) {
-                            isString = true;
-                        }
-                    }
-                } catch (Exception ignored) {
-                }
-            }
-            ///  Phát hiện phương thức gọi từ một String:
-            if (isString) {
-                // xử lý phần đầu (vd : input.contains("") thì phần này xử lý input)
-                Expression receiver = methodInvocation.getExpression();
-                AstNode executedReceiver = ExpressionNode.executeExpression(receiver,memoryModel);
-                // xử lý phan bên trong phương thức
-                List<AstNode> arguments = new ArrayList<>();
-                for(int i=0;i<methodInvocation.arguments().size();i++){
-                    AstNode argNode = ExpressionNode.executeExpression((Expression) methodInvocation.arguments().get(i), memoryModel);
-                    arguments.add(argNode);
-                }
-                return new MethodInvocationNode((ExpressionNode)executedReceiver,methodName,arguments);
-            }
-        }
 
         if (methodInvocation.getExpression() != null) { // method invocation in the same class
             String className = methodInvocation.getExpression().toString();
@@ -104,7 +63,6 @@ public class MethodInvocationNode extends ExpressionNode {
                 }
                 return new MethodInvocationNode(className, methodName, arguments);
             }
-
 
             MethodDeclaration methodDeclaration = getInvokedMethodAST(methodName);
             return declareStubVariable(methodName, methodDeclaration, memoryModel, methodInvocation);
@@ -296,129 +254,7 @@ public class MethodInvocationNode extends ExpressionNode {
                 }
             }
         }
-
-        // xử lý các phương thức của String bên dưới
-        if (methodName.equals("contains")) {
-            ExpressionNode argNode = (ExpressionNode) args.get(0);
-            Expr arg = OperationExpressionNode.createZ3Expression(argNode, ctx, vars, memoryModel);
-            Expr receiver = OperationExpressionNode.createZ3Expression(operand.getReceiver(), ctx, vars, memoryModel);
-            if (receiver instanceof SeqExpr && arg instanceof SeqExpr) {
-                return ctx.mkContains((SeqExpr) receiver, (SeqExpr) arg);
-            }
-            return ctx.mkEq(receiver, arg);
-
-        } else if (methodName.equals("length")) {
-            Expr receiver = OperationExpressionNode.createZ3Expression(operand.getReceiver(), ctx, vars, memoryModel);
-            // ctx.mkLength trả về IntExpr
-            return ctx.mkLength(receiver);
-
-        } else if (methodName.equals("equals")) {
-            Expr receiver = OperationExpressionNode.createZ3Expression(operand.getReceiver(), ctx, vars, memoryModel);
-            Expr arg = OperationExpressionNode.createZ3Expression((ExpressionNode) args.get(0), ctx, vars, memoryModel);
-            return ctx.mkEq(receiver, arg);
-
-        } else if (methodName.equals("concat")) {
-            Expr receiver = OperationExpressionNode.createZ3Expression(operand.getReceiver(), ctx, vars, memoryModel);
-            Expr arg = OperationExpressionNode.createZ3Expression((ExpressionNode) args.get(0), ctx, vars, memoryModel);
-            if (receiver instanceof SeqExpr && arg instanceof SeqExpr) {
-                return ctx.mkConcat((SeqExpr) receiver, (SeqExpr) arg);
-            }
-
-        } else if (methodName.equals("startsWith")) {
-            Expr receiver = OperationExpressionNode.createZ3Expression(operand.getReceiver(), ctx, vars, memoryModel);
-            Expr prefix = OperationExpressionNode.createZ3Expression((ExpressionNode) args.get(0), ctx, vars, memoryModel);
-            if (receiver instanceof SeqExpr && prefix instanceof SeqExpr) {
-                // Lưu ý: Z3 mkPrefixOf nhận tham số (prefix, string)
-                return ctx.mkPrefixOf((SeqExpr) prefix, (SeqExpr) receiver);
-            }
-
-        } else if (methodName.equals("endsWith")) {
-            Expr receiver = OperationExpressionNode.createZ3Expression(operand.getReceiver(), ctx, vars, memoryModel);
-            Expr suffix = OperationExpressionNode.createZ3Expression((ExpressionNode) args.get(0), ctx, vars, memoryModel);
-            if (receiver instanceof SeqExpr && suffix instanceof SeqExpr) {
-                // Lưu ý: Z3 mkSuffixOf nhận tham số (suffix, string)
-                return ctx.mkSuffixOf((SeqExpr) suffix, (SeqExpr) receiver);
-            }
-
-        } else if (methodName.equals("indexOf")) {
-            Expr receiver = OperationExpressionNode.createZ3Expression(operand.getReceiver(), ctx, vars, memoryModel);
-            Expr target = OperationExpressionNode.createZ3Expression((ExpressionNode) args.get(0), ctx, vars, memoryModel);
-
-            if (receiver instanceof SeqExpr && target instanceof SeqExpr) {
-                Expr offset;
-                // Xử lý nạp chồng: indexOf(String str) vs indexOf(String str, int fromIndex)
-                if (args.size() == 2) {
-                    offset = OperationExpressionNode.createZ3Expression((ExpressionNode) args.get(1), ctx, vars, memoryModel);
-                } else {
-                    offset = ctx.mkInt(0); // Mặc định tìm từ vị trí 0
-                }
-
-                if (offset instanceof IntExpr) {
-                    return ctx.mkIndexOf((SeqExpr) receiver, (SeqExpr) target, (IntExpr) offset);
-                }
-            }
-
-        } else if (methodName.equals("substring")) {
-            Expr receiver = OperationExpressionNode.createZ3Expression(operand.getReceiver(), ctx, vars, memoryModel);
-
-            if (receiver instanceof SeqExpr) {
-                Expr startExpr = OperationExpressionNode.createZ3Expression((ExpressionNode) args.get(0), ctx, vars, memoryModel);
-
-                if (startExpr instanceof IntExpr) {
-                    IntExpr start = (IntExpr) startExpr;
-                    IntExpr length;
-
-                    // Xử lý nạp chồng: substring(int beginIndex) vs substring(int beginIndex, int endIndex)
-                    if (args.size() == 2) {
-                        Expr endExpr = OperationExpressionNode.createZ3Expression((ExpressionNode) args.get(1), ctx, vars, memoryModel);
-                        if (endExpr instanceof IntExpr) {
-                            // Java dùng endIndex, Z3 dùng length. Tính length = end - start
-                            length = (IntExpr) ctx.mkSub((IntExpr) endExpr, start);
-                        } else {
-                            throw new RuntimeException("endIndex của substring phải là số nguyên");
-                        }
-                    } else {
-                        // Nếu chỉ có start, length = receiver.length() - start
-                        length = (IntExpr) ctx.mkSub((IntExpr) ctx.mkLength(receiver), start);
-                    }
-
-                    // Z3 mkExtract nhận (string, offset, length)
-                    return ctx.mkExtract((SeqExpr) receiver, start, length);
-                }
-            }
-
-        } else if (methodName.equals("replace")) {
-            Expr receiver = OperationExpressionNode.createZ3Expression(operand.getReceiver(), ctx, vars, memoryModel);
-            Expr target = OperationExpressionNode.createZ3Expression((ExpressionNode) args.get(0), ctx, vars, memoryModel);
-            Expr replacement = OperationExpressionNode.createZ3Expression((ExpressionNode) args.get(1), ctx, vars, memoryModel);
-
-            if (receiver instanceof SeqExpr && target instanceof SeqExpr && replacement instanceof SeqExpr) {
-                // Lưu ý: Z3 mkReplace chỉ thay thế lần xuất hiện ĐẦU TIÊN (tương đương replaceFirst).
-                // Thay thế toàn bộ (replaceAll) phức tạp hơn và thường yêu cầu hàm đệ quy trong Z3.
-                return ctx.mkReplace((SeqExpr) receiver, (SeqExpr) target, (SeqExpr) replacement);
-            }
-
-        } else if (methodName.equals("charAt")) {
-            Expr receiver = OperationExpressionNode.createZ3Expression(operand.getReceiver(), ctx, vars, memoryModel);
-            Expr index = OperationExpressionNode.createZ3Expression((ExpressionNode) args.get(0), ctx, vars, memoryModel);
-
-            if (receiver instanceof SeqExpr && index instanceof IntExpr) {
-                // Trả về một chuỗi con có độ dài 1 tại vị trí index
-                return ctx.mkAt((SeqExpr) receiver, (IntExpr) index);
-            }
-
-        } else if (methodName.equals("isEmpty")) {
-            Expr receiver = OperationExpressionNode.createZ3Expression(operand.getReceiver(), ctx, vars, memoryModel);
-            // So sánh độ dài với 0
-            return ctx.mkEq(ctx.mkLength(receiver), ctx.mkInt(0));
-        }
-        // Fallback nếu không khớp method nào hoặc lỗi ép kiểu (Tùy thuộc vào thiết kế hệ thống của bạn)
-        throw new UnsupportedOperationException("Chưa hỗ trợ ánh xạ Z3 cho thao tác String: " + methodName);
-
-    }
-
-    public ExpressionNode getReceiver() {
-        return receiver;
+        throw new RuntimeException("Invalid type");
     }
 
     private static SimpleName replaceMethodInvocationWithStub(MethodInvocation methodInvocation, String stubName) {
