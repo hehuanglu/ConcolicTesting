@@ -10,12 +10,14 @@ import core.ast.Expression.ExpressionNode;
 import core.ast.Expression.OperationExpression.OperationExpressionNode;
 import core.symbolicExecution.MemoryModel;
 import core.symbolicExecution.SymbolicExecutionRewrite;
+import lombok.extern.slf4j.Slf4j;
 import org.eclipse.jdt.core.dom.ArrayAccess;
 import org.eclipse.jdt.core.dom.PrimitiveType;
 
 import java.util.List;
 import java.util.Map;
 
+@Slf4j
 public class ArrayAccessNode extends ExpressionNode {
 
     private String arrayName;
@@ -71,10 +73,10 @@ public class ArrayAccessNode extends ExpressionNode {
 
         // Lấy raw index từ cây AST
         ExpressionNode rawIndexNode = (ExpressionNode) arrayAccess.getIndex();
-        
+
         Expr z3IndexExpr = OperationExpressionNode.createZ3Expression(rawIndexNode, ctx, vars, memoryModel);
 
-        System.out.println("Đã dịch phép " + arrayName + ", " + z3IndexExpr);
+        log.debug("Đã dịch Array Access: {}[{}] sang biểu thức Z3 mkSelect", arrayName, z3IndexExpr);
 
         // Kết quả sẽ là 1 giá trị theo đúng Sort
         return ctx.mkSelect((ArrayExpr) z3ArrayBase, z3IndexExpr);
