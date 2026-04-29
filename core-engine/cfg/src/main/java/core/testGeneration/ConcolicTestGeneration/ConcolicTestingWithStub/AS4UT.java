@@ -1,6 +1,6 @@
 package core.testGeneration.ConcolicTestGeneration.ConcolicTestingWithStub;
 
-import core.ast.Expression.MethodInvocationNode;
+import core.ast.Expression.Method.MethodInvocationNode;
 import core.cfg.*;
 import core.cfg.utils.CfgUtils;
 import core.testDriver.TestDriverUtils;

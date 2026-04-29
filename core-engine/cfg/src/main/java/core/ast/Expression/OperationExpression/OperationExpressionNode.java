@@ -11,7 +11,7 @@ import core.ast.Expression.Literal.CharacterLiteralNode;
 import core.ast.Expression.Literal.LiteralNode;
 import core.ast.Expression.Literal.NumberLiteral.IntegerLiteralNode;
 import core.ast.Expression.Literal.NumberLiteral.NumberLiteralNode;
-import core.ast.Expression.MethodInvocationNode;
+import core.ast.Expression.Method.MethodInvocationNode;
 import core.ast.Expression.Name.NameNode;
 import core.symbolicExecution.MemoryModel;
 import core.variable.Variable;

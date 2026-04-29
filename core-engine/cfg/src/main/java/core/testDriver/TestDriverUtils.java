@@ -92,7 +92,7 @@ public final class TestDriverUtils {
             return arrayClass;
         } else if (type instanceof SimpleType) {
             SimpleType simpleType = (SimpleType) type;
-            return getClassForName(simpleType.getName().getFullyQualifiedName());
+            return getClassForName(("java.lang." + simpleType.getName()));
         } else {
             throw new RuntimeException("Unsupported parameter type: " + type.getClass());
         }

@@ -21,6 +21,7 @@ import core.cfg.CfgNode;
 import core.path.Path;
 import core.variable.ArrayTypeVariable;
 import core.variable.PrimitiveTypeVariable;
+import core.variable.SimpleTypeVariable;
 import core.variable.Variable;
 import lombok.extern.slf4j.Slf4j;
 import org.eclipse.jdt.core.dom.*;
@@ -30,6 +31,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.lang.reflect.Array;
 import java.math.BigInteger;
+import java.nio.file.Paths;
 import java.util.*;
 
 @Slf4j
@@ -40,11 +42,11 @@ public class SymbolicExecutionRewrite {
     private Path testPath;
     private List<ASTNode> parameters;
     private static CfgNode currentCfgNode;
-    public static Map<String, PrimitiveType.Code> variableTypeMap = new HashMap<>();
+    public static Map<String, String> variableTypeMap = new HashMap<>();
     public String globalZ3Result = "";
     // Map để đếm số lần một hàm được gọi --> tạo biến gỉa không bị trùng lặp
     private Map<String, Integer> mockMethodCounter = new HashMap<>();
-    public static final Map<String, Integer> parameterArrayLengths = new HashMap<>();
+    private final Map<String, Integer> parameterArrayLengths = new HashMap<>();
     // Map này lưu các biểu thức index symbolic theo từng tên mảng.
     // Điểm quan trọng
     // - không solve riêng index bằng một solver/context phụ
@@ -99,6 +101,7 @@ public class SymbolicExecutionRewrite {
         BoolExpr finalZ3Expression = null;
 
         if (this.parameters != null) {
+
             for (ASTNode param : this.parameters) {
                 if (param instanceof SingleVariableDeclaration) {
                     SingleVariableDeclaration decl = (SingleVariableDeclaration) param;
@@ -224,7 +227,7 @@ public class SymbolicExecutionRewrite {
 
                             if (typeCode != null) {
                                 // Mapping kiểu dữ liệu cho hàm in kết quả Z3
-                                variableTypeMap.put(mockVariableName, typeCode);
+                                variableTypeMap.put(mockVariableName, typeCode.toString());
 
                                 try {
                                     SingleVariableDeclaration fakeParam = ast.newSingleVariableDeclaration();
@@ -311,7 +314,11 @@ public class SymbolicExecutionRewrite {
 
                                 symbolicMap.declarePrimitiveTypeVariable(type, name,
                                         ExpressionNode.executeExpression(initializer, symbolicMap));
+                            } else if (stm.getType() instanceof SimpleType) {
+                                SimpleType simpleType = (SimpleType) stm.getType();
 
+                                symbolicMap.declareSimpleTypeVariable(simpleType, name,
+                                        ExpressionNode.executeExpression(initializer, symbolicMap));
                             } else if (stm.getType() instanceof ArrayType) {
                                 ArrayType type = (ArrayType) stm.getType();
                                 ArrayCreation arrayCreation = (ArrayCreation) initializer;
@@ -415,6 +422,15 @@ public class SymbolicExecutionRewrite {
                         z3Vars.add(z3VariableWrapper);
                     }
                 }
+            } else if (variable instanceof SimpleTypeVariable) {
+                Expr z3Variable = Variable.createZ3Variable(variable, ctx);
+                if (z3Variable != null) {
+                    Z3VariableWrapper z3VariableWrapper = new Z3VariableWrapper(z3Variable);
+                    if (!haveDuplicateVariable(z3VariableWrapper, z3Vars)) {
+                        z3Vars.add(z3VariableWrapper);
+                        System.out.println(z3VariableWrapper.getPrimitiveVar().getSort().toString());
+                    }
+                }
             } else if (variable instanceof ArrayTypeVariable) {
                 // Khai báo mảng mới
                 // Chỉ số mảng luôn là int 32-bit
@@ -502,8 +518,7 @@ public class SymbolicExecutionRewrite {
                     String name = primitiveVar.toString();
                     String stringValue = "0";
 
-                    PrimitiveType.Code originalTypeCode = variableTypeMap.get(name);
-                    String typeName = (originalTypeCode != null) ? originalTypeCode.toString() : "";
+                    String typeName = variableTypeMap.get(name);
 
                     if (evaluateResult instanceof BitVecNum) {
                         BitVecNum bvNum = (BitVecNum) evaluateResult;
@@ -619,6 +634,7 @@ public class SymbolicExecutionRewrite {
 
                                     // hỏi trực tiếp Model
                                     Expr evaluatedElement = model.evaluate(selectExpr, true);
+
                                     String valStr = "0";
 
 
@@ -656,13 +672,13 @@ public class SymbolicExecutionRewrite {
                                 }
                                 log.debug("Đã dịch xong Mảng [{}]: [{}]", paramName, arrStr.toString());
                             } catch (Exception e) {
-                                log.error("Lỗi trong vòng lặp phiên dịch phần tử Mảng [{}] từ Z3 sang Java: {}", paramName, e.getMessage(), e);
+                                System.out.println("   ---> Lỗi lấy mảng Z3: " + e.getMessage());
                             }
 
                             result.append(arrStr.toString());
 
                         } else {
-                            // biến bình thường thì lấy từ map ta đã quét ở trên
+                            // Biến bình thường thì lấy từ map ta đã quét ở trên
                             result.append(evaluatedValues.getOrDefault(paramName, "0"));
                         }
                     }
@@ -1009,8 +1025,13 @@ public class SymbolicExecutionRewrite {
             return createRandomPrimitiveVariableData(parameterClass);
         } else if (parameterClass.isArray()) {
             return createRandomArrayVariableData(parameterClass);
+        } else {
+            try {
+                return createRandomSimpleTypeData(parameterClass);
+            } catch (RuntimeException ex) {
+                throw new RuntimeException("Unsupported type: " + parameterClass.getName());
+            }
         }
-        throw new RuntimeException("Unsupported type: " + parameterClass.getName());
     }
 
     private static Object createRandomArrayVariableData(Class<?> parameterClass) {
@@ -1081,6 +1102,42 @@ public class SymbolicExecutionRewrite {
             return null;
         }
         throw new RuntimeException("Unsupported type: " + className);
+    }
+
+    private static Object createRandomSimpleTypeData(Class<?> clazz) {
+        // String
+        if (clazz == String.class) {
+            return "dummy String";
+        }
+        if (clazz == Integer.class) {
+            return 42;
+        }
+        if (clazz == Long.class) {
+            return 42L;
+        }
+        if (clazz == Boolean.class) {
+            return false;
+        }
+        if (clazz == Double.class) {
+            return 3.14;
+        }
+        if (clazz == Float.class) {
+            return 3.14f;
+        }
+        if (clazz == Byte.class) {
+            return (byte) 1;
+        }
+        if (clazz == Short.class) {
+            return (short) 1;
+        }
+        if (clazz == Character.class) {
+            return 'A';
+        }
+        if (clazz.isEnum()) {
+            Object[] constants = clazz.getEnumConstants();
+            return (constants != null && constants.length > 0) ? constants[0] : null;
+        }
+        return null;
     }
 
     private void writeDataToFile(String data) {

@@ -1,7 +1,7 @@
 package core.testGeneration.ConcolicTestGeneration.ConcolicTestingWithStub;
 
 import core.FilePath;
-import core.ast.Expression.MethodInvocationNode;
+import core.ast.Expression.Method.MethodInvocationNode;
 import core.cfg.CfgBlockNode;
 import core.cfg.CfgBoolExprNode;
 import core.cfg.CfgEndBlockNode;

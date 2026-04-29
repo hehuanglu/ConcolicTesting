@@ -2,11 +2,14 @@ package core.symbolicExecution;
 
 import core.ast.AstNode;
 import core.ast.Expression.Name.NameNode;
+import core.ast.Expression.Name.SimpleNameNode;
 import core.variable.ArrayTypeVariable;
 import core.variable.PrimitiveTypeVariable;
+import core.variable.SimpleTypeVariable;
 import core.variable.Variable;
 import org.eclipse.jdt.core.dom.ArrayType;
 import org.eclipse.jdt.core.dom.PrimitiveType;
+import org.eclipse.jdt.core.dom.SimpleType;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -34,10 +37,19 @@ public class MemoryModel { // ONLY FOR PRIMITIVE TYPES!!!!
         S.put(new ArrayTypeVariable(type, name, numberOfDimensions), element);
     }
 
+    public void declareSimpleTypeVariable(SimpleType simpleType, String name, AstNode element) {
+        S.put(new SimpleTypeVariable(simpleType, name), element);
+    }
+
     public AstNode getValue(String name) {
         for (Map.Entry<Variable, AstNode> set : S.entrySet()) {
             if (set.getKey().getName().equals(name)) {
-                return set.getValue();
+                AstNode node = set.getValue();
+                if (node instanceof SimpleNameNode) {
+                    SimpleNameNode sn = (SimpleNameNode) node;
+                    return sn.isReference() ? sn.getTarget() : sn;
+                }
+                return node;
             }
         }
         throw new RuntimeException("There's no variable with name: " + name + " in memory model!");
@@ -45,12 +57,17 @@ public class MemoryModel { // ONLY FOR PRIMITIVE TYPES!!!!
 
     public AstNode getValue(NameNode nameNode) {
         String name = NameNode.getStringNameNode(nameNode);
-        for (Map.Entry<Variable, AstNode> set : S.entrySet()) {
+         for (Map.Entry<Variable, AstNode> set : S.entrySet()) {
             if (set.getKey().getName().equals(name)) {
-                return set.getValue();
+                AstNode node = set.getValue();
+                if (node instanceof SimpleNameNode) {
+                    SimpleNameNode sn = (SimpleNameNode) node;
+                    return sn.isReference() ? sn.getTarget() : sn;
+                }
+                return node;
             }
         }
-        return nameNode;
+        throw new RuntimeException("There's no variable with name: " + name + " in memory model!");
     }
 
     public Variable getVariable(String name) {

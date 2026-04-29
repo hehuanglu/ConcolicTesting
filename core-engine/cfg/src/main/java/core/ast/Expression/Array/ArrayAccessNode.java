@@ -58,7 +58,7 @@ public class ArrayAccessNode extends ExpressionNode {
         if (z3ArrayBase == null) {
             // Lấy kích cỡ sort dựa vào kiểu dữ liệu đã lưu trong map
             Sort rangeSort = ctx.mkBitVecSort(32);
-            Map<String, PrimitiveType.Code> typeMap = SymbolicExecutionRewrite.variableTypeMap;
+            Map<String, String> typeMap = SymbolicExecutionRewrite.variableTypeMap;
 
             if (typeMap != null && typeMap.get(arrayName) != null) {
                 String typeStr = typeMap.get(arrayName).toString();

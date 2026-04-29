@@ -19,9 +19,6 @@ public class TypeNode extends AstNode {
         return this instanceof PrimitiveTypeNode;
     }
 
-    public final boolean isSimpleTypeNode() {
-        return this instanceof SimpleTypeNode;
-    }
 
     public final boolean isArrayTypeNode() {
         return this instanceof ArrayTypeNode;
