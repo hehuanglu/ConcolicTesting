@@ -13,6 +13,7 @@ import core.ast.Expression.Literal.NumberLiteral.IntegerLiteralNode;
 import core.ast.Expression.Literal.NumberLiteral.NumberLiteralNode;
 import core.ast.Expression.Method.MethodInvocationNode;
 import core.ast.Expression.Name.NameNode;
+import core.ast.Type.AnnotatableType.SimpleTypeNode;
 import core.symbolicExecution.MemoryModel;
 import core.variable.Variable;
 import org.eclipse.jdt.core.dom.*;
@@ -74,9 +75,9 @@ public abstract class OperationExpressionNode extends ExpressionNode {
                         val = Long.parseLong(numStr, 10);
                     }
                     if (isLong) {
-                        return ctx.mkBV(val, 64);
+                        return ctx.mkInt(val);
                     } else {
-                        return ctx.mkBV(val, 32);
+                        return ctx.mkInt((int) val);
                     }
                 } else {
                     double val = Double.parseDouble(tokenVal.replace("_", ""));
@@ -90,7 +91,7 @@ public abstract class OperationExpressionNode extends ExpressionNode {
             } else if (operand instanceof BooleanLiteralNode) {
                 return ctx.mkBool(((BooleanLiteralNode) operand).getValue());
             } else if (operand instanceof CharacterLiteralNode) {
-                return ctx.mkBV(((CharacterLiteralNode) operand).getCharacterValue(), 16);
+                return ctx.mkString(String.valueOf(((CharacterLiteralNode) operand).getCharacterValue()));
             } else {
                 throw new RuntimeException("Invalid Literal");
             }
@@ -159,6 +160,8 @@ public abstract class OperationExpressionNode extends ExpressionNode {
         } else if (operand instanceof MethodInvocationNode) {
             return operand;
         } else if (operand instanceof ArrayAccessNode) {
+            return operand;
+        } else if (operand instanceof SimpleTypeNode) {
             return operand;
         } else {
             throw new RuntimeException(operand.getClass() + " is Invalid expressionNode");
