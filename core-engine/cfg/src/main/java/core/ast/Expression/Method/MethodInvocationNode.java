@@ -184,6 +184,10 @@ public class MethodInvocationNode extends ExpressionNode {
         String className = methodInvocationNode.getClassName();
         List<AstNode> args = methodInvocationNode.getArgument();
 
+        if (operand instanceof StringMethodNode) {
+            return StringMethodNode.createZ3Expression((StringMethodNode) operand, memoryModel, ctx, vars);
+        }
+
         if ("Math".equals(className)) {
             if ("abs".equals(methodName)) {
                 ExpressionNode argNode = (ExpressionNode) args.get(0);

@@ -136,124 +136,7 @@ public class SymbolicExecutionRewrite {
             ASTNode astNode = currentCfgNode.getAst();
 
             if (astNode != null) {
-                // Thu các index symbolic ngay tại thời điểm node sắp được symbolic execution.
-                // Ở đây ta dùng chính symbolicMap/Z3Vars/ctx của luồng solve chính để chuyển
-                // index như i, a + b, i + 1... thành Expr của cùng một Context.
-                // Các Expr này sẽ được evaluate lại sau khi model chính được solve xong.
-                collectSymbolicArrayIndexesFromAst(astNode, ctx);
-
-                // BẮT, NỘI SOI KIỂU VÀ TẠO BIẾN GIẢ Z3
-                astNode.accept(new ASTVisitor() {
-                    @Override
-                    public boolean visit(MethodInvocation methodInvocation) {
-                        String methodName = methodInvocation.getName().getIdentifier();
-                        String className = "";
-                        if (methodInvocation.getExpression() != null) {
-                            className = methodInvocation.getExpression().toString();
-                        }
-
-                        ASTNode parentNode = methodInvocation.getParent();
-                        String currentTestingMethodName = "";
-
-                        // đi lùi lên trên cho đến khi gặp Node khai báo hàm
-                        while (parentNode != null && !(parentNode instanceof MethodDeclaration)) {
-                            parentNode = parentNode.getParent();
-                        }
-
-                        // Khi đã tìm thấy khung hàm, lấy ra
-                        if (parentNode instanceof MethodDeclaration) {
-                            currentTestingMethodName = ((MethodDeclaration) parentNode).getName().getIdentifier();
-                        }
-
-                        // nếu hàm đang gọi trùng với hàm đang phân tích thì coi Nó là đệ quy và không mock
-                        if (methodName.equals(currentTestingMethodName)) {
-                            return super.visit(methodInvocation);
-                        }
-                        // =================================================================
-
-                        // Ta đã xử lý các hàm thư viện ở phía trước rồi nên bỏ qua
-                        List<String> blackList = Arrays.asList("Math", "String",
-                                "System", "Integer", "Double", "Thread");
-                        if (blackList.contains(className)) {
-                            System.out.println("không mock class thư viện: " + className);
-                            return super.visit(methodInvocation); // Trả về bình thường
-                        }
-
-                        String methodKey = className.isEmpty() ? methodName : className + "_" + methodName;
-                        int count = mockMethodCounter.getOrDefault(methodKey, 0) + 1;
-                        mockMethodCounter.put(methodKey, count);
-                        String mockVariableName = "mock_" + methodKey + "_" + count;
-
-                        MockInfo info = new MockInfo(className, methodName, mockVariableName);
-                        boolean alreadyExists = false;
-                        for (MockInfo existingMock : currentMockInfos) {
-                            // Nếu đã từng mock hàm này rồi thì bỏ qua, không add thêm
-                            if (existingMock.className.equals(info.className) &&
-                                    existingMock.methodName.equals(info.methodName)) {
-                                alreadyExists = true;
-                                break;
-                            }
-                        }
-
-                        if (!alreadyExists) {
-                            currentMockInfos.add(info); // Chỉ add khi chưa tồn tại
-                        }
-
-                        int argCount = methodInvocation.arguments().size();
-
-                        String clonedDirPath = "D:\\projectLAB\\backend\\jcia-backend\\core-engine\\cfg\\src\\main\\java\\data\\clonedProject";
-
-                        Class<?> returnType = ReflectionStubHelper.getReturnType(methodInvocation, className, methodName, argCount, clonedDirPath);
-
-                        if (returnType == null) {
-                            System.out.println("class lạ (" + className + "), không thể tìm được kiểu trả về, tự động ép về int");
-                            returnType = int.class;
-                        }
-
-                        if (returnType != null) {
-                            Sort z3Sort = ReflectionStubHelper.getZ3Sort(returnType, ctx);
-
-                            Expr mockExpr = ctx.mkConst(mockVariableName, z3Sort);
-
-                            Z3VariableWrapper wrapper = new Z3VariableWrapper(mockExpr);
-                            if (!haveDuplicateVariable(wrapper)) {
-                                Z3Vars.add(wrapper);
-                            }
-
-                            AST ast = methodInvocation.getAST();
-                            PrimitiveType.Code typeCode = getPrimitiveTypeCode(returnType.getSimpleName());
-
-                            if (typeCode != null) {
-                                // Mapping kiểu dữ liệu cho hàm in kết quả Z3
-                                variableTypeMap.put(mockVariableName, typeCode.toString());
-
-                                try {
-                                    SingleVariableDeclaration fakeParam = ast.newSingleVariableDeclaration();
-                                    fakeParam.setName(ast.newSimpleName(mockVariableName));
-                                    fakeParam.setType(ast.newPrimitiveType(typeCode));
-
-                                    // Đưa vào memory map dưới dạng Parameter để Tool nhận nó là biến Symbolic
-                                    AstNode.executeASTNode(fakeParam, symbolicMap);
-                                } catch (Exception e) {
-                                    System.out.println("   ---> Lỗi tạo fake parameter: " + e.getMessage());
-                                }
-                            }
-
-                            // THAY THẾ AST NODE: Cắt bỏ MethodInvocation, thế bằng SimpleName
-                            try {
-                                SimpleName mockNameNode = ast.newSimpleName(mockVariableName);
-                                org.eclipse.jdt.core.dom.StructuralPropertyDescriptor location = methodInvocation.getLocationInParent();
-                                if (location != null) {
-                                    methodInvocation.getParent().setStructuralProperty(location, mockNameNode);
-                                    System.out.println("   ---> Đã thay thế thành công lời gọi hàm thành biến" + mockVariableName);
-                                }
-                            } catch (Exception e) {
-                                System.out.println("   ---> Lỗi thay thế AST: " + e.getMessage());
-                            }
-                        }
-                        return super.visit(methodInvocation);
-                    }
-                });
+                //mockito(astNode, ctx);
 
                 AstNode executedAstNode = Rewrite.reStm(astNode, symbolicMap);
 
@@ -382,6 +265,131 @@ public class SymbolicExecutionRewrite {
         updateArrayParameterLengthsFromModel();
         evaluateAndSaveTestDataCreated(ctx);
         return Z3Vars;
+    }
+
+    void mockito(ASTNode astNode, Context ctx) {
+        // Thu các index symbolic ngay tại thời điểm node sắp được symbolic execution.
+        // Ở đây ta dùng chính symbolicMap/Z3Vars/ctx của luồng solve chính để chuyển
+        // index như i, a + b, i + 1... thành Expr của cùng một Context.
+        // Các Expr này sẽ được evaluate lại sau khi model chính được solve xong.
+        collectSymbolicArrayIndexesFromAst(astNode, ctx);
+
+        // BẮT, NỘI SOI KIỂU VÀ TẠO BIẾN GIẢ Z3
+        astNode.accept(new ASTVisitor() {
+            @Override
+            public boolean visit(MethodInvocation methodInvocation) {
+                String methodName = methodInvocation.getName().getIdentifier();
+                String className = "";
+                if (methodInvocation.getExpression() != null) {
+                    className = methodInvocation.getExpression().toString();
+                }
+
+                ASTNode parentNode = methodInvocation.getParent();
+                String currentTestingMethodName = "";
+
+                // đi lùi lên trên cho đến khi gặp Node khai báo hàm
+                while (parentNode != null && !(parentNode instanceof MethodDeclaration)) {
+                    parentNode = parentNode.getParent();
+                }
+
+                // Khi đã tìm thấy khung hàm, lấy ra
+                if (parentNode instanceof MethodDeclaration) {
+                    currentTestingMethodName = ((MethodDeclaration) parentNode).getName().getIdentifier();
+                }
+
+                // nếu hàm đang gọi trùng với hàm đang phân tích thì coi Nó là đệ quy và không mock
+                if (methodName.equals(currentTestingMethodName)) {
+                    return super.visit(methodInvocation);
+                }
+                // =================================================================
+
+                // Ta đã xử lý các hàm thư viện ở phía trước rồi nên bỏ qua
+                List<String> blackList = Arrays.asList("Math", "String",
+                        "System", "Integer", "Double", "Thread");
+                if (blackList.contains(className)) {
+                    System.out.println("không mock class thư viện: " + className);
+                    return super.visit(methodInvocation); // Trả về bình thường
+                }
+
+                String methodKey = className.isEmpty() ? methodName : className + "_" + methodName;
+                int count = mockMethodCounter.getOrDefault(methodKey, 0) + 1;
+                mockMethodCounter.put(methodKey, count);
+                String mockVariableName = "mock_" + methodKey + "_" + count;
+
+                MockInfo info = new MockInfo(className, methodName, mockVariableName);
+                boolean alreadyExists = false;
+                for (MockInfo existingMock : currentMockInfos) {
+                    // Nếu đã từng mock hàm này rồi thì bỏ qua, không add thêm
+                    if (existingMock.className.equals(info.className) &&
+                            existingMock.methodName.equals(info.methodName)) {
+                        alreadyExists = true;
+                        break;
+                    }
+                }
+
+                if (!alreadyExists) {
+                    currentMockInfos.add(info); // Chỉ add khi chưa tồn tại
+                }
+
+                int argCount = methodInvocation.arguments().size();
+
+                java.nio.file.Path realPath = Paths.get(
+                        "jcia-backend", "core-engine",
+                        "cfg", "src", "main", "java", "data", "clonedProject"
+                );
+                String clonedDirPath = realPath.toString();
+
+                Class<?> returnType = ReflectionStubHelper.getReturnType(methodInvocation, className, methodName, argCount, clonedDirPath);
+
+                if (returnType == null) {
+                    System.out.println("class lạ (" + className + "), không thể tìm được kiểu trả về, tự động ép về int");
+                    returnType = int.class;
+                }
+
+                if (returnType != null) {
+                    Sort z3Sort = ReflectionStubHelper.getZ3Sort(returnType, ctx);
+
+                    Expr mockExpr = ctx.mkConst(mockVariableName, z3Sort);
+
+                    Z3VariableWrapper wrapper = new Z3VariableWrapper(mockExpr);
+                    if (!haveDuplicateVariable(wrapper)) {
+                        Z3Vars.add(wrapper);
+                    }
+
+                    AST ast = methodInvocation.getAST();
+                    PrimitiveType.Code typeCode = getPrimitiveTypeCode(returnType.getSimpleName());
+
+                    if (typeCode != null) {
+                        // Mapping kiểu dữ liệu cho hàm in kết quả Z3
+                        variableTypeMap.put(mockVariableName, typeCode.toString());
+
+                        try {
+                            SingleVariableDeclaration fakeParam = ast.newSingleVariableDeclaration();
+                            fakeParam.setName(ast.newSimpleName(mockVariableName));
+                            fakeParam.setType(ast.newPrimitiveType(typeCode));
+
+                            // Đưa vào memory map dưới dạng Parameter để Tool nhận nó là biến Symbolic
+                            AstNode.executeASTNode(fakeParam, symbolicMap);
+                        } catch (Exception e) {
+                            System.out.println("   ---> Lỗi tạo fake parameter: " + e.getMessage());
+                        }
+                    }
+
+                    // THAY THẾ AST NODE: Cắt bỏ MethodInvocation, thế bằng SimpleName
+                    try {
+                        SimpleName mockNameNode = ast.newSimpleName(mockVariableName);
+                        org.eclipse.jdt.core.dom.StructuralPropertyDescriptor location = methodInvocation.getLocationInParent();
+                        if (location != null) {
+                            methodInvocation.getParent().setStructuralProperty(location, mockNameNode);
+                            System.out.println("   ---> Đã thay thế thành công lời gọi hàm thành biến" + mockVariableName);
+                        }
+                    } catch (Exception e) {
+                        System.out.println("   ---> Lỗi thay thế AST: " + e.getMessage());
+                    }
+                }
+                return super.visit(methodInvocation);
+            }
+        });
     }
 
     private void executeParameters(Context ctx) {

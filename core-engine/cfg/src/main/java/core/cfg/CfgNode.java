@@ -6,6 +6,7 @@ import core.utils.Utils;
 import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.dom.*;
 
+import java.io.File;
 import java.util.*;
 
 public class CfgNode {
@@ -197,6 +198,24 @@ public class CfgNode {
         return constructorList;
     }
 
+    public static ArrayList<ASTNode> parserToAstFuncList(String sourceCodeFile, CompilationUnit cu) {
+        ArrayList<ASTNode> astFuncList = new ArrayList<>();
+
+        ASTVisitor visitor = new ASTVisitor() {
+            @Override
+            public boolean visit(MethodDeclaration node) {
+                astFuncList.add(node);
+                return true;
+            }
+        };
+
+        if (cu != null) {
+            cu.accept(visitor);
+        }
+
+        return astFuncList;
+    }
+
     public static CompilationUnit parserToCompilationUnit(String sourceCode) {
         ASTParser parser = ASTParser.newParser(AST.JLS8);
         parser.setSource(sourceCode.toCharArray());
@@ -204,10 +223,51 @@ public class CfgNode {
         parser.setResolveBindings(true);
         parser.setBindingsRecovery(true);
 
+        try {
+            String[] classpathEntries = getValidClasspath();
+            String[] sourcepathEntries = new String[0]; // Có thể để rỗng
+
+            if (classpathEntries.length > 0) {
+                parser.setEnvironment(classpathEntries, sourcepathEntries, null, true);
+                parser.setUnitName("temp.java");
+            }
+        } catch (Exception e) {
+            System.err.println("Warning: Could not set environment: " + e.getMessage());
+        }
+
         Map options = JavaCore.getOptions();
         JavaCore.setComplianceOptions(JavaCore.VERSION_1_8, options);
         parser.setCompilerOptions(options);
         return (CompilationUnit) parser.createAST(null);
+    }
+
+    private static String[] getValidClasspath() {
+        List<String> validPaths = new ArrayList<>();
+
+        // Chỉ thêm paths tồn tại
+        String javaHome = System.getProperty("java.home");
+        File rtJar = new File(javaHome, "lib/rt.jar");
+        if (rtJar.exists()) {
+            validPaths.add(rtJar.getAbsolutePath());
+        }
+
+        // Thêm JCE jar
+        File jceJar = new File(javaHome, "lib/jce.jar");
+        if (jceJar.exists()) {
+            validPaths.add(jceJar.getAbsolutePath());
+        }
+
+        // Thêm classpath từ system nếu tồn tại
+        String systemClasspath = System.getProperty("java.class.path");
+        if (systemClasspath != null) {
+            for (String path : systemClasspath.split(File.pathSeparator)) {
+                if (new File(path).exists()) {
+                    validPaths.add(path);
+                }
+            }
+        }
+
+        return validPaths.toArray(new String[0]);
     }
 
     public static ASTNode parserToAstFuncList0(String sourceCodeFile, String funcName) {

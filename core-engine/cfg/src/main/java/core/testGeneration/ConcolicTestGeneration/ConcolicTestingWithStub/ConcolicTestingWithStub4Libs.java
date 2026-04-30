@@ -10,6 +10,7 @@ import core.cfg.dataFlow.DefUsePair;
 import core.cfg.utils.ASTHelper;
 import core.cfg.utils.DataFlowHelper;
 import core.cfg.utils.ProjectParser;
+import core.cfg.utils.ProjectParserRewrite;
 import core.path.FindPath;
 import core.path.MarkedPath;
 import core.path.MarkedStatement;
@@ -450,8 +451,11 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
     }
 
     private static void setup(String path, String className, String methodName, TestGeneration.Coverage coverage) throws IOException, InterruptedException {
-        TestGeneration.compilationUnit = ProjectParser.parseFileToCompilationUnit(path);
-        TestGeneration.funcAstNodeList = ProjectParser.parseFile(path, TestGeneration.compilationUnit);
+
+        TestGeneration.compilationUnit = ProjectParserRewrite.parseFileToCompilationUnit(path);
+        TestGeneration.funcAstNodeList = ProjectParserRewrite.parseFile(path, TestGeneration.compilationUnit);
+        inspectVariableBindings(TestGeneration.compilationUnit);
+
         classKey = (TestGeneration.compilationUnit.getPackage() != null ? TestGeneration.compilationUnit.getPackage().getName().toString() : "") + className.replace(".java", "") + "totalStatement";
 
         setupFullyClonedClassName(className, path, coverage);
@@ -459,6 +463,74 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
         MarkedPath.resetFullTestSuiteCoveredStatements();
 
         MethodInvocationNode.resetNumberOfFunctionsCall();
+    }
+
+    public static void inspectVariableBindings(CompilationUnit cu) {
+        if (cu == null) {
+            System.out.println("❌ CompilationUnit is NULL");
+            return;
+        }
+
+        System.out.println("=== Variable Binding Inspection ===");
+        if (cu.getJavaElement() != null) {
+            System.out.println("CompilationUnit: " + cu.getJavaElement().getElementName());
+        } else {
+            System.out.println("CompilationUnit: (no Java element, maybe parsed from raw source)");
+        }
+
+        cu.accept(new ASTVisitor() {
+            // Kiểm tra field (biến thành viên)
+            @Override
+            public boolean visit(FieldDeclaration node) {
+                for (Object frag : node.fragments()) {
+                    VariableDeclarationFragment vdf = (VariableDeclarationFragment) frag;
+                    IBinding binding = vdf.resolveBinding();
+                    System.out.printf("Field: %s -> Binding: %s%n",
+                            vdf.getName().getIdentifier(),
+                            binding != null ? binding.getKey() + " (" + binding.getClass().getSimpleName() + ")" : "NULL");
+                }
+                return true;
+            }
+
+            // Kiểm tra tham số phương thức
+            @Override
+            public boolean visit(SingleVariableDeclaration node) {
+                IBinding binding = node.resolveBinding();
+                System.out.printf("Parameter: %s -> Binding: %s%n",
+                        node.getName().getIdentifier(),
+                        binding != null ? binding.getKey() : "NULL");
+                return true;
+            }
+
+            // Kiểm tra biến cục bộ (trong khối lệnh)
+            @Override
+            public boolean visit(VariableDeclarationFragment node) {
+                // Tránh in trùng với FieldDeclaration (vì FieldDeclaration cũng chứa fragment)
+                if (node.getParent() instanceof FieldDeclaration) {
+                    return true;
+                }
+                IBinding binding = node.resolveBinding();
+                System.out.printf("Local variable: %s -> Binding: %s%n",
+                        node.getName().getIdentifier(),
+                        binding != null ? binding.getKey() : "NULL");
+                return true;
+            }
+
+            // Kiểm tra biến trong enhanced for loop
+            @Override
+            public boolean visit(EnhancedForStatement node) {
+                SingleVariableDeclaration param = node.getParameter();
+                if (param != null) {
+                    IBinding binding = param.resolveBinding();
+                    System.out.printf("Loop variable: %s -> Binding: %s%n",
+                            param.getName().getIdentifier(),
+                            binding != null ? binding.getKey() : "NULL");
+                }
+                return true;
+            }
+        });
+
+        System.out.println("---end---");
     }
 
     private static void setupFullyClonedClassName(String className, String path, TestGeneration.Coverage coverage) throws IOException, InterruptedException {
@@ -675,21 +747,14 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
             String inputSign = Arrays.toString(input);
 
             // Kiểm tra trong lịch sử testResult xem input này đã từng xuất hiện chưa
-            boolean isDuplicateGlobal = false;
-
             for (TestData oldData : testResult.getFullTestData()) {
                 Object[] oldInput = oldData.getTestDataSet().toArray();
                 String oldInputSign = Arrays.toString(oldInput);
 
                 // Nếu trùng với input chuẩn bị chạy
                 if (oldInputSign.equals(inputSign)) {
-                    isDuplicateGlobal = true;
-                    break;
+                    return false; // node sinh ra test trùng -> sinh sai -> coi như false
                 }
-            }
-
-            if (isDuplicateGlobal) {
-                continue;
             }
 
             if (executedInThisPath.contains(inputSign)) continue;
