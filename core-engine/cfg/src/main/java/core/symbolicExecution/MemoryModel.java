@@ -3,9 +3,11 @@ package core.symbolicExecution;
 import core.ast.AstNode;
 import core.ast.Expression.Name.NameNode;
 import core.variable.ArrayTypeVariable;
+import core.variable.ParameterizedTypeVariable;
 import core.variable.PrimitiveTypeVariable;
 import core.variable.Variable;
 import org.eclipse.jdt.core.dom.ArrayType;
+import org.eclipse.jdt.core.dom.ParameterizedType;
 import org.eclipse.jdt.core.dom.PrimitiveType;
 
 import java.util.HashMap;
@@ -32,6 +34,10 @@ public class MemoryModel { // ONLY FOR PRIMITIVE TYPES!!!!
 
     public void declareArrayTypeVariable(ArrayType type, String name, int numberOfDimensions, AstNode element) {
         S.put(new ArrayTypeVariable(type, name, numberOfDimensions), element);
+    }
+
+    public void declareParameterizedTypeVariable(ParameterizedType type, String name, AstNode element) {
+        S.put(new ParameterizedTypeVariable(type, name), element);
     }
 
     public AstNode getValue(String name) {

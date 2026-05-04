@@ -499,13 +499,11 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
     }
 
     private static Class<?> loadLatestClass(String className) throws Exception {
-        // Đường dẫn đến thư mục root chứa các package (src/main/java)
-        String rootPath = System.getProperty("user.dir") + File.separator + "core-engine" + File.separator + "cfg" + File.separator + "src" + File.separator + "main" + File.separator + "java";
-        File file = new File(rootPath);
+        // trỏ đường dẫn về thư mục chứa file .class
+        File file = new File(core.FilePath.targetClassesFolderPath);
         java.net.URL[] urls = new java.net.URL[]{file.toURI().toURL()};
 
-        // Sử dụng URLClassLoader để nạp class mới nhất từ đĩa
-        try (java.net.URLClassLoader cl = new java.net.URLClassLoader(urls, null)) {
+        try (java.net.URLClassLoader cl = new java.net.URLClassLoader(urls, ClassLoader.getSystemClassLoader())) {
             return cl.loadClass(className);
         }
     }

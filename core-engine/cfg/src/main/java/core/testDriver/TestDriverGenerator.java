@@ -47,6 +47,7 @@ public final class TestDriverGenerator {
         result.append("import org.mockito.MockedStatic;\n");
         result.append("import org.mockito.Mockito;\n");
         result.append("import static org.mockito.ArgumentMatchers.any;\n");
+        result.append("import java.util.*;\n");
         result.append("public class TestDriver {\n");
         result.append(markMethodUtility);
         result.append(writeDataToFileUtility);
@@ -219,6 +220,30 @@ public final class TestDriverGenerator {
                     } else {
                         valueAsString = "null"; // Fallback an toàn
                     }
+                } else if (value instanceof List) {
+                    List<?> list = (List<?>) value;
+                    StringBuilder sb = new StringBuilder("new ArrayList<>(Arrays.asList(");
+                    for (int j = 0; j < list.size(); j++) {
+                        Object item = list.get(j);
+                        if (item == null) {
+                            sb.append("null");
+                        } else if (item instanceof String) {
+                            sb.append("\"").append(item.toString().replace("\"", "\\\"")).append("\"");
+                        } else if (item instanceof Character) {
+                            sb.append("'").append(item).append("'");
+                        } else if (item instanceof Long) {
+                            sb.append(item).append("L");
+                        } else if (item instanceof Float) {
+                            sb.append(item).append("f");
+                        } else {
+                            sb.append(item);
+                        }
+                        if (j < list.size() - 1) {
+                            sb.append(", ");
+                        }
+                    }
+                    sb.append("))");
+                    valueAsString = sb.toString();
                 } else {
                     // Xử lý các kiểu dữ liệu nguyên thủy và chuỗi
                     valueAsString = String.valueOf(value);

@@ -9,6 +9,7 @@ import core.ast.Expression.Name.SimpleNameNode;
 import core.ast.Expression.OperationExpression.OperationExpressionNode;
 import core.ast.VariableDeclaration.SingleVariableDeclarationNode;
 import core.symbolicExecution.MemoryModel;
+import core.symbolicExecution.SymbolicExecutionRewrite;
 import core.testDriver.TestDriverUtils;
 import core.testGeneration.TestGeneration;
 import org.eclipse.jdt.core.dom.*;
@@ -54,6 +55,15 @@ public class MethodInvocationNode extends ExpressionNode {
 
         if (methodInvocation.getExpression() != null) { // method invocation in the same class
             String className = methodInvocation.getExpression().toString();
+
+            if (methodName.equals("get")) {
+                List<AstNode> arguments = new ArrayList<>();
+                for (Object arg : methodInvocation.arguments()) {
+                    arguments.add(ExpressionNode.executeExpression((Expression) arg, memoryModel));
+                }
+                // Trả về MethodInvocationNode chứa tên List (expressionStr) và index (arguments)
+                return new MethodInvocationNode(className, methodName, arguments);
+            }
 
             if (className.equals("Math") && (methodName.equals("abs") || methodName.equals("max") || methodName.equals("min"))) {
                 List<AstNode> arguments = new ArrayList<>();
@@ -158,7 +168,7 @@ public class MethodInvocationNode extends ExpressionNode {
         }
     }
 
-    public static Expr createZ3Expression(MethodInvocationNode operand, MemoryModel memoryModel, Context ctx, List<Z3VariableWrapper> vars) {
+    public static Expr  createZ3Expression(MethodInvocationNode operand, MemoryModel memoryModel, Context ctx, List<Z3VariableWrapper> vars) {
         MethodInvocationNode methodInvocationNode = (MethodInvocationNode) operand;
         String methodName = methodInvocationNode.getMethodName();
         String className = methodInvocationNode.getClassName();
@@ -253,6 +263,28 @@ public class MethodInvocationNode extends ExpressionNode {
                     return null;
                 }
             }
+        } else if ("get".equals(methodName)) {
+            // Lấy trạng thái mảng mới nhất từ map (linh hồn logic trong Z3)
+            // Lưu ý: Đảm bảo đường dẫn core.symbolicExecution.SymbolicExecutionRewrite là đúng với project của bạn
+            Expr z3ListBase = core.symbolicExecution.SymbolicExecutionRewrite.z3ArrayStateMap.get().get(className);
+
+            if (z3ListBase == null) {
+                throw new RuntimeException("Không tìm thấy trạng thái Z3 cho List: " + className);
+            }
+
+            // Dịch Index (biến hoặc số) sang Z3 Expression thông qua Dispatcher trung tâm
+            ExpressionNode indexNode = (ExpressionNode) args.get(0);
+            Expr z3IndexExpr = OperationExpressionNode.createZ3Expression(indexNode, ctx, vars, memoryModel);
+
+            System.out.println("Đã dịch phép truy cập List: " + className + ".get(" + z3IndexExpr + ")");
+
+            // Trả về phép toán mkSelect (tương đương Array[index])
+            return ctx.mkSelect((ArrayExpr) z3ListBase, z3IndexExpr);
+        } else if ("size".equals(methodName)) {
+            Expr sizeVar = ctx.mkBVConst(className + ".size", 32);
+            Z3VariableWrapper wrapper = new Z3VariableWrapper(sizeVar);
+            if (!vars.contains(wrapper)) vars.add(wrapper);
+            return sizeVar;
         }
         throw new RuntimeException("Invalid type");
     }

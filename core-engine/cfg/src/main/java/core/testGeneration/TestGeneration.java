@@ -13,9 +13,7 @@ import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 public abstract class TestGeneration {
     public enum Coverage {
@@ -110,5 +108,9 @@ public abstract class TestGeneration {
 //        } else {
 //            throw new RuntimeException("Value has not been setup");
 //        }
+    }
+
+    public static List<String> getParameterNames() {
+        return parameterNames;
     }
 }

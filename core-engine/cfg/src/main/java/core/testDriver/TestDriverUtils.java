@@ -2,6 +2,8 @@ package core.testDriver;
 
 import core.ast.Expression.Literal.LiteralNode;
 import core.symbolicExecution.MemoryModel;
+import core.symbolicExecution.SymbolicExecutionRewrite;
+import core.testGeneration.TestGeneration;
 import core.variable.Variable;
 import org.eclipse.jdt.core.dom.*;
 
@@ -58,11 +60,21 @@ public final class TestDriverUtils {
 
     public static List<String> getParameterNames(List<ASTNode> parameters) {
         List<String> names = new ArrayList<>();
+        SymbolicExecutionRewrite.variableGenericTypeMap.clear();
         for (int i = 0; i < parameters.size(); i++) {
             ASTNode param = parameters.get(i);
             if (param instanceof SingleVariableDeclaration) {
                 SingleVariableDeclaration declaration = (SingleVariableDeclaration) param;
                 names.add(declaration.getName().getIdentifier());
+
+                Type type = declaration.getType();
+                if (type instanceof ParameterizedType) {
+                    ParameterizedType pType = (ParameterizedType) type;
+                    if (!pType.typeArguments().isEmpty()) {
+                        Type argType = (Type) pType.typeArguments().get(0);
+                        SymbolicExecutionRewrite.variableGenericTypeMap.put(declaration.getName().getIdentifier(), getTypeClass(argType));
+                    }
+                }
             } else if (param instanceof VariableDeclarationFragment) {
                 VariableDeclarationFragment declaration = (VariableDeclarationFragment) param;
                 names.add(declaration.getName().getIdentifier());
@@ -93,6 +105,10 @@ public final class TestDriverUtils {
         } else if (type instanceof SimpleType) {
             SimpleType simpleType = (SimpleType) type;
             return getClassForName(simpleType.getName().getFullyQualifiedName());
+        } else if (type instanceof ParameterizedType) {
+            ParameterizedType parameterizedType = (ParameterizedType) type;
+            Type baseType = parameterizedType.getType();
+            return getTypeClass(baseType);
         } else {
             throw new RuntimeException("Unsupported parameter type: " + type.getClass());
         }
@@ -177,7 +193,21 @@ public final class TestDriverUtils {
         try {
             return Class.forName(className);
         } catch (ClassNotFoundException e) {
-            throw new RuntimeException("Class not found: " + className, e);
+            StringBuilder fullName = new StringBuilder();
+            switch (className) {
+                case "List":
+                    fullName.append("java.util.");
+                    break;
+                default:
+                    fullName.append("java.lang.");
+                    break;
+            }
+            fullName.append(className);
+            try {
+                return Class.forName(fullName.toString());
+            } catch (ClassNotFoundException ex) {
+                throw new RuntimeException("Class not found: " + fullName.toString(), ex);
+            }
         }
     }
 }

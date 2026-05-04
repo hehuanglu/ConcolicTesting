@@ -29,7 +29,11 @@ public class SingleVariableDeclarationNode extends VariableDeclarationNode {
         } else if (type instanceof ArrayType) {
             ArrayType arrayType = (ArrayType) type;
             memoryModel.declareArrayTypeVariable(arrayType, key, arrayType.getDimensions(), createMultiDimensionsInitializationArray(key, 0, arrayType.getDimensions(), arrayType.getElementType(), memoryModel));
-        } else { // OTHER TYPES
+        } else if (type instanceof ParameterizedType) {
+            ParameterizedType parameterizedType = (ParameterizedType) type;
+            memoryModel.declareParameterizedTypeVariable(parameterizedType, key, simpleNameNode);
+        }
+        else { // OTHER TYPES
             throw new RuntimeException("Invalid type");
         }
 
