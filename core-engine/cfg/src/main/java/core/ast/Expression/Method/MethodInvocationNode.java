@@ -57,6 +57,15 @@ public class MethodInvocationNode extends ExpressionNode {
         if (methodInvocation.getExpression() != null) { // method invocation in the same class
             String className = methodInvocation.getExpression().toString();
 
+            if (methodName.equals("get")) {
+                List<AstNode> arguments = new ArrayList<>();
+                for (Object arg : methodInvocation.arguments()) {
+                    arguments.add(ExpressionNode.executeExpression((Expression) arg, memoryModel));
+                }
+                // Trả về MethodInvocationNode chứa tên List (expressionStr) và index (arguments)
+                return new MethodInvocationNode(className, methodName, arguments);
+            }
+
             IMethodBinding methodBinding = methodInvocation.resolveMethodBinding();
             if (methodBinding != null) {
                 ITypeBinding declaringClass = methodBinding.getDeclaringClass();

@@ -157,7 +157,6 @@ public class SymbolicExecutionRewrite {
                 collectSymbolicArrayIndexesFromAst(astNode, ctx);
 
                 // BẮT, NỘI SOI KIỂU VÀ TẠO BIẾN GIẢ Z3
-                // 1. Kết thúc phần visit AST
                 astNode.accept(new ASTVisitor() {
                     @Override
                     public boolean visit(MethodInvocation methodInvocation) {
@@ -283,76 +282,89 @@ public class SymbolicExecutionRewrite {
                     }
                 });
 
-// 2. Phần thực thi Node và giải quyết ràng buộc (Phần này thường nằm trong một vòng lặp duyệt CFG)
                 AstNode executedAstNode = Rewrite.reStm(astNode, symbolicMap);
 
-                if (currentNode.getData() instanceof CfgBoolExprNode) {
+                if (currentNode.getData() instanceof CfgBoolExprNode) { // Condition
                     CfgBoolExprNode boolNode = (CfgBoolExprNode) currentCfgNode;
+
                     boolean isGoingToFalseBranch = false;
 
                     if (currentNode.getNext() != null) {
-                        CfgNode nextCfgNode = (CfgNode) currentNode.getNext().getData();
+                        CfgNode nextCfgNode = currentNode.getNext().getData(); // Node tiếp theo trong đường đi
+
+                        // kiểm tra: Node tiếp theo có phải là con ở nhánh False của Node hiện tại không
                         if (nextCfgNode == boolNode.getFalseNode()) {
                             isGoingToFalseBranch = true;
                         }
                     }
-
+                    // Nếu xác định là đi nhánh False -> Phủ định biểu thức
                     if (isGoingToFalseBranch) {
                         PrefixExpressionNode newAstNode = new PrefixExpressionNode();
                         newAstNode.setOperator(PrefixExpression.Operator.NOT);
                         newAstNode.setOperand((ExpressionNode) executedAstNode);
+
                         executedAstNode = PrefixExpressionNode.executePrefixExpressionNode(newAstNode, symbolicMap);
                     }
 
-                    if (!(executedAstNode instanceof BooleanLiteralNode)) {
-                        Expr expr = OperationExpressionNode.createZ3Expression((ExpressionNode) executedAstNode, ctx, Z3Vars, symbolicMap);
-                        BoolExpr constraint;
-                        if (expr instanceof BoolExpr) {
-                            constraint = (BoolExpr) expr;
-                        } else if (expr instanceof BitVecExpr) {
-                            constraint = ctx.mkNot(ctx.mkEq((BitVecExpr) expr, ctx.mkBV(0, ((BitVecExpr) expr).getSortSize())));
-                        } else {
-                            throw new RuntimeException("Unsupported constraint type: " + expr);
-                        }
-
-                        if (finalZ3Expression == null) finalZ3Expression = constraint;
-                        else finalZ3Expression = ctx.mkAnd(finalZ3Expression, constraint);
+                    if (executedAstNode instanceof BooleanLiteralNode) {
+                        currentNode = currentNode.getNext();
+                        continue;
                     }
 
+                    Expr expr = OperationExpressionNode.createZ3Expression(
+                            (ExpressionNode) executedAstNode, ctx, Z3Vars, symbolicMap);
+
+                    BoolExpr constraint;
+                    if (expr instanceof BoolExpr) {
+                        constraint = (BoolExpr) expr;
+                    } else if (expr instanceof BitVecExpr) {
+                        constraint = ctx.mkNot(ctx.mkEq((BitVecExpr) expr, ctx.mkBV(0, ((BitVecExpr) expr).getSortSize())));
+                    } else {
+                        throw new RuntimeException("Unsupported constraint type: " + expr);
+                    }
+
+                    if (finalZ3Expression == null) finalZ3Expression = constraint;
+                    else {
+                        finalZ3Expression = ctx.mkAnd(finalZ3Expression, constraint);
+                    }
                 } else if (astNode instanceof VariableDeclarationStatement) {
                     VariableDeclarationStatement stm = (VariableDeclarationStatement) astNode;
                     List<VariableDeclarationFragment> fragments = stm.fragments();
-
                     for (VariableDeclarationFragment fragment : fragments) {
                         String name = fragment.getName().getIdentifier();
                         Expression initializer = fragment.getInitializer();
-
-                        if (initializer != null) {
+                        if (initializer != null) { //Declaration with initialization
                             if (stm.getType() instanceof PrimitiveType) {
-                                symbolicMap.declarePrimitiveTypeVariable((PrimitiveType) stm.getType(), name,
+                                PrimitiveType type = (PrimitiveType) stm.getType();
+
+                                symbolicMap.declarePrimitiveTypeVariable(type, name,
                                         ExpressionNode.executeExpression(initializer, symbolicMap));
                             } else if (stm.getType() instanceof SimpleType) {
-                                symbolicMap.declareSimpleTypeVariable((SimpleType) stm.getType(), name,
+                                SimpleType simpleType = (SimpleType) stm.getType();
+
+                                symbolicMap.declareSimpleTypeVariable(simpleType, name,
                                         ExpressionNode.executeExpression(initializer, symbolicMap));
                             } else if (stm.getType() instanceof ArrayType) {
                                 ArrayType type = (ArrayType) stm.getType();
                                 ArrayCreation arrayCreation = (ArrayCreation) initializer;
                                 ArrayCreationWithNewKeyWord strategy = new ArrayCreationWithNewKeyWord();
-
-                                AstNode element = ArrayCreationNode.executeArrayCreation(arrayCreation, symbolicMap, strategy);
+                                AstNode element = ArrayCreationNode.executeArrayCreation(arrayCreation,
+                                        symbolicMap, strategy);
                                 ArrayNode arrayNode = (ArrayNode) element;
-
-                                for (int i = 0; i < arrayNode.getNumberOfDimensions(); i++) {
+                                int numberOfDimensions = arrayNode.getNumberOfDimensions();
+                                for (int i = 0; i < numberOfDimensions; i++) {
                                     ExpressionNode lengthOfArray = arrayNode.getLengthOfDimensions();
                                     if (lengthOfArray instanceof NameNode) {
-                                        String nodeName = NameNode.getStringNameNode((NameNode) lengthOfArray);
-                                        Expr nameNodeExpr = Variable.createZ3Variable(symbolicMap.getVariable(nodeName), ctx);
+                                        String nameNode = NameNode.getStringNameNode((NameNode) lengthOfArray);
+                                        Expr nameNodeExpr = Variable.createZ3Variable(symbolicMap.getVariable(nameNode), ctx);
 
                                         BoolExpr constraint;
                                         if (nameNodeExpr instanceof BitVecExpr) {
                                             constraint = ctx.mkBVSGE((BitVecExpr) nameNodeExpr, ctx.mkBV(0, ((BitVecExpr) nameNodeExpr).getSortSize()));
-                                        } else {
+                                        } else if (nameNodeExpr instanceof ArithExpr) {
                                             constraint = ctx.mkGe((ArithExpr) nameNodeExpr, ctx.mkInt(0));
+                                        } else {
+                                            throw new RuntimeException("Unexpected type for array length: " + nameNodeExpr);
                                         }
 
                                         if (finalZ3Expression == null) finalZ3Expression = constraint;
@@ -360,34 +372,29 @@ public class SymbolicExecutionRewrite {
                                     }
                                 }
                                 symbolicMap.declareArrayTypeVariable(type, name, type.getDimensions(), element);
+                            } else {
+                                throw new RuntimeException(stm.getType().getClass() + " is invalid!!");
                             }
-                        } else { // No initialization
+                        } else { // Declaration without initialization
                             if (stm.getType() instanceof PrimitiveType) {
-                                symbolicMap.declarePrimitiveTypeVariable((PrimitiveType) stm.getType(), name,
-                                        PrimitiveTypeNode.changePrimitiveTypeToLiteralInitialization((PrimitiveType) stm.getType()));
+                                PrimitiveType type = (PrimitiveType) stm.getType();
+
+                                symbolicMap.declarePrimitiveTypeVariable(type, name,
+                                        PrimitiveTypeNode.changePrimitiveTypeToLiteralInitialization(type));
+
+                            } else {
+                                throw new RuntimeException("Only deal with PrimitiveType!!");
                             }
                         }
                     }
+
                 }
+            }
 
             if (astNode instanceof ThrowStatement) {
                 break;
             }
             currentNode = currentNode.getNext();
-        };
-
-        for (Map.Entry<String, List<Expr>> entry : symbolicArrayIndexExpressions.entrySet()) {
-            int size = 1000; //
-            for (Expr indexExpr : entry.getValue()) {
-                if (indexExpr instanceof BitVecExpr) {
-                    BitVecExpr bvIdx = (BitVecExpr) indexExpr;
-                    BoolExpr bound = ctx.mkAnd(
-                            ctx.mkBVSGE(bvIdx, ctx.mkBV(0, 32)),
-                            ctx.mkBVSLT(bvIdx, ctx.mkBV(size, 32))
-                    );
-                    finalZ3Expression = ctx.mkAnd(finalZ3Expression, bound);
-                }
-            }
         }
 
         for (Map.Entry<String, List<Expr>> entry : symbolicArrayIndexExpressions.entrySet()) {
@@ -425,9 +432,7 @@ public class SymbolicExecutionRewrite {
     private void executeParameters(Context ctx) {
         Z3Vars = new ArrayList<>();
         for (ASTNode astNode : parameters) {
-            // thực thi astNode - khai báo các parameter vào memoryModel
             AstNode.executeASTNode(astNode, symbolicMap);
-            // tạo ra biến z3 mà bộ giải có thể hiểu được và lưu biến vào Z3vars
             createZ3ParameterVariable(astNode, ctx, symbolicMap, Z3Vars);
         }
     }
@@ -623,17 +628,7 @@ public class SymbolicExecutionRewrite {
                         }
                     } else if (evaluateResult instanceof BoolExpr) {
                         stringValue = evaluateResult.isTrue() ? "true" : "false";
-                    } else if (evaluateResult instanceof IntNum) {
-                        stringValue = ((IntNum) evaluateResult).getBigInteger().toString();
-                    } else if (evaluateResult instanceof SeqExpr) {
-                        // Xử lý String
-                        String val = evaluateResult.toString();
-                        if (val.startsWith("\"") && val.endsWith("\"")) {
-                            val = val.substring(1, val.length() - 1);
-                        }
-                        stringValue = val;
-                    }
-                    else {
+                    } else {
                         stringValue = evaluateResult.toString();
                     }
 
@@ -784,32 +779,29 @@ public class SymbolicExecutionRewrite {
 
         for (int i = 0; i < parameterClasses.length; i++) {
             // nếu z3 ko giải được, bỏ qua
-            if (i >= lines.length) {
-                log.warn("Dữ liệu Z3 bị thiếu ở tham số thứ {}. Gán giá trị mặc định (null).", i);
+            if (i >= lines.length || lines[i].trim().isEmpty()) {
+                log.warn("Dữ liệu Z3 bị thiếu hoặc rỗng ở tham số thứ {}. Gán giá trị mặc định (null).", i);
                 result.add(null);
                 continue;
             }
 
             Class<?> parameterClass = parameterClasses[i];
-            String lineData = lines[i]; // Không trim ở đây để giữ chuỗi rỗng nếu có
+            String lineData = lines[i].trim();
 
             // tham số là biến đơn
             try {
                 if (parameterClass.isPrimitive()) {
-                    result.add(parsePrimitiveString(lineData.trim(), parameterClass.getName()));
-                }
-                else if (parameterClass.equals(String.class)) {
-                    result.add(lineData); // String lấy trực tiếp
+                    result.add(parsePrimitiveString(lineData, parameterClass.getName()));
                 }
                 // tham số là mảng
                 else if (parameterClass.isArray()) {
-                    String trimmedLine = lineData.trim();
-                    if (trimmedLine.isEmpty()) {
-                        result.add(Array.newInstance(parameterClass.getComponentType(), 0));
-                    } else {
-                        String[] strElements = trimmedLine.split(",");
-                        Class<?> componentType = parameterClass.getComponentType();
-                        Object arrayInstance = Array.newInstance(componentType, strElements.length);
+                    String[] strElements = lineData.split(",");
+
+                    // Lấy kiểu dữ liệu bên trong mảng
+                    Class<?> componentType = parameterClass.getComponentType();
+
+                    // tạo mảng
+                    Object arrayInstance = Array.newInstance(componentType, strElements.length);
 
                     // Nhét từng con số vào mảng
                     for (int j = 0; j < strElements.length; j++) {
@@ -819,21 +811,21 @@ public class SymbolicExecutionRewrite {
                         Array.set(arrayInstance, j, val);
                     }
 
-                // Thêm mảng hoàn chỉnh vào danh sách kết quả
-                result.add(arrayInstance);
-            } else if (java.util.List.class.isAssignableFrom(parameterClass)) {
-                // Cắt chuỗi theo dấu phẩy
-                String[] strElements = lineData.split(",");
-                List<Object> listInstance = new ArrayList<>();
+                    // Thêm mảng hoàn chỉnh vào danh sách kết quả
+                    result.add(arrayInstance);
+                } else if (java.util.List.class.isAssignableFrom(parameterClass)) {
+                    // Cắt chuỗi theo dấu phẩy
+                    String[] strElements = lineData.split(",");
+                    List<Object> listInstance = new ArrayList<>();
 
-                for (String str : strElements) {
-                    listInstance.add(parsePrimitiveString(str.trim(), "int"));
-                }
-                result.add(listInstance);
-            } else {
+                    for (String str : strElements) {
+                        listInstance.add(parsePrimitiveString(str.trim(), "int"));
+                    }
+                    result.add(listInstance);
+                } else {
                     log.warn("Chưa hỗ trợ ép kiểu Object phức tạp: {}. Tự động gán null.", parameterClass.getName());
                     result.add(null);
-            }
+                }
             } catch (Exception e) {
                 log.error("Lỗi ép kiểu dữ liệu từ Z3 [{}] sang Java [{}]: {}", lineData, parameterClass.getName(), e.getMessage(), e);
                 result.add(null);
@@ -1365,3 +1357,5 @@ public class SymbolicExecutionRewrite {
 
 
 }
+
+
