@@ -47,6 +47,7 @@ public final class TestDriverGenerator {
         result.append("import org.mockito.MockedStatic;\n");
         result.append("import org.mockito.Mockito;\n");
         result.append("import static org.mockito.ArgumentMatchers.any;\n");
+        result.append("import java.util.*;\n");
         result.append("public class TestDriver {\n");
         result.append(markMethodUtility);
         result.append(writeDataToFileUtility);
@@ -219,6 +220,30 @@ public final class TestDriverGenerator {
                     } else {
                         valueAsString = "null"; // Fallback an toàn
                     }
+                } else if (value instanceof List) {
+                    List<?> list = (List<?>) value;
+                    StringBuilder sb = new StringBuilder("new ArrayList<>(Arrays.asList(");
+                    for (int j = 0; j < list.size(); j++) {
+                        Object item = list.get(j);
+                        if (item == null) {
+                            sb.append("null");
+                        } else if (item instanceof String) {
+                            sb.append("\"").append(item.toString().replace("\"", "\\\"")).append("\"");
+                        } else if (item instanceof Character) {
+                            sb.append("'").append(item).append("'");
+                        } else if (item instanceof Long) {
+                            sb.append(item).append("L");
+                        } else if (item instanceof Float) {
+                            sb.append(item).append("f");
+                        } else {
+                            sb.append(item);
+                        }
+                        if (j < list.size() - 1) {
+                            sb.append(", ");
+                        }
+                    }
+                    sb.append("))");
+                    valueAsString = sb.toString();
                 } else {
                     // Xử lý các kiểu dữ liệu nguyên thủy và chuỗi
                     valueAsString = String.valueOf(value);
@@ -623,27 +648,7 @@ public final class TestDriverGenerator {
     private static String generateCodeForMarkMethod(ASTNode statement, String markMethodSeparator) {
         StringBuilder result = new StringBuilder();
 
-        String stringStatement = statement.toString();
-        StringBuilder newStatement = new StringBuilder();
-
-        // Rewrite Statement for mark method
-        for (int i = 0; i < stringStatement.length(); i++) {
-            char charAt = stringStatement.charAt(i);
-
-            if (charAt == '\n') {
-                newStatement.append("\\n");
-                continue;
-            } else if (charAt == '"') {
-                newStatement.append("\\").append('"');
-                continue;
-            } else if (i != stringStatement.length() - 1 && charAt == '\\' && stringStatement.charAt(i + 1) == 'n') {
-                newStatement.append("\" + \"").append("\\n").append("\" + \"");
-                i++;
-                continue;
-            }
-
-            newStatement.append(charAt);
-        }
+        String newStatement = escapeString(statement.toString());
 
         result.append("mark(\"").append(newStatement).append("\", false, false)").append(markMethodSeparator).append("\n");
 
@@ -661,8 +666,31 @@ public final class TestDriverGenerator {
     }
 
     private static String generateCodeForConditionForBranchAndStatementCoverage(Expression condition) {
-        return "((" + condition + ") && mark(\"" + condition + "\", true, false))" +
-                " || mark(\"" + condition + "\", false, true)";
+        String escapedCondition = escapeString(condition.toString());
+        return "((" + condition + ") && mark(\"" + escapedCondition + "\", true, false))" +
+                " || mark(\"" + escapedCondition + "\", false, true)";
+    }
+
+    private static String escapeString(String s) {
+        if (s == null) return "";
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (c == '\"') {
+                sb.append("\\\"");
+            } else if (c == '\\') {
+                sb.append("\\\\");
+            } else if (c == '\n') {
+                sb.append("\\n");
+            } else if (c == '\r') {
+                sb.append("\\r");
+            } else if (c == '\t') {
+                sb.append("\\t");
+            } else {
+                sb.append(c);
+            }
+        }
+        return sb.toString();
     }
 
     private static String generateCodeForConditionForMCDCCoverage(Expression condition) {

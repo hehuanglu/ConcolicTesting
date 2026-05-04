@@ -41,9 +41,94 @@ public class StringMethodNode extends MethodInvocationNode {
             case "isBlank":
             case "isEmpty":
                 return handleIsBlank(targetStr, ctx);
+            case "equals":
+                return handleEquals(node,targetStr, memoryModel, ctx, vars);
+            case "startsWith":
+                return handleStartsWith(node,targetStr, memoryModel, ctx, vars);
+            case "endsWith":
+                return handleEndsWith(node,targetStr, memoryModel, ctx, vars);
+            case "indexOf":
+                return handleIndexOf(node,targetStr, memoryModel, ctx, vars);
+            case "contains":
+                return handleContains(node,targetStr, memoryModel, ctx, vars);
             default:
                 throw new RuntimeException("Unsupported String method: " + node.methodName);
         }
+    }
+    private static Expr handleContains(StringMethodNode node, SeqExpr<CharSort> target, MemoryModel memoryModel,
+                                      Context ctx, List<Z3VariableWrapper> vars){
+        ExpressionNode argument = (ExpressionNode) node.arguments.get(0);
+        Expr argumentExpr = OperationExpressionNode.createZ3Expression(argument,ctx,vars,memoryModel);
+        return ctx.mkContains(target,argumentExpr);
+    }
+    private static Expr handleIndexOf(StringMethodNode node, SeqExpr<CharSort> target, MemoryModel memoryModel,
+                                      Context ctx, List<Z3VariableWrapper> vars){
+        ExpressionNode argument = (ExpressionNode) node.arguments.get(0);
+        ExpressionNode indexNode = (ExpressionNode) node.arguments.get(1);
+
+        Expr argumentExpr = OperationExpressionNode.createZ3Expression(argument,ctx,vars,memoryModel);
+        Expr indexExpr;
+        if(indexNode != null){
+            indexExpr  = OperationExpressionNode.createZ3Expression(indexNode,ctx,vars,memoryModel);
+        }else{
+            indexExpr = ctx.mkInt(0);
+        }
+
+        return ctx.mkIndexOf(target,argumentExpr,indexExpr);
+    }
+
+    private static Expr handleEndsWith(StringMethodNode node, SeqExpr<CharSort> target, MemoryModel memoryModel,
+                                         Context ctx, List<Z3VariableWrapper> vars) {
+        ExpressionNode argument = (ExpressionNode) node.arguments.get(0);
+        Expr argumentExpr = OperationExpressionNode.createZ3Expression(argument,ctx,vars,memoryModel);
+        return ctx.mkSuffixOf(argumentExpr,target);
+    }
+
+    private static Expr handleStartsWith(StringMethodNode node, SeqExpr<CharSort> target, MemoryModel memoryModel,
+                                         Context ctx, List<Z3VariableWrapper> vars) {
+
+        // 1. Lấy tham số đầu tiên (chuỗi argument cần kiểm tra)
+        ExpressionNode argument = (ExpressionNode) node.arguments.get(0);
+        Expr argExprRaw = OperationExpressionNode.createZ3Expression(argument, ctx, vars, memoryModel);
+        // Bắt buộc ép kiểu sang SeqExpr để dùng cho mkPrefixOf
+        SeqExpr<CharSort> argumentExpr = (SeqExpr<CharSort>) argExprRaw;
+
+        // 2. Xử lý tham số index (tofset) một cách an toàn
+        IntExpr indexExpr;
+        if (node.arguments.size() > 1 && node.arguments.get(1) != null) {
+            ExpressionNode indexNode = (ExpressionNode) node.arguments.get(1);
+            Expr parsedIndex = OperationExpressionNode.createZ3Expression(indexNode, ctx, vars, memoryModel);
+            // Bắt buộc ép kiểu sang IntExpr
+            indexExpr = (IntExpr) parsedIndex;
+        } else {
+            // Nếu không có tham số thứ 2, mặc định index là 0
+            indexExpr = ctx.mkInt(0);
+        }
+
+        // --- Bắt đầu Ánh xạ Z3 ---
+
+        // remainingLen = target.length() - indexExpr
+        IntExpr remainingLen = (IntExpr) ctx.mkSub(ctx.mkLength(target), indexExpr);
+
+        // lấy substring từ vị trí index với độ dài remainingLen
+        SeqExpr<CharSort> subStr = ctx.mkExtract(target, indexExpr, remainingLen);
+
+        // so sánh chuỗi con và chuỗi argument (Lưu ý: Tiền tố argumentExpr đứng TRƯỚC)
+        BoolExpr startsWithAtIndex = ctx.mkPrefixOf(argumentExpr, subStr);
+
+        BoolExpr indexGTEZero = ctx.mkGe(indexExpr, ctx.mkInt(0)); // index >= 0
+        BoolExpr indexLteLen = ctx.mkLe(indexExpr, ctx.mkLength(target)); // index <= target.length()
+
+        // Kết hợp các điều kiện lại
+        return ctx.mkAnd(indexGTEZero, indexLteLen, startsWithAtIndex);
+    }
+
+    private  static Expr handleEquals(StringMethodNode node,SeqExpr target, MemoryModel memoryModel,
+                                      Context ctx, List<Z3VariableWrapper> vars){
+
+        ExpressionNode argNode = (ExpressionNode) node.arguments.get(0);
+        Expr argExpr = OperationExpressionNode.createZ3Expression(argNode, ctx, vars, memoryModel);
+        return ctx.mkEq(target,argExpr);
     }
 
     private static Expr getTargetExpr(AstNode target, MemoryModel memoryModel,

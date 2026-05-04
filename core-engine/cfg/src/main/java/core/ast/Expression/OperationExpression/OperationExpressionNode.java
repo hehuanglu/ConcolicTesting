@@ -11,7 +11,11 @@ import core.ast.Expression.Literal.CharacterLiteralNode;
 import core.ast.Expression.Literal.LiteralNode;
 import core.ast.Expression.Literal.NumberLiteral.IntegerLiteralNode;
 import core.ast.Expression.Literal.NumberLiteral.NumberLiteralNode;
+import core.ast.Expression.Literal.StringLiteralNode;
+import core.ast.Expression.Literal.NullLiteralNode;
 import core.ast.Expression.Method.MethodInvocationNode;
+import core.ast.Expression.Method.StringMethodNode;
+import core.ast.Type.AnnotatableType.SimpleTypeNode;
 import core.ast.Expression.Name.NameNode;
 import core.symbolicExecution.MemoryModel;
 import core.variable.Variable;
@@ -44,6 +48,8 @@ public abstract class OperationExpressionNode extends ExpressionNode {
             return PrefixExpressionNode.createZ3Expression((PrefixExpressionNode) operand, ctx, vars, memoryModel);
         } else if (operand instanceof ParenthesizedExpressionNode) {
             return ParenthesizedExpressionNode.createZ3Expression((ParenthesizedExpressionNode) operand, ctx, vars, memoryModel);
+        } else if (operand instanceof MethodInvocationNode) {
+            return MethodInvocationNode.createZ3Expression((MethodInvocationNode) operand, memoryModel, ctx, vars);
         } else if (operand instanceof NameNode) {
             NameNode n = (NameNode) operand;
             String name = NameNode.getStringNameNode(n);
@@ -53,7 +59,7 @@ public abstract class OperationExpressionNode extends ExpressionNode {
             }
 
             if (operand.isFake()) {
-                return ctx.mkIntConst(name);   // bypass memory + không gọi toString()
+                return ctx.mkBVConst(name, 32);   // bypass memory + không gọi toString()
             }
 
             if (name != null && name.endsWith(".length")) {
@@ -109,7 +115,13 @@ public abstract class OperationExpressionNode extends ExpressionNode {
                 return ctx.mkBool(((BooleanLiteralNode) operand).getValue());
             } else if (operand instanceof CharacterLiteralNode) {
                 return ctx.mkBV(((CharacterLiteralNode) operand).getCharacterValue(), 16);
-            } else {
+            } else if (operand instanceof StringLiteralNode){
+                return ctx.mkString(operand.toString());
+            } else if (operand instanceof  NullLiteralNode){
+                //đặt 0 tượng trưng cho null trong bộ giải z3
+                return ctx.mkInt(0);
+            }
+            else {
                 throw new RuntimeException("Invalid Literal");
             }
         } else if (operand instanceof ArrayAccessNode) {
@@ -118,7 +130,10 @@ public abstract class OperationExpressionNode extends ExpressionNode {
             return MethodInvocationNode.createZ3Expression((MethodInvocationNode) operand, memoryModel, ctx, vars);
         } else if (operand instanceof CastExpressionNode) {
             return CastExpressionNode.createZ3Expression((CastExpressionNode) operand, memoryModel, ctx, vars);
-        } else {
+        }  if (operand instanceof SimpleTypeNode) {
+            return SimpleTypeNode.createZ3Expression((SimpleTypeNode) operand, memoryModel, ctx, vars);
+        }
+        else {
             throw new RuntimeException(operand.getClass() + " is not an Expression");
         }
     }
@@ -178,7 +193,10 @@ public abstract class OperationExpressionNode extends ExpressionNode {
             return operand;
         } else if (operand instanceof ArrayAccessNode) {
             return operand;
-        } else {
+        }else if (operand instanceof SimpleTypeNode) {
+            return operand;
+        }
+        else {
             throw new RuntimeException(operand.getClass() + " is Invalid expressionNode");
         }
     }

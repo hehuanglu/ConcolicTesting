@@ -129,12 +129,25 @@ public class CfgNode {
         return cfgNode;
     }
 
-    public static CfgNode parserToCFG(String sourceCode) {
-        CfgNode cfg = new CfgNode();
-
+    private static ASTParser createConfiguredParser(String sourceCode) {
         ASTParser parser = ASTParser.newParser(AST.JLS8);
         parser.setSource(sourceCode.toCharArray());
         parser.setKind(ASTParser.K_COMPILATION_UNIT);
+        parser.setResolveBindings(true);
+        parser.setBindingsRecovery(true);
+        parser.setEnvironment(null, null, null, true);
+        parser.setUnitName("ConfiguredParser.java");
+
+        Map options = JavaCore.getOptions();
+        JavaCore.setComplianceOptions(JavaCore.VERSION_1_8, options);
+        parser.setCompilerOptions(options);
+        return parser;
+    }
+
+    public static CfgNode parserToCFG(String sourceCode) {
+        CfgNode cfg = new CfgNode();
+
+        ASTParser parser = createConfiguredParser(sourceCode);
         CompilationUnit cu = (CompilationUnit) parser.createAST(null);
         ASTVisitor visitor = new ASTVisitor() {
             @Override
@@ -159,9 +172,7 @@ public class CfgNode {
 
     public static ArrayList<ASTNode> parserToAstFuncList(String sourceCodeFile) {
         ArrayList<ASTNode> AstFuncList = new ArrayList<>();
-        ASTParser parser = ASTParser.newParser(AST.JLS8);
-        parser.setSource(sourceCodeFile.toCharArray());
-        parser.setKind(ASTParser.K_COMPILATION_UNIT);
+        ASTParser parser = createConfiguredParser(sourceCodeFile);
         CompilationUnit cu = (CompilationUnit) parser.createAST(null);
         ASTVisitor visitor = new ASTVisitor() {
             @Override
@@ -179,9 +190,7 @@ public class CfgNode {
 
     public static List<MethodDeclaration> parserToConstructorList(String sourceCode) {
         List<MethodDeclaration> constructorList = new ArrayList<>();
-        ASTParser parser = ASTParser.newParser(AST.JLS8);
-        parser.setSource(sourceCode.toCharArray());
-        parser.setKind(ASTParser.K_COMPILATION_UNIT);
+        ASTParser parser = createConfiguredParser(sourceCode);
         CompilationUnit cu = (CompilationUnit) parser.createAST(null);
         ASTVisitor visitor = new ASTVisitor() {
             @Override
@@ -198,23 +207,13 @@ public class CfgNode {
     }
 
     public static CompilationUnit parserToCompilationUnit(String sourceCode) {
-        ASTParser parser = ASTParser.newParser(AST.JLS8);
-        parser.setSource(sourceCode.toCharArray());
-        parser.setKind(ASTParser.K_COMPILATION_UNIT);
-        parser.setResolveBindings(true);
-        parser.setBindingsRecovery(true);
-
-        Map options = JavaCore.getOptions();
-        JavaCore.setComplianceOptions(JavaCore.VERSION_1_8, options);
-        parser.setCompilerOptions(options);
+        ASTParser parser = createConfiguredParser(sourceCode);
         return (CompilationUnit) parser.createAST(null);
     }
 
     public static ASTNode parserToAstFuncList0(String sourceCodeFile, String funcName) {
         ArrayList<ASTNode> AstFuncList = new ArrayList<>();
-        ASTParser parser = ASTParser.newParser(AST.JLS8);
-        parser.setSource(sourceCodeFile.toCharArray());
-        parser.setKind(ASTParser.K_COMPILATION_UNIT);
+        ASTParser parser = createConfiguredParser(sourceCodeFile);
         CompilationUnit cu = (CompilationUnit) parser.createAST(null);
         ASTVisitor visitor = new ASTVisitor() {
             @Override

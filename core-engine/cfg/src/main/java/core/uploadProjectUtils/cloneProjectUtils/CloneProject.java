@@ -464,7 +464,7 @@ public final class CloneProject {
         }
 
         // Tạo mark cho việc vào vòng lặp
-        String exprStr = forEachStatement.getExpression().toString().replace("\"", "\\\"");
+        String exprStr = escapeString(forEachStatement.getExpression().toString());
         result.append("mark(\"").append(exprStr).append("\", true, false, ").append(lineNumber).append(");\n");
         totalFunctionStatement++;
         totalClassStatement++;
@@ -555,26 +555,7 @@ public final class CloneProject {
     private static String generateCodeForMarkMethod(ASTNode statement, String markMethodSeparator) {
         StringBuilder result = new StringBuilder();
 
-        String stringStatement = statement.toString();
-        StringBuilder newStatement = new StringBuilder();
-
-        for (int i = 0; i < stringStatement.length(); i++) {
-            char charAt = stringStatement.charAt(i);
-
-            if (charAt == '\n') {
-                newStatement.append("\\n");
-                continue;
-            } else if (charAt == '"') {
-                newStatement.append("\\").append('"');
-                continue;
-            } else if (i != stringStatement.length() - 1 && charAt == '\\' && stringStatement.charAt(i + 1) == 'n') {
-                newStatement.append("\" + \"").append("\\n").append("\" + \"");
-                i++;
-                continue;
-            }
-
-            newStatement.append(charAt);
-        }
+        String newStatement = escapeString(statement.toString());
 
         // Kiểm tra xem node có vị trí thực trong source file không
         int lineNumber = 0;
@@ -617,8 +598,31 @@ public final class CloneProject {
             lineNumber = classCompilationUnit.getLineNumber(startPos) - firstLine;
         }
 
-        return "((" + condition + ") && mark(\"" + condition + "\", true, false, " + lineNumber + "))" +
-                " || mark(\"" + condition + "\", false, true, " + lineNumber + ")";
+        String escapedCondition = escapeString(condition.toString());
+        return "((" + condition + ") && mark(\"" + escapedCondition + "\", true, false, " + lineNumber + "))" +
+                " || mark(\"" + escapedCondition + "\", false, true, " + lineNumber + ")";
+    }
+
+    private static String escapeString(String s) {
+        if (s == null) return "";
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (c == '\"') {
+                sb.append("\\\"");
+            } else if (c == '\\') {
+                sb.append("\\\\");
+            } else if (c == '\n') {
+                sb.append("\\n");
+            } else if (c == '\r') {
+                sb.append("\\r");
+            } else if (c == '\t') {
+                sb.append("\\t");
+            } else {
+                sb.append(c);
+            }
+        }
+        return sb.toString();
     }
 
     private static String generateCodeForConditionForMCDCCoverage(Expression condition) {
@@ -647,11 +651,13 @@ public final class CloneProject {
                 lineNumber = classCompilationUnit.getLineNumber(startPos) - firstLine;
             }
 
-            result.append("((").append(condition).append(") && mark(\"").append(condition).
+            String escapedCondition = escapeString(condition.toString());
+            result.append("((").append(condition).append(") && mark(\"").append(escapedCondition).
                     append("\", true, false, ").append(lineNumber).append("))");
-            result.append(" || mark(\"").append(condition).append("\", false, true, ").
+            result.append(" || mark(\"").append(escapedCondition).append("\", false, true, ").
                     append(lineNumber).append(")");
-        }
+            }
+
 
         return result.toString();
     }

@@ -6,6 +6,7 @@ import core.ast.Expression.OperationExpression.InfixExpressionNode;
 import core.ast.Expression.Literal.NumberLiteral.DoubleLiteralNode;
 import core.ast.Expression.Literal.NumberLiteral.IntegerLiteralNode;
 import core.ast.Expression.Literal.NumberLiteral.NumberLiteralNode;
+import core.ast.Expression.Literal.NullLiteralNode;
 import core.ast.Expression.OperationExpression.PrefixExpressionNode;
 import core.symbolicExecution.MemoryModel;
 import org.eclipse.jdt.core.dom.*;
@@ -23,7 +24,7 @@ public abstract class LiteralNode extends ExpressionNode {
             return StringLiteralNode.executeStringLiteral((StringLiteral) expression);
         } else if (expression instanceof NullLiteral) {
             /*???*/
-            return null;
+            return NullLiteralNode.executeNullLiteral();
         } else if (expression instanceof TypeLiteral) {
             /*???*/
             return null;

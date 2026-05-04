@@ -11,6 +11,11 @@ public class JavaFileParser {
         ASTParser parser = ASTParser.newParser(AST.JLS8);
         parser.setSource(sourceCode.toCharArray());
         parser.setKind(ASTParser.K_COMPILATION_UNIT);
+        parser.setResolveBindings(true);
+        parser.setBindingsRecovery(true);
+        parser.setEnvironment(null, null, null, true);
+        parser.setUnitName("JavaFileParser.java");
+
         final CompilationUnit cu = (CompilationUnit) parser.createAST(null);
         ArrayList<ClassAbstractableElementVisibleElementJavaNode> classes = new ArrayList<>();
         cu.accept(new ASTVisitor() {

@@ -7,7 +7,7 @@ import core.symbolicExecution.MemoryModel;
 import org.eclipse.jdt.core.dom.*;
 
 import java.util.List;
-
+import core.ast.Type.AnnotatableType.SimpleTypeNode;
 public class SingleVariableDeclarationNode extends VariableDeclarationNode {
 
     private List<AstNode> modifiers = null;
@@ -29,7 +29,17 @@ public class SingleVariableDeclarationNode extends VariableDeclarationNode {
         } else if (type instanceof ArrayType) {
             ArrayType arrayType = (ArrayType) type;
             memoryModel.declareArrayTypeVariable(arrayType, key, arrayType.getDimensions(), createMultiDimensionsInitializationArray(key, 0, arrayType.getDimensions(), arrayType.getElementType(), memoryModel));
-        } else { // OTHER TYPES
+        } else if (type instanceof ParameterizedType) {
+            ParameterizedType parameterizedType = (ParameterizedType) type;
+            memoryModel.declareParameterizedTypeVariable(parameterizedType, key, simpleNameNode);
+        }
+        else if(type instanceof SimpleType){
+            SimpleTypeNode node = new SimpleTypeNode((SimpleType) type, key);
+            simpleNameNode.setTarget(node);
+            memoryModel.declareSimpleTypeVariable((SimpleType) type, key, simpleNameNode);
+        }
+
+        else { // OTHER TYPES
             throw new RuntimeException("Invalid type");
         }
 
