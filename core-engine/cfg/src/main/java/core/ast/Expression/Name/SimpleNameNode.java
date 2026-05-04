@@ -1,17 +1,30 @@
 package core.ast.Expression.Name;
 
 import core.ast.Expression.ExpressionNode;
+import core.ast.Type.AnnotatableType.SimpleTypeNode;
 import core.symbolicExecution.MemoryModel;
 import org.eclipse.jdt.core.dom.SimpleName;
 
 public class SimpleNameNode extends NameNode {
     private String identifier = "MISSING";
-
+    private SimpleTypeNode target = null;
     public SimpleNameNode() {
+    }
+
+    public void setTarget(SimpleTypeNode target) {
+        this.target = target;
+    }
+
+    public SimpleTypeNode getTarget() {
+        return target;
     }
 
     public SimpleNameNode(String identifier) {
         this.identifier = identifier;
+    }
+
+    public boolean isReference() {
+        return (target != null);
     }
 
     public static ExpressionNode executeSimpleName(SimpleName simpleName, MemoryModel memoryModel) {

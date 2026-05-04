@@ -3,6 +3,7 @@ package core.ast.Expression;
 import core.ast.AstNode;
 import core.ast.Expression.Array.ArrayAccessNode;
 import core.ast.Expression.Literal.LiteralNode;
+import core.ast.Expression.Method.MethodInvocationNode;
 import core.ast.Expression.Name.NameNode;
 import core.ast.Expression.OperationExpression.CastExpressionNode;
 import core.ast.Expression.OperationExpression.OperationExpressionNode;

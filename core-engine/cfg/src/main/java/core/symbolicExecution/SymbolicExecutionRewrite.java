@@ -26,7 +26,9 @@ import core.testGeneration.TestGeneration;
 import core.variable.ArrayTypeVariable;
 import core.variable.ParameterizedTypeVariable;
 import core.variable.PrimitiveTypeVariable;
+import core.variable.SimpleTypeVariable;
 import core.variable.Variable;
+import lombok.extern.slf4j.Slf4j;
 import org.eclipse.jdt.core.dom.*;
 import org.eclipse.jdt.core.dom.AST;
 
@@ -36,6 +38,7 @@ import java.lang.reflect.Array;
 import java.math.BigInteger;
 import java.util.*;
 
+@Slf4j
 public class SymbolicExecutionRewrite {
     private MemoryModel symbolicMap;
     private List<Z3VariableWrapper> Z3Vars;
@@ -43,11 +46,11 @@ public class SymbolicExecutionRewrite {
     private Path testPath;
     private List<ASTNode> parameters;
     private static CfgNode currentCfgNode;
-    public static Map<String, PrimitiveType.Code> variableTypeMap = new HashMap<>();
+    public static Map<String, String> variableTypeMap = new HashMap<>();
     public String globalZ3Result = "";
     // Map để đếm số lần một hàm được gọi --> tạo biến gỉa không bị trùng lặp
     private Map<String, Integer> mockMethodCounter = new HashMap<>();
-    public static final Map<String, Integer> parameterArrayLengths = new HashMap<>();
+    private final Map<String, Integer> parameterArrayLengths = new HashMap<>();
     // Map này lưu các biểu thức index symbolic theo từng tên mảng.
     // Điểm quan trọng
     // - không solve riêng index bằng một solver/context phụ
@@ -103,6 +106,7 @@ public class SymbolicExecutionRewrite {
         BoolExpr finalZ3Expression = null;
 
         if (this.parameters != null) {
+
             for (ASTNode param : this.parameters) {
                 if (param instanceof SingleVariableDeclaration) {
                     SingleVariableDeclaration decl = (SingleVariableDeclaration) param;
@@ -121,7 +125,7 @@ public class SymbolicExecutionRewrite {
                         else finalZ3Expression = ctx.mkAnd(finalZ3Expression, charConstraint);
                     } else if (decl.getType().isArrayType()) {
                         ArrayType arrayType = (ArrayType) decl.getType();
-                        System.out.println(" Phát hiện Parameter là Mảng: " + name);
+                        log.info("Phát hiện Parameter là Mảng (Array): {}", name);
                         int inferredLength = inferArrayParameterLength(name);
                         parameterArrayLengths.put(name, inferredLength);
                         ArrayNode virtualArray = createVirtualArray(arrayType, inferredLength);
@@ -142,7 +146,7 @@ public class SymbolicExecutionRewrite {
         while (currentNode != null) {
             if (++limit > 400) break;
             currentCfgNode = currentNode.getData();
-            System.out.println(currentCfgNode.getContentReport());
+            log.debug("Phân tích Node [Line {}]: {}", currentCfgNode.getLineNumber(), currentCfgNode.getContentReport());
             ASTNode astNode = currentCfgNode.getAst();
 
             if (astNode != null) {
@@ -198,7 +202,7 @@ public class SymbolicExecutionRewrite {
                         List<String> blackList = Arrays.asList("Math", "String",
                                 "System", "Integer", "Double", "Thread");
                         if (blackList.contains(className)) {
-                            System.out.println("không mock class thư viện: " + className);
+                            log.debug("Bỏ qua class thư viện chuẩn: {}", className);
                             return super.visit(methodInvocation); // Trả về bình thường
                         }
 
@@ -229,7 +233,7 @@ public class SymbolicExecutionRewrite {
                         Class<?> returnType = ReflectionStubHelper.getReturnType(methodInvocation, className, methodName, argCount, clonedDirPath);
 
                         if (returnType == null) {
-                            System.out.println("class lạ (" + className + "), không thể tìm được kiểu trả về, tự động ép về int");
+                            log.warn("LỚP LẠ ({}): Không thể tìm được kiểu trả về cho hàm {}. Tự động ép về int.", className, methodName);
                             returnType = int.class;
                         }
 
@@ -248,7 +252,7 @@ public class SymbolicExecutionRewrite {
 
                             if (typeCode != null) {
                                 // Mapping kiểu dữ liệu cho hàm in kết quả Z3
-                                variableTypeMap.put(mockVariableName, typeCode);
+                                variableTypeMap.put(mockVariableName, typeCode.toString());
 
                                 try {
                                     SingleVariableDeclaration fakeParam = ast.newSingleVariableDeclaration();
@@ -258,7 +262,7 @@ public class SymbolicExecutionRewrite {
                                     // Đưa vào memory map dưới dạng Parameter để Tool nhận nó là biến Symbolic
                                     AstNode.executeASTNode(fakeParam, symbolicMap);
                                 } catch (Exception e) {
-                                    System.out.println("   ---> Lỗi tạo fake parameter: " + e.getMessage());
+                                    log.error("Lỗi tạo fake parameter cho hàm mock [{}]: {}", mockVariableName, e.getMessage(), e);
                                 }
                             }
 
@@ -268,10 +272,10 @@ public class SymbolicExecutionRewrite {
                                 org.eclipse.jdt.core.dom.StructuralPropertyDescriptor location = methodInvocation.getLocationInParent();
                                 if (location != null) {
                                     methodInvocation.getParent().setStructuralProperty(location, mockNameNode);
-                                    System.out.println("   ---> Đã thay thế thành công lời gọi hàm thành biến" + mockVariableName);
+                                    log.debug("Đã thay thế thành công lời gọi hàm thành biến Mock: {}", mockVariableName);
                                 }
                             } catch (Exception e) {
-                                System.out.println("   ---> Lỗi thay thế AST: " + e.getMessage());
+                                log.error("Lỗi thay thế cây AST tại hàm [{}]: {}", methodName, e.getMessage(), e);
                             }
                         }
                         return super.visit(methodInvocation);
@@ -335,7 +339,11 @@ public class SymbolicExecutionRewrite {
 
                                 symbolicMap.declarePrimitiveTypeVariable(type, name,
                                         ExpressionNode.executeExpression(initializer, symbolicMap));
+                            } else if (stm.getType() instanceof SimpleType) {
+                                SimpleType simpleType = (SimpleType) stm.getType();
 
+                                symbolicMap.declareSimpleTypeVariable(simpleType, name,
+                                        ExpressionNode.executeExpression(initializer, symbolicMap));
                             } else if (stm.getType() instanceof ArrayType) {
                                 ArrayType type = (ArrayType) stm.getType();
                                 ArrayCreation arrayCreation = (ArrayCreation) initializer;
@@ -404,9 +412,13 @@ public class SymbolicExecutionRewrite {
         }
 
         currentCfgNode = null;
-        System.out.println("=== Final Z3 Constraint ===");
-        System.out.println(finalZ3Expression.simplify());
-        System.out.println(finalZ3Expression.toString());
+        if (finalZ3Expression != null) {
+            log.info("=== XÂY DỰNG XONG PHƯƠNG TRÌNH Z3 CHÍNH ===");
+            log.debug(" - Raw Constraint: \n{}", finalZ3Expression.toString());
+            log.info(" - Simplified Constraint: \n{}", finalZ3Expression.simplify());
+        } else {
+            log.warn("Không thu thập được bất kỳ Z3 Constraint nào trong hàm này!");
+        }
 
         model = createModel(ctx, (BoolExpr) finalZ3Expression);
         // Sau khi đã có model chính, mới evaluate các index symbolic đã thu được trước đó.
@@ -447,6 +459,15 @@ public class SymbolicExecutionRewrite {
                     Z3VariableWrapper z3VariableWrapper = new Z3VariableWrapper(z3Variable);
                     if (!haveDuplicateVariable(z3VariableWrapper, z3Vars)) {
                         z3Vars.add(z3VariableWrapper);
+                    }
+                }
+            } else if (variable instanceof SimpleTypeVariable) {
+                Expr z3Variable = Variable.createZ3Variable(variable, ctx);
+                if (z3Variable != null) {
+                    Z3VariableWrapper z3VariableWrapper = new Z3VariableWrapper(z3Variable);
+                    if (!haveDuplicateVariable(z3VariableWrapper, z3Vars)) {
+                        z3Vars.add(z3VariableWrapper);
+                        System.out.println(z3VariableWrapper.getPrimitiveVar().getSort().toString());
                     }
                 }
             } else if (variable instanceof ArrayTypeVariable) {
@@ -536,12 +557,15 @@ public class SymbolicExecutionRewrite {
         if (f != null) {
             s.add(f);
         }
-//        System.out.println(s);
+
+        log.debug("Trạng thái Solver Z3 trước khi Check: \n{}", s.toString());
 
         Status satisfaction = s.check();
         if (satisfaction != Status.SATISFIABLE) {
+            log.warn("Biểu thức hiện tại là UNSATISFIABLE. Không thể tìm ra nghiệm Z3.");
             throw new RuntimeException("Expression is UNSATISFIABLE");
         } else {
+            log.info("Z3 đã giải thành công (SATISFIABLE)!");
             return s.getModel();
         }
     }
@@ -559,8 +583,9 @@ public class SymbolicExecutionRewrite {
                     String name = primitiveVar.toString();
                     String stringValue = "0";
 
-                    PrimitiveType.Code originalTypeCode = variableTypeMap.get(name);
+                    Object originalTypeCode = variableTypeMap.get(name);
                     String typeName = (originalTypeCode != null) ? originalTypeCode.toString() : "";
+
 
                     if (evaluateResult instanceof BitVecNum) {
                         BitVecNum bvNum = (BitVecNum) evaluateResult;
@@ -637,10 +662,11 @@ public class SymbolicExecutionRewrite {
                                     // kiểm tra xem z3 có giải ra độ dài hợp lý hay ko
                                     if (z3SolvedLength > 0 && z3SolvedLength <= 1000) {
                                         arrayLength = z3SolvedLength;
-                                        System.out.println("  z3 giải ra độ dài của mảng là " + paramName + " là: " + arrayLength);
+                                        log.info("Mảng '{}': Z3 giải ra độ dài = {}", paramName, arrayLength);
                                     }
                                 }
                             } catch (Exception e) {
+                                log.error("Lỗi khi đọc độ dài mảng [{}] từ Z3: {}", paramName, e.getMessage(), e);
                                 e.printStackTrace();
                             }
 
@@ -685,6 +711,7 @@ public class SymbolicExecutionRewrite {
 
                                     // hỏi trực tiếp Model
                                     Expr evaluatedElement = model.evaluate(selectExpr, true);
+
                                     String valStr = "0";
 
 
@@ -720,6 +747,7 @@ public class SymbolicExecutionRewrite {
                                     arrStr.append(valStr);
                                     if (k < arrayLength - 1) arrStr.append(",");
                                 }
+                                log.debug("Đã dịch xong Mảng [{}]: [{}]", paramName, arrStr.toString());
                             } catch (Exception e) {
                                 System.out.println("   ---> Lỗi lấy mảng Z3: " + e.getMessage());
                             }
@@ -727,7 +755,7 @@ public class SymbolicExecutionRewrite {
                             result.append(arrStr.toString());
 
                         } else {
-                            // biến bình thường thì lấy từ map ta đã quét ở trên
+                            // Biến bình thường thì lấy từ map ta đã quét ở trên
                             result.append(evaluatedValues.getOrDefault(paramName, "0"));
                         }
                     }
@@ -739,6 +767,7 @@ public class SymbolicExecutionRewrite {
 
             this.globalZ3Result = result.toString();
             writeDataToFile(result.toString());
+            log.info("Đã ghi file kết quả Input thành công!");
         }
     }
 
@@ -746,10 +775,12 @@ public class SymbolicExecutionRewrite {
         List<Object> result = new ArrayList<>();
 
         String[] lines = this.globalZ3Result.split("\\r?\\n");
+        log.debug("Bắt đầu parse {} dòng dữ liệu Z3 trả về thành Object Java...", lines.length);
 
         for (int i = 0; i < parameterClasses.length; i++) {
             // nếu z3 ko giải được, bỏ qua
             if (i >= lines.length || lines[i].trim().isEmpty()) {
+                log.warn("Dữ liệu Z3 bị thiếu hoặc rỗng ở tham số thứ {}. Gán giá trị mặc định (null).", i);
                 result.add(null);
                 continue;
             }
@@ -758,26 +789,27 @@ public class SymbolicExecutionRewrite {
             String lineData = lines[i].trim();
 
             // tham số là biến đơn
-            if (parameterClass.isPrimitive()) {
-                result.add(parsePrimitiveString(lineData, parameterClass.getName()));
-            }
-            // tham số là mảng
-            else if (parameterClass.isArray()) {
-                String[] strElements = lineData.split(",");
-
-                // Lấy kiểu dữ liệu bên trong mảng
-                Class<?> componentType = parameterClass.getComponentType();
-
-                // tạo mảng
-                Object arrayInstance = Array.newInstance(componentType, strElements.length);
-
-                // Nhét từng con số vào mảng
-                for (int j = 0; j < strElements.length; j++) {
-                    // Ép chuỗi thành số
-                    Object val = parsePrimitiveString(strElements[j].trim(), componentType.getName());
-                    // Lưu vào mảng
-                    Array.set(arrayInstance, j, val);
+            try {
+                if (parameterClass.isPrimitive()) {
+                    result.add(parsePrimitiveString(lineData, parameterClass.getName()));
                 }
+                // tham số là mảng
+                else if (parameterClass.isArray()) {
+                    String[] strElements = lineData.split(",");
+
+                    // Lấy kiểu dữ liệu bên trong mảng
+                    Class<?> componentType = parameterClass.getComponentType();
+
+                    // tạo mảng
+                    Object arrayInstance = Array.newInstance(componentType, strElements.length);
+
+                    // Nhét từng con số vào mảng
+                    for (int j = 0; j < strElements.length; j++) {
+                        // Ép chuỗi thành số
+                        Object val = parsePrimitiveString(strElements[j].trim(), componentType.getName());
+                        // Lưu vào mảng
+                        Array.set(arrayInstance, j, val);
+                    }
 
                 // Thêm mảng hoàn chỉnh vào danh sách kết quả
                 result.add(arrayInstance);
@@ -791,6 +823,11 @@ public class SymbolicExecutionRewrite {
                 }
                 result.add(listInstance);
             } else {
+                    log.warn("Chưa hỗ trợ ép kiểu Object phức tạp: {}. Tự động gán null.", parameterClass.getName());
+                    result.add(null);
+            }
+            } catch (Exception e) {
+                log.error("Lỗi ép kiểu dữ liệu từ Z3 [{}] sang Java [{}]: {}", lineData, parameterClass.getName(), e.getMessage(), e);
                 result.add(null);
             }
         }
@@ -864,7 +901,11 @@ public class SymbolicExecutionRewrite {
 
         // Nếu không tìm được index concrete nào thì engine vẫn trả mảng độ dài 1 để giữ
         // tương thích với luồng cũ. Độ dài thật sẽ được cập nhật lại sau khi evaluate index symbolic.
-        return Math.max(maxIndex + 1, 1);
+        int inferredLength = Math.max(maxIndex + 1, 1);
+
+        log.debug("Suy luận kích thước tối thiểu cho mảng [{}] dựa trên Concrete Index là: {}", arrayName, inferredLength);
+
+        return inferredLength;
     }
 
     // Model tạm của pass suy index có thể trả về BitVec, Int hoặc FP tùy kiểu biểu thức.
@@ -913,12 +954,13 @@ public class SymbolicExecutionRewrite {
                     symbolicArrayIndexExpressions
                             .computeIfAbsent(arrayName, ignored -> new ArrayList<>())
                             .add(symbolicIndexExpr);
+
+                    log.debug("Đã thu thập Symbolic Index cho mảng [{}]: {}", arrayName, symbolicIndexExpr);
                 } catch (RuntimeException ex) {
                     // Một số index có thể chưa convert được ở thời điểm quét hiện tại.
                     // Ta bỏ qua chúng để không làm hỏng luồng solve chính; mảng sẽ fallback
                     // về độ dài đã suy được từ index concrete hoặc giá trị mặc định.
-                    System.out.println("Khong the thu thap index symbolic cho mang " + arrayName
-                            + " tai node hien tai: " + ex.getMessage());
+                    log.warn("Không thể thu thập index symbolic cho mảng [{}] tại node hiện tại: {}. Fallback về độ dài an toàn.", arrayName, ex.getMessage());
                 }
 
                 return super.visit(node);
@@ -981,8 +1023,7 @@ public class SymbolicExecutionRewrite {
                 } catch (RuntimeException ex) {
                     // Nếu một index cụ thể không evaluate được từ model chính thì chỉ bỏ qua index đó.
                     // Không được để lỗi hậu xử lý này làm hỏng toàn bộ quá trình tạo test data.
-                    System.out.println("Khong the evaluate index symbolic cua mang " + arrayName
-                            + " tu model chinh: " + ex.getMessage());
+                    log.warn("Không thể evaluate index symbolic của mảng [{}] từ model chính: {}. Bỏ qua index này.", arrayName, ex.getMessage());
                 }
             }
 
@@ -1171,8 +1212,13 @@ public class SymbolicExecutionRewrite {
             return createRandomArrayVariableData(parameterClass);
         } else if (java.util.List.class.isAssignableFrom(parameterClass)) {
             return createRandomCollectionVariableData(parameterClass, parameterName);
+        } else {
+            try {
+                return createRandomSimpleTypeData(parameterClass);
+            } catch (RuntimeException ex) {
+                throw new RuntimeException("Unsupported type: " + parameterClass.getName());
+            }
         }
-        throw new RuntimeException("Unsupported type: " + parameterClass.getName());
     }
 
     private static Object createRandomArrayVariableData(Class<?> parameterClass) {
@@ -1255,13 +1301,49 @@ public class SymbolicExecutionRewrite {
         return listInstance;
     }
 
+    private static Object createRandomSimpleTypeData(Class<?> clazz) {
+        // String
+        if (clazz == String.class) {
+            return "dummy String";
+        }
+        if (clazz == Integer.class) {
+            return 42;
+        }
+        if (clazz == Long.class) {
+            return 42L;
+        }
+        if (clazz == Boolean.class) {
+            return false;
+        }
+        if (clazz == Double.class) {
+            return 3.14;
+        }
+        if (clazz == Float.class) {
+            return 3.14f;
+        }
+        if (clazz == Byte.class) {
+            return (byte) 1;
+        }
+        if (clazz == Short.class) {
+            return (short) 1;
+        }
+        if (clazz == Character.class) {
+            return 'A';
+        }
+        if (clazz.isEnum()) {
+            Object[] constants = clazz.getEnumConstants();
+            return (constants != null && constants.length > 0) ? constants[0] : null;
+        }
+        return null;
+    }
+
     private void writeDataToFile(String data) {
         try {
             FileWriter writer = new FileWriter(FilePath.generatedTestDataPath);
             writer.write(data + "\n");
             writer.close();
         } catch (IOException e) {
-            e.printStackTrace();
+            log.error("Lỗi khi ghi dữ liệu Test Data ra file: {}", e.getMessage(), e);
         }
     }
 

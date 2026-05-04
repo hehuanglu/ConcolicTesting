@@ -26,15 +26,18 @@ public class QualifiedNameNode extends NameNode {
             return minNode;
         }
 
-
         QualifiedNameNode qualifiedNameNode = new QualifiedNameNode();
-
         if (fullName.endsWith(".length")) {
-            // dùng một MemoryModel rỗng
-            // khi không tìm thấy "data" trong ram giả, hệ thống sẽ trả về NameNode thuần túy
-            MemoryModel emptyModel = new MemoryModel();
-            qualifiedNameNode.qualifier = (NameNode) NameNode.executeName(qualifiedName.getQualifier(), emptyModel);
-            qualifiedNameNode.name = (SimpleNameNode) SimpleNameNode.executeSimpleName(qualifiedName.getName(), emptyModel);
+
+            SimpleNameNode qualifierNode = new SimpleNameNode();
+            qualifierNode.setIdentifier(qualifiedName.getQualifier().getFullyQualifiedName());
+
+            SimpleNameNode nameNode = new SimpleNameNode();
+            nameNode.setIdentifier(qualifiedName.getName().getIdentifier());
+
+            qualifiedNameNode.qualifier = qualifierNode;
+            qualifiedNameNode.name = nameNode;
+
             return qualifiedNameNode;
         }
 

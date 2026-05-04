@@ -1,8 +1,9 @@
-package core.ast.Expression;
+package core.ast.Expression.Method;
 
 import com.microsoft.z3.*;
 import core.Z3Vars.Z3VariableWrapper;
 import core.ast.AstNode;
+import core.ast.Expression.ExpressionNode;
 import core.ast.Expression.Literal.LiteralNode;
 import core.ast.Expression.Literal.NumberLiteral.NumberLiteralNode;
 import core.ast.Expression.Name.SimpleNameNode;

@@ -76,7 +76,7 @@ public class AssignmentNode extends ExpressionNode {
                     if (z3OldArray == null) {
                         // Tự động suy luận Sort từ variableTypeMap
                         Sort rangeSort = ctx.mkBitVecSort(32);
-                        Map<String, org.eclipse.jdt.core.dom.PrimitiveType.Code> typeMap = core.symbolicExecution.SymbolicExecutionRewrite.variableTypeMap;
+                        Map<String, String> typeMap = core.symbolicExecution.SymbolicExecutionRewrite.variableTypeMap;
 
                         if (typeMap != null && typeMap.get(arrayName) != null) {
                             String typeStr = typeMap.get(arrayName).toString();

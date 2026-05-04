@@ -21,7 +21,7 @@ public class PrimitiveTypeVariable extends Variable {
     public static Expr createZ3PrimitiveTypeVariable(PrimitiveTypeVariable primitiveTypeVariable, Context ctx) {
         PrimitiveType.Code code = primitiveTypeVariable.getCode();
         String name = primitiveTypeVariable.getName();
-        SymbolicExecutionRewrite.variableTypeMap.put(name, code);
+        SymbolicExecutionRewrite.variableTypeMap.put(name, name);
         int bitSize;
 
         if (code.equals(PrimitiveType.BYTE)) {
