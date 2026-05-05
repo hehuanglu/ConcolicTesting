@@ -46,7 +46,6 @@ public class SimpleTypeVariable extends Variable {
         }
 
         Expr res =  ctx.mkConst(name, sort);
-        System.out.println("Biểu thức res: " + res.getSort().toString());
         return res;
     }
 }

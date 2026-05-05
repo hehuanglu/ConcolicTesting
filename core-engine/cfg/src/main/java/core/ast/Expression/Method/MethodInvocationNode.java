@@ -95,15 +95,6 @@ public class MethodInvocationNode extends ExpressionNode {
                 return new MethodInvocationNode(className, methodName, arguments);
             }
 
-            if (methodName.equals("get")) {
-                List<AstNode> arguments = new ArrayList<>();
-                for (Object arg : methodInvocation.arguments()) {
-                    arguments.add(ExpressionNode.executeExpression((Expression) arg, memoryModel));
-                }
-                // Trả về MethodInvocationNode chứa tên List (expressionStr) và index (arguments)
-                return new MethodInvocationNode(className, methodName, arguments);
-            }
-
             if (className.equals("Math") && (methodName.equals("abs") || methodName.equals("max") || methodName.equals("min"))) {
                 List<AstNode> arguments = new ArrayList<>();
                 for (int i = 0; i < methodInvocation.arguments().size(); i++) {
