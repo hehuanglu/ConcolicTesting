@@ -146,7 +146,7 @@ public class SymbolicExecutionRewrite {
         while (currentNode != null) {
             if (++limit > 400) break;
             currentCfgNode = currentNode.getData();
-            log.debug("Phân tích Node [Line {}]: {}", currentCfgNode.getLineNumber(), currentCfgNode.getContentReport());
+            //log.debug("Phân tích Node [Line {}]: {}", currentCfgNode.getLineNumber(), currentCfgNode.getContentReport());
             ASTNode astNode = currentCfgNode.getAst();
 
             if (astNode != null) {
@@ -784,7 +784,7 @@ public class SymbolicExecutionRewrite {
 
         for (int i = 0; i < parameterClasses.length; i++) {
             // nếu z3 ko giải được, bỏ qua
-            if (i >= lines.length || lines[i].trim().isEmpty()) {
+            if (i >= lines.length) {
                 log.warn("Dữ liệu Z3 bị thiếu hoặc rỗng ở tham số thứ {}. Gán giá trị mặc định (null).", i);
                 result.add(null);
                 continue;
