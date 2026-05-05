@@ -154,6 +154,7 @@ public class SymbolicExecutionRewrite {
                 // Ở đây ta dùng chính symbolicMap/Z3Vars/ctx của luồng solve chính để chuyển
                 // index như i, a + b, i + 1... thành Expr của cùng một Context.
                 // Các Expr này sẽ được evaluate lại sau khi model chính được solve xong.
+                /*
                 collectSymbolicArrayIndexesFromAst(astNode, ctx);
 
                 // BẮT, NỘI SOI KIỂU VÀ TẠO BIẾN GIẢ Z3
@@ -281,6 +282,7 @@ public class SymbolicExecutionRewrite {
                         return super.visit(methodInvocation);
                     }
                 });
+                */
 
                 AstNode executedAstNode = Rewrite.reStm(astNode, symbolicMap);
 
@@ -630,6 +632,9 @@ public class SymbolicExecutionRewrite {
                         stringValue = evaluateResult.isTrue() ? "true" : "false";
                     } else {
                         stringValue = evaluateResult.toString();
+                        if (stringValue.startsWith("\"") && stringValue.endsWith("\"")) {
+                            stringValue = stringValue.substring(1, stringValue.length() - 1);
+                        }
                     }
 
                     evaluatedValues.put(name, stringValue);
@@ -792,6 +797,8 @@ public class SymbolicExecutionRewrite {
             try {
                 if (parameterClass.isPrimitive()) {
                     result.add(parsePrimitiveString(lineData, parameterClass.getName()));
+                } else if (parameterClass == String.class) {
+                    result.add(lineData);
                 }
                 // tham số là mảng
                 else if (parameterClass.isArray()) {
