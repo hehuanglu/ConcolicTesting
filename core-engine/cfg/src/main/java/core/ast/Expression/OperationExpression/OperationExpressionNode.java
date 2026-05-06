@@ -14,6 +14,7 @@ import core.ast.Expression.Literal.NumberLiteral.NumberLiteralNode;
 import core.ast.Expression.Literal.StringLiteralNode;
 import core.ast.Expression.Literal.NullLiteralNode;
 import core.ast.Expression.Method.MethodInvocationNode;
+import com.microsoft.z3.*;
 import core.ast.Expression.Method.StringMethodNode;
 import core.ast.Type.AnnotatableType.SimpleTypeNode;
 import core.ast.Expression.Name.NameNode;
@@ -98,9 +99,9 @@ public abstract class OperationExpressionNode extends ExpressionNode {
                         val = Long.parseLong(numStr, 10);
                     }
                     if (isLong) {
-                        return ctx.mkBV(val, 64);
+                        return ctx.mkInt(val);
                     } else {
-                        return ctx.mkBV(val, 32);
+                        return ctx.mkInt((int) val);
                     }
                 } else {
                     double val = Double.parseDouble(tokenVal.replace("_", ""));
@@ -114,12 +115,12 @@ public abstract class OperationExpressionNode extends ExpressionNode {
             } else if (operand instanceof BooleanLiteralNode) {
                 return ctx.mkBool(((BooleanLiteralNode) operand).getValue());
             } else if (operand instanceof CharacterLiteralNode) {
-                return ctx.mkBV(((CharacterLiteralNode) operand).getCharacterValue(), 16);
-            } else if (operand instanceof StringLiteralNode){
-                return ctx.mkString(operand.toString());
+                return ctx.mkString(String.valueOf(((CharacterLiteralNode) operand).getCharacterValue()));
             } else if (operand instanceof  NullLiteralNode){
+                Sort refSort = ctx.mkUninterpretedSort(ctx.mkSymbol("Ref"));
+                Expr nullRef = ctx.mkConst("null_ref", refSort);
                 //đặt 0 tượng trưng cho null trong bộ giải z3
-                return ctx.mkInt(0);
+                return nullRef;
             }
             else {
                 throw new RuntimeException("Invalid Literal");

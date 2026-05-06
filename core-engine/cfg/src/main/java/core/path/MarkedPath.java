@@ -489,10 +489,12 @@ public final class MarkedPath {
                 CfgBoolExprNode boolExprNode = (CfgBoolExprNode) rootNode;
 
                 if (!boolExprNode.isTrueMarked() && !boolExprNode.isFakeTrueMarked()) {
-                    return boolExprNode.getTrueNode();
+                    CfgNode r = boolExprNode.getTrueNode();
+                    if (!r.isFakeMarked() && !r.isMarked()) return r;
                 }
                 if (!boolExprNode.isFalseMarked() && !boolExprNode.isFakeFalseMarked()) {
-                    return boolExprNode.getFalseNode();
+                    CfgNode r = boolExprNode.getFalseNode();
+                    if (!r.isFakeMarked() && !r.isMarked()) return r;
                 }
 
                 CfgNode falseBranchUncoveredNode = findUncoveredBranch(boolExprNode.getFalseNode(), duplicateNode);

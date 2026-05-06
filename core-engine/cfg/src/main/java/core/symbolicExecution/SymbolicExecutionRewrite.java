@@ -432,7 +432,9 @@ public class SymbolicExecutionRewrite {
     private void executeParameters(Context ctx) {
         Z3Vars = new ArrayList<>();
         for (ASTNode astNode : parameters) {
+            // lưu biến vào memoryModel
             AstNode.executeASTNode(astNode, symbolicMap);
+            // lấy biến trong memoryModel lưu vào danh sách biến Z3vars
             createZ3ParameterVariable(astNode, ctx, symbolicMap, Z3Vars);
         }
     }

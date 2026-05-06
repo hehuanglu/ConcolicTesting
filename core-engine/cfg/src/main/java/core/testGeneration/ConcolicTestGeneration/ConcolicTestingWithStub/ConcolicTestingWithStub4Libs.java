@@ -10,6 +10,7 @@ import core.cfg.dataFlow.DefUsePair;
 import core.cfg.utils.ASTHelper;
 import core.cfg.utils.DataFlowHelper;
 import core.cfg.utils.ProjectParser;
+import core.cfg.utils.ProjectParserRewrite;
 import core.path.FindPath;
 import core.path.MarkedPath;
 import core.path.MarkedStatement;
@@ -213,7 +214,7 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
 
                 if (!success) {
                     uncoveredNode.setFakeMarked(true);
-
+                    /*
                     if (coverage == Coverage.MCDC || coverage == Coverage.BRANCH) {
                         CfgNode parent = uncoveredNode.getParent();
                         if (parent instanceof CfgBoolExprNode) {
@@ -225,13 +226,9 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
                             }
                         }
                     }
-                }
-            }
 
-            if (isTestedSuccessfully) {
-                log.info("[CHÚC MỪNG] Kiểm thử thành công 100% Coverage!");
-            } else {
-                log.warn("Kiểm thử thất bại do tồn tại các nhánh unsat.");
+                     */
+                }
             }
 
             testResult.setFullCoverage(calculateFullTestSuiteCoverage(coverage));
@@ -457,8 +454,8 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
 
     private static void setup(String path, String className, String methodName, TestGeneration.Coverage coverage) throws IOException, InterruptedException {
         log.info("Bắt đầu Setup phân tích hàm: [{}] trong file: {}", methodName, className);
-        TestGeneration.funcAstNodeList = ProjectParser.parseFile(path);
-        TestGeneration.compilationUnit = ProjectParser.parseFileToCompilationUnit(path);
+        TestGeneration.compilationUnit = ProjectParserRewrite.parseFileToCompilationUnit(path);
+        TestGeneration.funcAstNodeList = ProjectParserRewrite.parseFile(path, TestGeneration.compilationUnit);
         classKey = (TestGeneration.compilationUnit.getPackage() != null ? TestGeneration.compilationUnit.getPackage().getName().toString() : "") + className.replace(".java", "") + "totalStatement";
 
         setupFullyClonedClassName(className, path, coverage);
@@ -661,6 +658,7 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
             return false;
         }
 
+
         TestGeneration.parameterNames = TestDriverUtils.getParameterNames(TestGeneration.parameters);
         TestGeneration.parameterClasses = TestDriverUtils.getParameterClasses(TestGeneration.parameters);
 
@@ -714,7 +712,8 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
 
             if (isDuplicateGlobal) {
                 log.debug("Input {} đã tồn tại trong tập dữ liệu. Bỏ qua.", inputSign);
-                continue;
+                // continue;
+                return false;
             }
 
             if (executedInThisPath.contains(inputSign)) continue;

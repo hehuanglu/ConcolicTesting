@@ -24,7 +24,7 @@ public abstract class LiteralNode extends ExpressionNode {
             return StringLiteralNode.executeStringLiteral((StringLiteral) expression);
         } else if (expression instanceof NullLiteral) {
             /*???*/
-            return NullLiteralNode.executeNullLiteral();
+            return null;
         } else if (expression instanceof TypeLiteral) {
             /*???*/
             return null;
