@@ -3,13 +3,11 @@ package core.testGeneration.ConcolicTestGeneration.ConcolicTestingWithStub;
 import core.FilePath;
 import core.ast.Expression.Method.MethodInvocationNode;
 import core.cfg.CfgBlockNode;
-import core.cfg.CfgBoolExprNode;
 import core.cfg.CfgEndBlockNode;
 import core.cfg.CfgNode;
 import core.cfg.dataFlow.DefUsePair;
 import core.cfg.utils.ASTHelper;
 import core.cfg.utils.DataFlowHelper;
-import core.cfg.utils.ProjectParser;
 import core.cfg.utils.ProjectParserRewrite;
 import core.path.FindPath;
 import core.path.MarkedPath;
@@ -653,7 +651,6 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
         try {
             solution.execute();
         } catch (RuntimeException e) {
-            log.error("HỆ THỐNG CRASH SAU KHI GIẢI PATH: {}", e.getMessage(), e);
             log.warn("Path hiện tại UNSATISFIABLE (Z3 không thể giải). Bỏ qua path này.");
             return false;
         }
