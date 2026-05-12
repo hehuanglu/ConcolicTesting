@@ -812,8 +812,6 @@ public class SymbolicExecutionRewrite {
             try {
                 if (parameterClass.isPrimitive()) {
                     result.add(parsePrimitiveString(lineData, parameterClass.getName()));
-                } else if (parameterClass == String.class) {
-                    result.add(lineData);
                 }
                 // tham số là mảng
                 else if (parameterClass.isArray()) {
