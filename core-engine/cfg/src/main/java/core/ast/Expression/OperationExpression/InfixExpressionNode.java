@@ -156,6 +156,7 @@ public class InfixExpressionNode extends OperationExpressionNode {
                 Z3LeftOperand = fixBvWidth(ctx, (BitVecExpr) Z3LeftOperand, max, true);
                 Z3RightOperand = fixBvWidth(ctx, (BitVecExpr) Z3RightOperand, max, true);
             }
+        }
 
             if (operator.equals(InfixExpression.Operator.PLUS)) {
                 return ctx.mkBVAdd(Z3LeftOperand, Z3RightOperand);
@@ -195,85 +196,6 @@ public class InfixExpressionNode extends OperationExpressionNode {
                 throw new RuntimeException("Invalid operator for bit-vectors: " + operator);
             }
         }
-
-        if (Z3LeftOperand instanceof SeqExpr || Z3RightOperand instanceof SeqExpr) {
-            if (!(Z3LeftOperand instanceof SeqExpr && Z3RightOperand instanceof SeqExpr)) {
-                throw new RuntimeException("Both operands must be SeqExpr for sequence operations: "
-                        + Z3LeftOperand.getClass().getSimpleName() + " and "
-                        + Z3RightOperand.getClass().getSimpleName());
-            }
-
-            SeqExpr left = (SeqExpr) Z3LeftOperand;
-            SeqExpr right = (SeqExpr) Z3RightOperand;
-
-            if (operator.equals(InfixExpression.Operator.PLUS)) {
-                return ctx.mkConcat(left, right);
-            } else if (operator.equals(InfixExpression.Operator.LESS) ||
-                    operator.equals(InfixExpression.Operator.GREATER) ||
-                    operator.equals(InfixExpression.Operator.LESS_EQUALS) ||
-                    operator.equals(InfixExpression.Operator.GREATER_EQUALS)) {
-                throw new RuntimeException("Comparison operators (<, >, <=, >=) are not supported for SeqExpr in Z3");
-            }
-        }
-
-        if (Z3LeftOperand instanceof IntExpr && Z3RightOperand instanceof IntExpr) {
-            IntExpr l = coerceToInt(ctx, Z3LeftOperand);
-            IntExpr r = coerceToInt(ctx, Z3RightOperand);
-
-            if (operator.equals(InfixExpression.Operator.PLUS)) {
-                return ctx.mkAdd(l, r);
-            } else if (operator.equals(InfixExpression.Operator.MINUS)) {
-                return ctx.mkSub(l, r);
-            } else if (operator.equals(InfixExpression.Operator.TIMES)) {
-                return ctx.mkMul(l, r);
-            } else if (operator.equals(InfixExpression.Operator.DIVIDE)) {
-                return ctx.mkDiv(l, r);
-            } else if (operator.equals(InfixExpression.Operator.REMAINDER)) {
-                return ctx.mkMod(l, r);
-            } else if (operator.equals(InfixExpression.Operator.EQUALS)) {
-                return ctx.mkEq(l, r);
-            } else if (operator.equals(InfixExpression.Operator.NOT_EQUALS)) {
-                return ctx.mkDistinct(l, r);
-            } else if (operator.equals(InfixExpression.Operator.LESS)) {
-                return ctx.mkLt(l, r);
-            } else if (operator.equals(InfixExpression.Operator.GREATER)) {
-                return ctx.mkGt(l, r);
-            } else if (operator.equals(InfixExpression.Operator.LESS_EQUALS)) {
-                return ctx.mkLe(l, r);
-            } else if (operator.equals(InfixExpression.Operator.GREATER_EQUALS)) {
-                return ctx.mkGe(l, r);
-            } else {
-                throw new RuntimeException("Invalid operator for integer operands: " + operator);
-            }
-        }
-
-        if (operator.equals(InfixExpression.Operator.PLUS)) {
-            return ctx.mkAdd(Z3LeftOperand, Z3RightOperand);
-        } else if (operator.equals(InfixExpression.Operator.MINUS)) {
-            return ctx.mkSub(Z3LeftOperand, Z3RightOperand);
-        } else if (operator.equals(InfixExpression.Operator.TIMES)) {
-            return ctx.mkMul(Z3LeftOperand, Z3RightOperand);
-        } else if (operator.equals(InfixExpression.Operator.DIVIDE)) {
-            return ctx.mkDiv(Z3LeftOperand, Z3RightOperand);
-        } else if (operator.equals(InfixExpression.Operator.REMAINDER)) {
-            return ctx.mkMod(Z3LeftOperand, Z3RightOperand);
-        } else if (operator.equals(InfixExpression.Operator.EQUALS)) {
-            return ctx.mkEq(Z3LeftOperand, Z3RightOperand);
-        } else if (operator.equals(InfixExpression.Operator.NOT_EQUALS)) {
-            return ctx.mkDistinct(Z3LeftOperand, Z3RightOperand);
-        } else if (operator.equals(InfixExpression.Operator.LESS)) {
-            return ctx.mkLt(Z3LeftOperand, Z3RightOperand);
-        } else if (operator.equals(InfixExpression.Operator.GREATER)) {
-            return ctx.mkGt(Z3LeftOperand, Z3RightOperand);
-        } else if (operator.equals(InfixExpression.Operator.LESS_EQUALS)) {
-            return ctx.mkLe(Z3LeftOperand, Z3RightOperand);
-        } else if (operator.equals(InfixExpression.Operator.GREATER_EQUALS)) {
-            return ctx.mkGe(Z3LeftOperand, Z3RightOperand);
-        } else {
-            throw new RuntimeException("Invalid operator for integer operands: " + operator);
-        }
-
-    }
 
     public static ExpressionNode executeInfixExpression(InfixExpression infixExpression, MemoryModel memoryModel) {
         InfixExpressionNode infixExpressionNode = new InfixExpressionNode();
