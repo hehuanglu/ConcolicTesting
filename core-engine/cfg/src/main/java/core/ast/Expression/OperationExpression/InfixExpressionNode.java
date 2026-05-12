@@ -43,7 +43,27 @@ public class InfixExpressionNode extends OperationExpressionNode {
         ExpressionNode rightOperand = infixExpressionNode.rightOperand;
         InfixExpression.Operator operator = infixExpressionNode.operator;
         List<AstNode> extendedOperands = infixExpressionNode.extendedOperands;
+        BoolExpr isNullS;
+        // nếu vế phải của Object == null thì return null
+        if(rightOperand.toString().equals("null") && operator.toString().equals("==")){
+            Expr Z3LeftOperand = OperationExpressionNode.createZ3Expression(leftOperand, ctx, vars, memoryModel);
 
+            for(Z3VariableWrapper wrapper : vars){
+                if (Z3LeftOperand == wrapper.getPrimitiveVar()){
+                    return ctx.mkEq(wrapper.getIs_null(), ctx.mkTrue());
+                }
+            }
+            return null;
+        }else if(rightOperand.toString().equals("null") && operator.toString().equals("!=")){// nếu Object != null thì sẽ đổi thành biểu thức Object == Object
+            Expr Z3LeftOperand = OperationExpressionNode.createZ3Expression(leftOperand, ctx, vars, memoryModel);
+
+            for(Z3VariableWrapper wrapper : vars){
+                if (Z3LeftOperand == wrapper.getPrimitiveVar()){
+                    return ctx.mkNot(ctx.mkEq(wrapper.getIs_null(), ctx.mkTrue()));
+                }
+            }
+            return null;
+        }
         Expr Z3LeftOperand = OperationExpressionNode.createZ3Expression(leftOperand, ctx, vars, memoryModel);
         Expr Z3RightOperand = OperationExpressionNode.createZ3Expression(rightOperand, ctx, vars, memoryModel);
 
@@ -58,6 +78,7 @@ public class InfixExpressionNode extends OperationExpressionNode {
         }
 
         return result;
+
     }
 
     private static Expr createInfixZ3Expression(Context ctx, Expr Z3LeftOperand, InfixExpression.Operator operator, Expr Z3RightOperand) {
@@ -195,7 +216,7 @@ public class InfixExpressionNode extends OperationExpressionNode {
             }
         }
 
-        if (Z3LeftOperand instanceof IntExpr || Z3RightOperand instanceof IntExpr) {
+        if (Z3LeftOperand instanceof IntExpr && Z3RightOperand instanceof IntExpr) {
             IntExpr l = coerceToInt(ctx, Z3LeftOperand);
             IntExpr r = coerceToInt(ctx, Z3RightOperand);
 

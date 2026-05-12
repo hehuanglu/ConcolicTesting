@@ -40,6 +40,10 @@ public class SimpleTypeVariable extends Variable {
             case "Integer":
                 sort = ctx.mkIntSort();
                 break;
+            case "Double":
+                sort = ctx.mkRealSort();
+            case "Long":
+                sort = ctx.mkBitVecSort(64);
             default:
                 sort = ctx.mkUninterpretedSort(typeName);
                 break;

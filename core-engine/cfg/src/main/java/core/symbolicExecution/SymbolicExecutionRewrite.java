@@ -31,6 +31,7 @@ import core.variable.Variable;
 import lombok.extern.slf4j.Slf4j;
 import org.eclipse.jdt.core.dom.*;
 import org.eclipse.jdt.core.dom.AST;
+import org.springframework.beans.BeanUtils;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -313,20 +314,24 @@ public class SymbolicExecutionRewrite {
 
                     Expr expr = OperationExpressionNode.createZ3Expression(
                             (ExpressionNode) executedAstNode, ctx, Z3Vars, symbolicMap);
-
-                    BoolExpr constraint;
-                    if (expr instanceof BoolExpr) {
-                        constraint = (BoolExpr) expr;
-                    } else if (expr instanceof BitVecExpr) {
-                        constraint = ctx.mkNot(ctx.mkEq((BitVecExpr) expr, ctx.mkBV(0, ((BitVecExpr) expr).getSortSize())));
-                    } else {
-                        throw new RuntimeException("Unsupported constraint type: " + expr);
+                    BoolExpr constraint = null;
+                    if (expr != null){
+                        if (expr instanceof BoolExpr) {
+                            constraint = (BoolExpr) expr;
+                        } else if (expr instanceof BitVecExpr) {
+                            constraint = ctx.mkNot(ctx.mkEq((BitVecExpr) expr, ctx.mkBV(0, ((BitVecExpr) expr).getSortSize())));
+                        }
+                        else {
+                            throw new RuntimeException("Unsupported constraint type: " + expr);
+                        }
+                    }
+                    if(constraint != null){
+                        if (finalZ3Expression == null) finalZ3Expression = constraint;
+                        else {
+                            finalZ3Expression = ctx.mkAnd(finalZ3Expression, constraint);
+                        }
                     }
 
-                    if (finalZ3Expression == null) finalZ3Expression = constraint;
-                    else {
-                        finalZ3Expression = ctx.mkAnd(finalZ3Expression, constraint);
-                    }
                 } else if (astNode instanceof VariableDeclarationStatement) {
                     VariableDeclarationStatement stm = (VariableDeclarationStatement) astNode;
                     List<VariableDeclarationFragment> fragments = stm.fragments();
@@ -464,9 +469,12 @@ public class SymbolicExecutionRewrite {
                     }
                 }
             } else if (variable instanceof SimpleTypeVariable) {
+                BoolExpr isNullVar =  ctx.mkNot(ctx.mkBoolConst(name + "_is_null"));
                 Expr z3Variable = Variable.createZ3Variable(variable, ctx);
                 if (z3Variable != null) {
                     Z3VariableWrapper z3VariableWrapper = new Z3VariableWrapper(z3Variable);
+                    //gán cờ is_null cho các biến loại SimpleType
+                    z3VariableWrapper.setIs_null(isNullVar);
                     if (!haveDuplicateVariable(z3VariableWrapper, z3Vars)) {
                         z3Vars.add(z3VariableWrapper);
                         System.out.println(z3VariableWrapper.getPrimitiveVar().getSort().toString());
@@ -633,7 +641,10 @@ public class SymbolicExecutionRewrite {
                     } else {
                         stringValue = evaluateResult.toString();
                     }
-
+                    Expr is_null = model.evaluate(z3VariableWrapper.getIs_null(),true);
+                    if(is_null.isTrue()){
+                        stringValue = null;
+                    }
                     evaluatedValues.put(name, stringValue);
 
                     for (MockInfo info : currentMockInfos) {
@@ -744,6 +755,8 @@ public class SymbolicExecutionRewrite {
                                                 valStr = fpNum.toString();
                                             }
                                         }
+                                    } else {
+                                        valStr = evaluatedElement.toString();
                                     }
 
                                     arrStr.append(valStr);
@@ -824,7 +837,13 @@ public class SymbolicExecutionRewrite {
                         listInstance.add(parsePrimitiveString(str.trim(), "int"));
                     }
                     result.add(listInstance);
-                } else {
+                }
+                // kiểm tra xem có phải kiểu simple type không
+                else if (BeanUtils.isSimpleValueType(parameterClass)){
+                    Object parseValue = parseSimpleTypeString(lineData,parameterClass);
+                    result.add(parseValue);
+                }
+                else {
                     log.warn("Chưa hỗ trợ ép kiểu Object phức tạp: {}. Tự động gán null.", parameterClass.getName());
                     result.add(null);
                 }
@@ -836,7 +855,42 @@ public class SymbolicExecutionRewrite {
 
         return result.toArray();
     }
+    private Object parseSimpleTypeString(String simpleTypeStringVariable, Class<?> type) {
+        // Gom xử lý "null" lên đầu: Nếu giá trị chuỗi là chữ "null" hoặc biến bị null, trả về null luôn.
+        if (simpleTypeStringVariable == null || simpleTypeStringVariable.trim().equals("null")) {
+            return null;
+        }
 
+        // Nên dùng type.equals(String.class) hoặc type.getName().equals("java.lang.String")
+        // vì type.toString() thường sẽ trả về "class java.lang.String" dẫn đến sai logic.
+        if (type.equals(String.class)) {
+            String val = simpleTypeStringVariable;
+            // Xoá dấu nháy kép ở 2 đầu nếu có (ví dụ: "Hello" -> Hello)
+            if (val.startsWith("\"") && val.endsWith("\"")) {
+                val = val.substring(1, val.length() - 1);
+            }
+            return val;
+
+        } else if (type.equals(Long.class) || type.equals(long.class)) { // Hỗ trợ cả Object Long và primitive long
+            String val = simpleTypeStringVariable.trim();
+            // Xóa hậu tố 'L' hoặc 'l' nếu giá trị chuỗi có chứa (ví dụ: "100L" -> "100")
+            if (val.endsWith("L") || val.endsWith("l")) {
+                val = val.substring(0, val.length() - 1);
+            }
+            return Long.parseLong(val);
+
+        } else if (type.equals(Double.class) || type.equals(double.class)) { // Hỗ trợ cả Object Double và primitive double
+            String val = simpleTypeStringVariable.trim();
+            // Xóa hậu tố 'D' hoặc 'd' nếu giá trị chuỗi có chứa (ví dụ: "10.5d" -> "10.5")
+            if (val.endsWith("D") || val.endsWith("d")) {
+                val = val.substring(0, val.length() - 1);
+            }
+            return Double.parseDouble(val);
+        }
+
+        // Ném ra Exception nếu không khớp với bất kỳ kiểu nào ở trên
+        throw new IllegalArgumentException("Chưa hỗ trợ kiểu này: " + type.getName());
+    }
     private Object parsePrimitiveString(String valStr, String type) {
         valStr = valStr.trim();
 
@@ -861,6 +915,13 @@ public class SymbolicExecutionRewrite {
         }
 
         if ("double".equals(type)) return Double.parseDouble(valStr);
+
+        if ("java.lang.String".equals(type) || "String".equals(type)) {
+            if (valStr.startsWith("\"") && valStr.endsWith("\"")) {
+                return valStr.substring(1, valStr.length() - 1);
+            }
+            return valStr;
+        }
 
         throw new RuntimeException("Chưa hỗ trợ ép kiểu Z3 cho: " + type);
     }

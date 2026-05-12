@@ -70,7 +70,10 @@ public abstract class OperationExpressionNode extends ExpressionNode {
                 Expr lengthVar = ctx.mkBVConst(name, 32);
 
                 Z3VariableWrapper wrapper = new Z3VariableWrapper(lengthVar);
-                if (getDuplicateVariableIndex(wrapper, vars) == -1) {
+                int idx = getDuplicateVariableIndex(wrapper, vars);
+                if (idx != -1) {
+                    return vars.get(idx).getPrimitiveVar();
+                } else {
                     vars.add(wrapper);
                 }
 
@@ -121,6 +124,8 @@ public abstract class OperationExpressionNode extends ExpressionNode {
                 Expr nullRef = ctx.mkConst("null_ref", refSort);
                 //đặt 0 tượng trưng cho null trong bộ giải z3
                 return nullRef;
+            } else if (operand instanceof StringLiteralNode){
+                return ctx.mkString(((StringLiteralNode) operand).getStringValue());
             }
             else {
                 throw new RuntimeException("Invalid Literal");
@@ -137,6 +142,7 @@ public abstract class OperationExpressionNode extends ExpressionNode {
         else {
             throw new RuntimeException(operand.getClass() + " is not an Expression");
         }
+
     }
 
     private static Expr createZ3Variable(NameNode variableName, Context ctx, List<Z3VariableWrapper> vars, MemoryModel memoryModel) {
@@ -146,7 +152,7 @@ public abstract class OperationExpressionNode extends ExpressionNode {
         //Check duplicate and add to vars
         int variableIndex = getDuplicateVariableIndex(z3VariableWrapper, vars);
         if (variableIndex != -1) {
-            vars.set(variableIndex, z3VariableWrapper);
+            return vars.get(variableIndex).getPrimitiveVar();
         } else {
             vars.add(z3VariableWrapper);
         }

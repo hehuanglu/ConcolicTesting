@@ -52,7 +52,7 @@ public class SimpleTypeNode extends ExpressionNode {
         Z3VariableWrapper wrapper = new Z3VariableWrapper(expr);
         int idx = getDuplicateVariableIndex(wrapper, vars);
         if (idx != -1) {
-            vars.set(idx, wrapper);
+            return vars.get(idx).getPrimitiveVar();
         } else {
             vars.add(wrapper);
         }
