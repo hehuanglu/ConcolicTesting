@@ -5,6 +5,21 @@
     <option name="originalFiles">
       <list>
         <option value="$PROJECT_DIR$/pom.xml" />
+        <option value="$PROJECT_DIR$/src/main/java/core-engine/cfg/pom.xml" />
+        <option value="$PROJECT_DIR$/src/main/java/core-engine/core/pom.xml" />
+        <option value="$PROJECT_DIR$/src/main/java/core-engine/jdt/pom.xml" />
+        <option value="$PROJECT_DIR$/src/main/java/core-engine/utils/pom.xml" />
+        <option value="$PROJECT_DIR$/src/main/java/core-engine/xml/pom.xml" />
+        <option value="$PROJECT_DIR$/src/main/java/processing-service/unitTesting/pom.xml" />
+        <option value="$PROJECT_DIR$/src/main/java/processing-service/upload-project-service/pom.xml" />
+        <option value="$PROJECT_DIR$/processing-service/unitTesting/pom.xml" />
+        <option value="$PROJECT_DIR$/processing-service/upload-project-service/pom.xml" />
+        <option value="$PROJECT_DIR$/core-engine/cfg/pom.xml" />
+        <option value="$PROJECT_DIR$/core-engine/core/pom.xml" />
+        <option value="$PROJECT_DIR$/core-engine/jdt/pom.xml" />
+        <option value="$PROJECT_DIR$/core-engine/utils/pom.xml" />
+        <option value="$PROJECT_DIR$/core-engine/xml/pom.xml" />
+        <option value="$PROJECT_DIR$/project/anonymous/tmp-prj/testStub.zip.project/testStub/pom.xml" />
       </list>
     </option>
   </component>

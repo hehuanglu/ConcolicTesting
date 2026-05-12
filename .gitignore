@@ -1,39 +1,60 @@
-target/
-!.mvn/wrapper/maven-wrapper.jar
-!**/src/main/**/target/
-!**/src/test/**/target/
-.kotlin
+/.idea/
+# Default ignored files
+/shelf/
+/workspace.xml
+# Datasource local storage ignored files
+/dataSources/
+/dataSources.local.xml
+# Editor-based HTTP Client requests
+/httpRequests/
 
-### IntelliJ IDEA ###
-.idea/modules.xml
-.idea/jarRepositories.xml
-.idea/compiler.xml
-.idea/libraries/
-*.iws
+.mvn/
+/project/
+
+# Intellij
 *.iml
-*.ipr
 
-### Eclipse ###
-.apt_generated
+# Netbeans, Eclipse. VSCode
 .classpath
-.factorypath
+/.settings/
 .project
-.settings
-.springBeans
-.sts4-cache
 
-### NetBeans ###
-/nbproject/private/
-/nbbuild/
-/dist/
-/nbdist/
-/.nb-gradle/
-build/
-!**/src/main/**/build/
-!**/src/test/**/build/
+core-engine/.idea
+core-engine/build
+core-engine/repository
 
-### VS Code ###
-.vscode/
+# output.json from javacia
+storage
+/output.json
+/java-service/output.json
+/parser-service/output.json
+/project-service/output.json
+/spring-service/output.json
+/discovery-server/output.json
+/cia-service/output.json
+/user-service/output.json
+/utility-service/output.json
+/version-compare-service/src/test/
 
-### Mac OS ###
-.DS_Store
+# log files
+*.log
+/logs
+/logs/
+
+
+#config file with db props
+backend-service/user-service/src/main/resources/application.properties
+backend-service/project-service/src/main/resources/application.properties
+*.log
+
+# Build folders
+/target
+/target/
+/target/*
+/jsf-service/target/
+/xml-service/src/test/
+/processing-service/jsf-service/target/
+/processing-service/jsf-service/src/test/
+/management-service/api-gateway/src/test/
+/service-log/
+/core-engine/cfg/src/main/java/data/clonedProject
