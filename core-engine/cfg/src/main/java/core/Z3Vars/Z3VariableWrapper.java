@@ -3,7 +3,7 @@ package core.Z3Vars;
 import com.microsoft.z3.BoolExpr;
 import com.microsoft.z3.Expr;
 import core.variable.ArrayTypeVariable;
-
+import com.microsoft.z3.*;
 
 public class Z3VariableWrapper {
     private Expr primitiveVar = null;

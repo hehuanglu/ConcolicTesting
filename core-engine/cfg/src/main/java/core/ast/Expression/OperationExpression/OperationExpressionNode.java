@@ -8,6 +8,7 @@ import core.ast.Expression.Array.ArrayAccessNode;
 import core.ast.Expression.ExpressionNode;
 import core.ast.Expression.Literal.*;
 import core.ast.Expression.Literal.NumberLiteral.IntegerLiteralNode;
+import core.ast.Expression.Literal.NumberLiteral.LongLiteralNode;
 import core.ast.Expression.Literal.NumberLiteral.NumberLiteralNode;
 import core.ast.Expression.Method.MethodInvocationNode;
 import com.microsoft.z3.*;
@@ -80,8 +81,24 @@ public abstract class OperationExpressionNode extends ExpressionNode {
         } else if (operand instanceof LiteralNode) {
             if (operand instanceof NumberLiteralNode) {
                 String tokenVal = ((NumberLiteralNode) operand).getTokenValue();
-
-                if (operand instanceof IntegerLiteralNode) {
+                if(operand instanceof LongLiteralNode){
+                    String numStr = tokenVal.substring(0, tokenVal.length() - 1);
+                    boolean isHex = numStr.toLowerCase().startsWith("0x");
+                    boolean isBinary = numStr.toLowerCase().startsWith("0b");
+                    boolean isOctal = numStr.startsWith("0") && !isHex && !isBinary && numStr.length() > 1;
+                    long val;
+                    if (isHex) {
+                        val = Long.parseLong(numStr.substring(2), 16);
+                    } else if (isBinary) {
+                        val = Long.parseLong(numStr.substring(2), 2);
+                    } else if (isOctal) {
+                        val = Long.parseLong(numStr, 8);
+                    } else {
+                        val = Long.parseLong(numStr, 10);
+                    }
+                    return ctx.mkBV(val, 64);
+                }
+                else if (operand instanceof IntegerLiteralNode) {
                     boolean isLong = tokenVal.toUpperCase().endsWith("L");
                     String numStr = isLong ? tokenVal.substring(0, tokenVal.length() - 1) : tokenVal;
                     numStr = numStr.replace("_", ""); // Remove underscores
@@ -99,7 +116,7 @@ public abstract class OperationExpressionNode extends ExpressionNode {
                         val = Long.parseLong(numStr, 10);
                     }
                     if (isLong) {
-                        return ctx.mkInt(val);
+                        return ctx.mkBV(val, 64);
                     } else {
                         return ctx.mkInt((int) val);
                     }

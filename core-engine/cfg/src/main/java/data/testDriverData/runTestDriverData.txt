@@ -1,2 +1,2 @@
-s == null===false===true===1---end---b == null && a != null===false===true===4---end---return s;
-===false===false===8---end---132.3922===
+nums.size() < 10===false===true===1---end---return false;
+===false===false===12---end---1.901===false

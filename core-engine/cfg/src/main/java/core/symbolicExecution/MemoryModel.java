@@ -44,7 +44,9 @@ public class MemoryModel { // ONLY FOR PRIMITIVE TYPES!!!!
     }
 
     public void declareSimpleTypeVariable(SimpleType simpleType, String name, AstNode element) {
-        S.put(new SimpleTypeVariable(simpleType, name), element);
+        SimpleTypeVariable simpleTypeVariable = new SimpleTypeVariable(simpleType, name);
+        simpleTypeVariable.setAddress(SymbolicExecutionRewrite.nextAddress++);
+        S.put(simpleTypeVariable, element);
     }
 
     public AstNode getValue(String name) {

@@ -7,7 +7,7 @@ import core.ast.AstNode;
 import core.ast.Expression.Array.ArrayCreationNode;
 import core.ast.Expression.Array.ArrayCreationWithNewKeyWord;
 import core.ast.Expression.Array.ArrayNode;
-import core.ast.Expression.ExpressionNode;
+import core.ast.Expression.   ExpressionNode;
 import core.ast.Expression.Literal.BooleanLiteralNode;
 import core.ast.Expression.Literal.CharacterLiteralNode;
 import core.ast.Expression.Literal.LiteralNode;
@@ -61,6 +61,8 @@ public class SymbolicExecutionRewrite {
     public static ThreadLocal<Context> globalCtx = new ThreadLocal<>();
     public static ThreadLocal<List<Z3VariableWrapper>> globalZ3Vars = new ThreadLocal<>();
     public static Map<String, Class<?>> variableGenericTypeMap = new HashMap<>();
+    public static ArrayExpr LongHeap;
+    public static int nextAddress = 1;
 
     public SymbolicExecutionRewrite(Path testPath, List<ASTNode> parameters) {
         this.testPath = testPath;
@@ -74,6 +76,8 @@ public class SymbolicExecutionRewrite {
         parameterArrayLengths.clear();
         symbolicArrayIndexExpressions.clear();
 
+
+
         HashMap<String, String> cfg = new HashMap();
         cfg.put("model", "true");
         Context ctx = new Context(cfg);
@@ -81,6 +85,11 @@ public class SymbolicExecutionRewrite {
         globalCtx.set(ctx);
         globalZ3Vars.set(Z3Vars);
         z3ArrayStateMap.get().clear();
+
+        Sort domainSort = ctx.mkIntSort();
+        Sort rangeBitVec = ctx.mkBitVecSort(64);
+        // map lưu (int)address --> (long) value
+        LongHeap = ctx.mkArrayConst("heap2", domainSort, rangeBitVec);
 
         executeParameters(ctx);
 
@@ -479,14 +488,20 @@ public class SymbolicExecutionRewrite {
                 }
             } else if (variable instanceof SimpleTypeVariable) {
                 BoolExpr isNullVar =  ctx.mkNot(ctx.mkBoolConst(name + "_is_null"));
+                int address = ((SimpleTypeVariable) variable).getAddress();
+                Expr addressVar = ctx.mkIntConst("addr_"+name);
                 Expr z3Variable = Variable.createZ3Variable(variable, ctx);
                 if (z3Variable != null) {
-                    Z3VariableWrapper z3VariableWrapper = new Z3VariableWrapper(z3Variable);
+//                    Z3VariableWrapper z3VariableWrapper = new Z3VariableWrapper(z3Variable);
+                    Z3VariableWrapper addressZ3VariableWrapper = new Z3VariableWrapper(addressVar);
+
+                    ArrayExpr newHeapState = ctx.mkStore(LongHeap, addressVar, ctx.mkBV(0,64));
+                    LongHeap = newHeapState;
                     //gán cờ is_null cho các biến loại SimpleType
-                    z3VariableWrapper.setIs_null(isNullVar);
-                    if (!haveDuplicateVariable(z3VariableWrapper, z3Vars)) {
-                        z3Vars.add(z3VariableWrapper);
-                        System.out.println(z3VariableWrapper.getPrimitiveVar().getSort().toString());
+//                    z3VariableWrapper.setIs_null(isNullVar);
+                    if (!haveDuplicateVariable(addressZ3VariableWrapper, z3Vars)) {
+//                        z3Vars.add(z3VariableWrapper);
+                        z3Vars.add(addressZ3VariableWrapper);
                     }
                 }
             } else if (variable instanceof ArrayTypeVariable) {
@@ -620,6 +635,9 @@ public class SymbolicExecutionRewrite {
                             case "long":
                                 stringValue = String.valueOf(val.longValue()) + "L";
                                 break;
+                            case "Long":
+                                stringValue = String.valueOf(val.longValue()) + "L";
+                                break;
                             default:
                                 stringValue = String.valueOf(val.intValue());
                                 break;
@@ -649,9 +667,10 @@ public class SymbolicExecutionRewrite {
                         stringValue = evaluateResult.toString();
                     }
                     Expr is_null = model.evaluate(z3VariableWrapper.getIs_null(),true);
-                    if(is_null.isTrue()){
+                    if(!is_null.isTrue()){
                         stringValue = null;
                     }
+
                     evaluatedValues.put(name, stringValue);
 
                     for (MockInfo info : currentMockInfos) {

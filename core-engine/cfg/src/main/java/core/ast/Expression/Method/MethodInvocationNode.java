@@ -85,7 +85,14 @@ public class MethodInvocationNode extends ExpressionNode {
                 AstNode target = ExpressionNode.executeExpression(methodInvocation.getExpression(), memoryModel);
                 return new StringMethodNode(target, methodName, arguments);
             }
-
+            else if(className.equals("Long") || className.equals("java.lang.Long")){
+                List<AstNode> arguments = new ArrayList<>();
+                for (int i = 0; i < methodInvocation.arguments().size(); i++) {
+                    arguments.add(ExpressionNode.executeExpression((Expression) methodInvocation.arguments().get(i), memoryModel));
+                }
+                AstNode target = ExpressionNode.executeExpression(methodInvocation.getExpression(), memoryModel);
+                return new LongMethodNode(target,methodName,arguments);
+            }
             if (methodName.equals("get")) {
                 List<AstNode> arguments = new ArrayList<>();
                 for (Object arg : methodInvocation.arguments()) {
@@ -204,8 +211,11 @@ public class MethodInvocationNode extends ExpressionNode {
         String className = methodInvocationNode.getClassName();
         List<AstNode> args = methodInvocationNode.getArgument();
 
-        if (operand instanceof StringMethodNode) {
-            return StringMethodNode.createZ3Expression((StringMethodNode) operand, memoryModel, ctx, vars);
+        if (isSimpleTypeNode(operand)) {
+            if (operand instanceof StringMethodNode)
+                return StringMethodNode.createZ3Expression((StringMethodNode) operand, memoryModel, ctx, vars);
+            else if (operand instanceof  LongMethodNode)
+                return LongMethodNode.createZ3Expression((LongMethodNode) operand, memoryModel, ctx, vars);
         }
 
         if ("Math".equals(className)) {
@@ -338,6 +348,12 @@ public class MethodInvocationNode extends ExpressionNode {
         methodDeclaration.parameters().add(singleVariableDeclaration);
     }
 
+    private static boolean isSimpleTypeNode(MethodInvocationNode operand){
+        if (operand instanceof StringMethodNode || operand instanceof LongMethodNode) {
+            return true;
+        }
+        return false;
+    }
 
     public static void resetNumberOfFunctionsCall() {
         MethodInvocationNode.numberOfFunctionsCall = 1;

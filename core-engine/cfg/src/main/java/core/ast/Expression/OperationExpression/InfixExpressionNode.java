@@ -44,22 +44,22 @@ public class InfixExpressionNode extends OperationExpressionNode {
         InfixExpression.Operator operator = infixExpressionNode.operator;
         List<AstNode> extendedOperands = infixExpressionNode.extendedOperands;
         BoolExpr isNullS;
-        // nếu vế phải của Object == null thì return null
+        // nếu vế phải của Object == null thì return ràng buộc is_null = true
         if(rightOperand.toString().equals("null") && operator.toString().equals("==")){
             Expr Z3LeftOperand = OperationExpressionNode.createZ3Expression(leftOperand, ctx, vars, memoryModel);
 
             for(Z3VariableWrapper wrapper : vars){
                 if (Z3LeftOperand == wrapper.getPrimitiveVar()){
-                    return ctx.mkEq(wrapper.getIs_null(), ctx.mkTrue());
+                    return ctx.mkNot(ctx.mkEq(wrapper.getIs_null(), ctx.mkTrue()));
                 }
             }
             return null;
-        }else if(rightOperand.toString().equals("null") && operator.toString().equals("!=")){// nếu Object != null thì sẽ đổi thành biểu thức Object == Object
+        }else if(rightOperand.toString().equals("null") && operator.toString().equals("!=")){// nếu Object != null thì sẽ đổi thành biểu thức is_null = false
             Expr Z3LeftOperand = OperationExpressionNode.createZ3Expression(leftOperand, ctx, vars, memoryModel);
 
             for(Z3VariableWrapper wrapper : vars){
                 if (Z3LeftOperand == wrapper.getPrimitiveVar()){
-                    return ctx.mkNot(ctx.mkEq(wrapper.getIs_null(), ctx.mkTrue()));
+                    return ctx.mkEq(wrapper.getIs_null(), ctx.mkTrue());
                 }
             }
             return null;
@@ -82,6 +82,7 @@ public class InfixExpressionNode extends OperationExpressionNode {
     }
 
     private static Expr createInfixZ3Expression(Context ctx, Expr Z3LeftOperand, InfixExpression.Operator operator, Expr Z3RightOperand) {
+
         //Boolean operations
         if (Z3LeftOperand instanceof BoolExpr || Z3RightOperand instanceof BoolExpr) {
             if (operator.equals(InfixExpression.Operator.CONDITIONAL_AND)) {

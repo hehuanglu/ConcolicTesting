@@ -7,6 +7,7 @@ import core.ast.Expression.Method.MethodInvocationNode;
 import core.ast.Expression.Name.NameNode;
 import core.ast.Expression.OperationExpression.CastExpressionNode;
 import core.ast.Expression.OperationExpression.OperationExpressionNode;
+import core.ast.Type.AnnotatableType.SimpleTypeNode;
 import core.symbolicExecution.MemoryModel;
 import org.eclipse.jdt.core.dom.*;
 
@@ -36,7 +37,8 @@ public abstract class ExpressionNode extends AstNode {
             return CastExpressionNode.executeCastExpression((CastExpression) expression, memoryModel);
         } else if (expression instanceof MethodInvocation) {
             return MethodInvocationNode.executeMethodInvocation((MethodInvocation) expression, memoryModel);
-        } else {
+        }
+        else {
 //            throw new RuntimeException(expression.getClass() + " is not an Expression!!!");
             return null;
         }
