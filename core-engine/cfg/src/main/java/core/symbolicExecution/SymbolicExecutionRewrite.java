@@ -161,14 +161,14 @@ public class SymbolicExecutionRewrite {
                     @Override
                     public boolean visit(MethodInvocation methodInvocation) {
                         String methodName = methodInvocation.getName().getIdentifier();
-                        List<String> listMethods = Arrays.asList("get", "size", "set", "add");
-                        if (listMethods.contains(methodName)) {
-                            System.out.println("   ---> Bỏ qua Mock cho hàm của List: " + methodName + ". Để reStm xử lý.");
-                            return true;
-                        }
-                        String className = "";
-                        if (methodInvocation.getExpression() != null) {
-                            className = methodInvocation.getExpression().toString();
+                        String className = (methodInvocation.getExpression() != null) ? methodInvocation.getExpression().toString() : "";
+
+                        if (variableGenericTypeMap.containsKey(className)) {
+                            List<String> listMethods = Arrays.asList("get", "size", "set", "add");
+                            if (listMethods.contains(methodName)) {
+                                log.debug("Bỏ qua Mock cho hàm của List: {}.", methodName);
+                                return super.visit(methodInvocation);
+                            }
                         }
 
                         ASTNode parentNode = methodInvocation.getParent();
@@ -397,17 +397,52 @@ public class SymbolicExecutionRewrite {
             currentNode = currentNode.getNext();
         }
 
+
+
+        // Ép ràng buộc index mảng trong [0,1000]
+        // Chỉ thêm ràng buộc nếu biến idx đã được dùng trong các hàm liên quan đến truy xuất mảng
         for (Map.Entry<String, List<Expr>> entry : symbolicArrayIndexExpressions.entrySet()) {
-            int size = 1000; //
+            int maxIndex = 1000;
             for (Expr indexExpr : entry.getValue()) {
                 if (indexExpr instanceof BitVecExpr) {
                     BitVecExpr bvIdx = (BitVecExpr) indexExpr;
                     BoolExpr bound = ctx.mkAnd(
                             ctx.mkBVSGE(bvIdx, ctx.mkBV(0, 32)),
-                            ctx.mkBVSLT(bvIdx, ctx.mkBV(size, 32))
+                            ctx.mkBVSLT(bvIdx, ctx.mkBV(maxIndex, 32))
                     );
                     finalZ3Expression = ctx.mkAnd(finalZ3Expression, bound);
                 }
+            }
+        }
+
+        // Ép ràng buộc size cua list trong [0,1000] và size của list luôn phải > idx
+        for (Z3VariableWrapper var : Z3Vars) {
+            Expr expr = var.getPrimitiveVar();
+            if (expr instanceof BitVecExpr && expr.toString().endsWith(".size")) {
+                String name = expr.toString();
+                BitVecExpr sizeExpr = (BitVecExpr) expr;
+                String className = name.substring(0, name.lastIndexOf(".size"));
+                if (variableGenericTypeMap.containsKey(className)) {
+                    int maxSize = 1000;
+                    BoolExpr rangeConstraint = ctx.mkAnd(
+                            ctx.mkBVSGE(sizeExpr, ctx.mkBV(0, 32)),
+                            ctx.mkBVSLE(sizeExpr, ctx.mkBV(maxSize, 32))
+                    );
+                    finalZ3Expression = ctx.mkAnd(finalZ3Expression, rangeConstraint);
+
+                    if (symbolicArrayIndexExpressions.containsKey(className)) {
+                        List<Expr> usedIndices = symbolicArrayIndexExpressions.get(className);
+                        for (Expr idxExpr : usedIndices) {
+                            if (idxExpr instanceof BitVecExpr) {
+                                BoolExpr sizeGtIdx = ctx.mkBVSGT(sizeExpr, (BitVecExpr) idxExpr);
+                                finalZ3Expression = ctx.mkAnd(finalZ3Expression, sizeGtIdx);
+                            }
+                        }
+                    }
+                } else {
+                    log.debug("Phát hiện biến .size nhưng không nằm trong variableGenericTypeMap: {}", className);
+                }
+
             }
         }
 
@@ -480,14 +515,7 @@ public class SymbolicExecutionRewrite {
                 if (declaration.getType().isArrayType()) {
                     ArrayType arrType = (ArrayType) declaration.getType();
                     String elementTypeName = arrType.getElementType().toString();
-
-                    if (elementTypeName.equals("long")) {
-                        range = ctx.mkBitVecSort(64);
-                    } else if (elementTypeName.equals("double")) {
-                        range = ctx.mkFPSortDouble();
-                    } else if (elementTypeName.equals("float")) {
-                        range = ctx.mkFPSortSingle();
-                    }
+                    range = getZ3Sort(elementTypeName, ctx);
                 }
 
                 // Tạo kiểu mảng z3
@@ -505,20 +533,8 @@ public class SymbolicExecutionRewrite {
                 SymbolicExecutionRewrite.z3ArrayStateMap.get().put(name, z3ArrayBase);
             } else if (variable instanceof ParameterizedTypeVariable) {
                 Sort domain = ctx.mkBitVecSort(32);
-                Sort range;
-
                 Class<?> genericClass = variableGenericTypeMap.get(name);
-                if (genericClass.equals(Long.class)) {
-                    range = ctx.mkBitVecSort(64);
-                } else if (genericClass.equals(Double.class)) {
-                    range = ctx.mkFPSortDouble();
-                } else if (genericClass.equals(Float.class)) {
-                    range = ctx.mkFPSortSingle();
-                } else if (genericClass.equals(Integer.class)) {
-                    range = ctx.mkBitVecSort(32);
-                } else {
-                    throw new RuntimeException("Chua ho tro kieu Generic cho" + genericClass);
-                }
+                Sort range = getZ3Sort(genericClass, ctx);
 
                 ArraySort z3ArraySort = ctx.mkArraySort(domain, range);
                 Expr z3ParameterizedBase = ctx.mkConst(name, z3ArraySort);
@@ -543,7 +559,7 @@ public class SymbolicExecutionRewrite {
 
     // Hàm overload này cho phép pass suy index symbolic kiểm tra duplicate trên
     // một danh sách biến Z3 tạm, thay vì chỉ dựa vào danh sách solve chính.
-    private boolean haveDuplicateVariable(Z3VariableWrapper z3Variable, List<Z3VariableWrapper> z3Vars) {
+    public static boolean haveDuplicateVariable(Z3VariableWrapper z3Variable, List<Z3VariableWrapper> z3Vars) {
         for (Z3VariableWrapper i : z3Vars) {
             if (i.equals(z3Variable)) {
                 return true;
@@ -654,7 +670,8 @@ public class SymbolicExecutionRewrite {
                             int arrayLength = parameterArrayLengths.getOrDefault(paramName, 1);
 
                             try {
-                                Expr lengthVar = ctx.mkBVConst(paramName + ".length", 32);
+                                String suffix = decl.getType().isArrayType() ? ".length" : ".size";
+                                Expr lengthVar = ctx.mkBVConst(paramName + suffix, 32);
                                 Expr evaluatedLength = model.evaluate(lengthVar, true);
 
                                 if (evaluatedLength instanceof BitVecNum) {
@@ -689,17 +706,7 @@ public class SymbolicExecutionRewrite {
                             try {
                                 // Chọn kích thước sort theo kiểu dữ liệu
                                 Sort domainSort = ctx.mkBitVecSort(32);
-                                Sort rangeSort;
-
-                                if (elementTypeName.equals("long")) {
-                                    rangeSort = ctx.mkBitVecSort(64);
-                                } else if (elementTypeName.equals("double")) {
-                                    rangeSort = ctx.mkFPSortDouble();
-                                } else if (elementTypeName.equals("float")) {
-                                    rangeSort = ctx.mkFPSortSingle();
-                                } else {
-                                    rangeSort = ctx.mkBitVecSort(32);
-                                }
+                                Sort rangeSort = getZ3Sort(elementTypeName, ctx);
 
                                 // dựng lại tham chiếu đến mảng gốc ban đầu với đúng sort
                                 Expr z3ArrayBase = ctx.mkConst(paramName, ctx.mkArraySort(domainSort, rangeSort));
@@ -966,9 +973,17 @@ public class SymbolicExecutionRewrite {
                 return super.visit(node);
             }
 
+
+            // Hiện tại mới chỉ xử lí .get của List
             @Override
             public boolean visit(MethodInvocation node) {
                 String methodName = node.getName().getIdentifier();
+                String className = ((SimpleName) node.getExpression()).getIdentifier();
+
+                if (!variableGenericTypeMap.containsKey(className)) {
+                    return super.visit(node);
+                }
+
                 if (!methodName.equals("get") || !(node.getExpression() instanceof SimpleName)) {
                     return super.visit(node);
                 }
@@ -1059,6 +1074,43 @@ public class SymbolicExecutionRewrite {
             return super.visit(node);
         }
 
+        @Override
+        public boolean visit(MethodInvocation node) {
+            String methodName = node.getName().getIdentifier();
+
+            if (node.getExpression() == null || !(node.getExpression() instanceof SimpleName)) {
+                return super.visit(node);
+            }
+
+            String className = ((SimpleName) node.getExpression()).getIdentifier();
+
+            if (!arrayName.equals(className) || !variableGenericTypeMap.containsKey(className)) {
+                return super.visit(node);
+            }
+
+            if (!methodName.equals("get")) {
+                return super.visit(node);
+            }
+
+            if (node.arguments().isEmpty()) {
+                return super.visit(node);
+            }
+
+            ASTNode indexNode = (ASTNode) node.arguments().get(0);
+            if (indexNode instanceof NumberLiteral) {
+                try {
+                    int index = Integer.parseInt(((NumberLiteral) indexNode).getToken());
+                    if (index >= 0) {
+                        this.maxIndex = Math.max(this.maxIndex, index);
+                    }
+                } catch (NumberFormatException ignored) {
+                    System.out.println("CHUA XU LI INDEX CU THE");
+                }
+            }
+
+            return super.visit(node);
+        }
+
         private int getMaxConcreteIndex() {
             return maxIndex;
         }
@@ -1077,7 +1129,7 @@ public class SymbolicExecutionRewrite {
 
         if (genericClass != null) {
             // 3. Chuyển đổi Class sang PrimitiveTypeNode (để Tool hiểu loại dữ liệu)
-            PrimitiveType.Code primitiveCode = mapClassToJDTPrimitiveCode(genericClass);
+            PrimitiveType.Code primitiveCode = getPrimitiveTypeCode(genericClass);
             PrimitiveTypeNode primitiveTypeNode = new PrimitiveTypeNode();
             primitiveTypeNode.setTypeCode(primitiveCode);
             virtualArray.setType(primitiveTypeNode);
@@ -1092,15 +1144,6 @@ public class SymbolicExecutionRewrite {
         return virtualArray;
     }
 
-    // Dịch từ Class sang Code của JDT PrimitiveType
-    private PrimitiveType.Code mapClassToJDTPrimitiveCode(Class<?> clazz) {
-        if (clazz.equals(Long.class)) return PrimitiveType.LONG;
-        if (clazz.equals(Double.class)) return PrimitiveType.DOUBLE;
-        if (clazz.equals(Float.class)) return PrimitiveType.FLOAT;
-        if (clazz.equals(Boolean.class)) return PrimitiveType.BOOLEAN;
-        if (clazz.equals(Character.class)) return PrimitiveType.CHAR;
-        return PrimitiveType.INT; // Mặc định là Integer
-    }
 
     // Tạo mảng các Literal mặc định giống hệt cách mảng đang làm
     private LiteralNode[] changeClassToLiteralInitializationArray(Class<?> clazz, int length) {
@@ -1165,11 +1208,20 @@ public class SymbolicExecutionRewrite {
     }
 
     /**
-     * Hàm hỗ trợ chuyển đổi String sang PrimitiveType.Code của AST
+     * Lấy Primitive Code dựa trên kiểu tương ứng.
      */
-    private PrimitiveType.Code getPrimitiveTypeCode(String typeName) {
+    private PrimitiveType.Code getPrimitiveTypeCode(Object input) {
+
+        String typeName;
+        if (input instanceof Class) {
+            typeName = ((Class<?>) input).getSimpleName().toLowerCase();
+        } else {
+            typeName = input.toString().toLowerCase();
+        }
+
         switch (typeName) {
             case "int":
+            case "integer":
                 return PrimitiveType.INT;
             case "boolean":
                 return PrimitiveType.BOOLEAN;
@@ -1178,6 +1230,7 @@ public class SymbolicExecutionRewrite {
             case "short":
                 return PrimitiveType.SHORT;
             case "char":
+            case "character":
                 return PrimitiveType.CHAR;
             case "long":
                 return PrimitiveType.LONG;
@@ -1189,6 +1242,33 @@ public class SymbolicExecutionRewrite {
                 return PrimitiveType.VOID;
             default:
                 return PrimitiveType.INT;
+        }
+    }
+
+    /**
+     * Chuyển đổi tên kiểu dữ liệu hoặc Class sang Z3 Sort tương ứng.
+     */
+    private Sort getZ3Sort(Object typeInput, Context ctx) {
+        String typeName;
+        if (typeInput instanceof Class) {
+            typeName = ((Class<?>) typeInput).getSimpleName().toLowerCase();
+        } else {
+            typeName = typeInput.toString().toLowerCase();
+        }
+
+        switch (typeName) {
+            case "long":
+                return ctx.mkBitVecSort(64);
+            case "double":
+                return ctx.mkFPSortDouble();
+            case "float":
+                return ctx.mkFPSortSingle();
+            case "boolean":
+                return ctx.mkBoolSort();
+            case "int":
+            case "integer":
+            default:
+                return ctx.mkBitVecSort(32);
         }
     }
 
@@ -1293,7 +1373,7 @@ public class SymbolicExecutionRewrite {
 
     private static Object createRandomCollectionVariableData(Class<?> parameterClass, String parameterName ) {
         List<Object> listInstance = new ArrayList<>();
-        Class<?> targetType =variableGenericTypeMap.get(parameterName);
+        Class<?> targetType = variableGenericTypeMap.get(parameterName);
         for (int i = 0; i < 10; i++) {
             Object randomData = createRandomPrimitiveVariableData(targetType);
             listInstance.add(randomData);
