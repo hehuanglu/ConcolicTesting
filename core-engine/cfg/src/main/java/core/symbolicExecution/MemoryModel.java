@@ -1,5 +1,6 @@
 package core.symbolicExecution;
 
+import com.microsoft.z3.Expr;
 import core.ast.AstNode;
 import core.ast.Expression.Name.NameNode;
 import core.ast.Expression.Name.SimpleNameNode;
@@ -40,12 +41,11 @@ public class MemoryModel { // ONLY FOR PRIMITIVE TYPES!!!!
     }
 
     public void declareParameterizedTypeVariable(ParameterizedType type, String name, AstNode element) {
-        S.put(new ParameterizedTypeVariable(type, name), element);
+        S.put(new ParameterizedTypeVariable(type, name, SymbolicExecutionRewrite.globalCtx.get().mkBVConst(name + ".size", 32)), element);
     }
 
     public void declareSimpleTypeVariable(SimpleType simpleType, String name, AstNode element) {
         SimpleTypeVariable simpleTypeVariable = new SimpleTypeVariable(simpleType, name);
-        simpleTypeVariable.setAddress(SymbolicExecutionRewrite.nextAddress++);
         S.put(simpleTypeVariable, element);
     }
 

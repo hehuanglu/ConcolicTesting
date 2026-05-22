@@ -61,8 +61,6 @@ public class SymbolicExecutionRewrite {
     public static ThreadLocal<Context> globalCtx = new ThreadLocal<>();
     public static ThreadLocal<List<Z3VariableWrapper>> globalZ3Vars = new ThreadLocal<>();
     public static Map<String, Class<?>> variableGenericTypeMap = new HashMap<>();
-    public static ArrayExpr LongHeap;
-    public static int nextAddress = 1;
 
     public SymbolicExecutionRewrite(Path testPath, List<ASTNode> parameters) {
         this.testPath = testPath;
@@ -86,10 +84,7 @@ public class SymbolicExecutionRewrite {
         globalZ3Vars.set(Z3Vars);
         z3ArrayStateMap.get().clear();
 
-        Sort domainSort = ctx.mkIntSort();
-        Sort rangeBitVec = ctx.mkBitVecSort(64);
-        // map lưu (int)address --> (long) value
-        LongHeap = ctx.mkArrayConst("heap2", domainSort, rangeBitVec);
+
 
         executeParameters(ctx);
 
@@ -159,7 +154,6 @@ public class SymbolicExecutionRewrite {
                 // Ở đây ta dùng chính symbolicMap/Z3Vars/ctx của luồng solve chính để chuyển
                 // index như i, a + b, i + 1... thành Expr của cùng một Context.
                 // Các Expr này sẽ được evaluate lại sau khi model chính được solve xong.
-                /*
                 collectSymbolicArrayIndexesFromAst(astNode, ctx);
 
                 // BẮT, NỘI SOI KIỂU VÀ TẠO BIẾN GIẢ Z3
@@ -167,14 +161,14 @@ public class SymbolicExecutionRewrite {
                     @Override
                     public boolean visit(MethodInvocation methodInvocation) {
                         String methodName = methodInvocation.getName().getIdentifier();
-                        List<String> listMethods = Arrays.asList("get", "size", "set", "add");
-                        if (listMethods.contains(methodName)) {
-                            System.out.println("   ---> Bỏ qua Mock cho hàm của List: " + methodName + ". Để reStm xử lý.");
-                            return true;
-                        }
-                        String className = "";
-                        if (methodInvocation.getExpression() != null) {
-                            className = methodInvocation.getExpression().toString();
+                        String className = (methodInvocation.getExpression() != null) ? methodInvocation.getExpression().toString() : "";
+
+                        if (variableGenericTypeMap.containsKey(className)) {
+                            List<String> listMethods = Arrays.asList("get", "size", "set", "add");
+                            if (listMethods.contains(methodName)) {
+                                log.debug("Bỏ qua Mock cho hàm của List: {}.", methodName);
+                                return super.visit(methodInvocation);
+                            }
                         }
 
                         ASTNode parentNode = methodInvocation.getParent();
@@ -287,7 +281,6 @@ public class SymbolicExecutionRewrite {
                         return super.visit(methodInvocation);
                     }
                 });
-                */
 
                 AstNode executedAstNode = Rewrite.reStm(astNode, symbolicMap);
 
@@ -408,17 +401,52 @@ public class SymbolicExecutionRewrite {
             currentNode = currentNode.getNext();
         }
 
+
+
+        // Ép ràng buộc index mảng trong [0,1000]
+        // Chỉ thêm ràng buộc nếu biến idx đã được dùng trong các hàm liên quan đến truy xuất mảng
         for (Map.Entry<String, List<Expr>> entry : symbolicArrayIndexExpressions.entrySet()) {
-            int size = 1000; //
+            int maxIndex = 1000;
             for (Expr indexExpr : entry.getValue()) {
                 if (indexExpr instanceof BitVecExpr) {
                     BitVecExpr bvIdx = (BitVecExpr) indexExpr;
                     BoolExpr bound = ctx.mkAnd(
                             ctx.mkBVSGE(bvIdx, ctx.mkBV(0, 32)),
-                            ctx.mkBVSLT(bvIdx, ctx.mkBV(size, 32))
+                            ctx.mkBVSLT(bvIdx, ctx.mkBV(maxIndex, 32))
                     );
                     finalZ3Expression = ctx.mkAnd(finalZ3Expression, bound);
                 }
+            }
+        }
+
+        // Ép ràng buộc size cua list trong [0,1000] và size của list luôn phải > idx
+        for (Z3VariableWrapper var : Z3Vars) {
+            Expr expr = var.getPrimitiveVar();
+            if (expr instanceof BitVecExpr && expr.toString().endsWith(".size")) {
+                String name = expr.toString();
+                BitVecExpr sizeExpr = (BitVecExpr) expr;
+                String className = name.substring(0, name.lastIndexOf(".size"));
+                if (variableGenericTypeMap.containsKey(className)) {
+                    int maxSize = 1000;
+                    BoolExpr rangeConstraint = ctx.mkAnd(
+                            ctx.mkBVSGE(sizeExpr, ctx.mkBV(0, 32)),
+                            ctx.mkBVSLE(sizeExpr, ctx.mkBV(maxSize, 32))
+                    );
+                    finalZ3Expression = ctx.mkAnd(finalZ3Expression, rangeConstraint);
+
+                    if (symbolicArrayIndexExpressions.containsKey(className)) {
+                        List<Expr> usedIndices = symbolicArrayIndexExpressions.get(className);
+                        for (Expr idxExpr : usedIndices) {
+                            if (idxExpr instanceof BitVecExpr) {
+                                BoolExpr sizeGtIdx = ctx.mkBVSGT(sizeExpr, (BitVecExpr) idxExpr);
+                                finalZ3Expression = ctx.mkAnd(finalZ3Expression, sizeGtIdx);
+                            }
+                        }
+                    }
+                } else {
+                    log.debug("Phát hiện biến .size nhưng không nằm trong variableGenericTypeMap: {}", className);
+                }
+
             }
         }
 
@@ -488,20 +516,13 @@ public class SymbolicExecutionRewrite {
                 }
             } else if (variable instanceof SimpleTypeVariable) {
                 BoolExpr isNullVar =  ctx.mkNot(ctx.mkBoolConst(name + "_is_null"));
-                int address = ((SimpleTypeVariable) variable).getAddress();
-                Expr addressVar = ctx.mkIntConst("addr_"+name);
                 Expr z3Variable = Variable.createZ3Variable(variable, ctx);
                 if (z3Variable != null) {
-//                    Z3VariableWrapper z3VariableWrapper = new Z3VariableWrapper(z3Variable);
-                    Z3VariableWrapper addressZ3VariableWrapper = new Z3VariableWrapper(addressVar);
-
-                    ArrayExpr newHeapState = ctx.mkStore(LongHeap, addressVar, ctx.mkBV(0,64));
-                    LongHeap = newHeapState;
-                    //gán cờ is_null cho các biến loại SimpleType
-//                    z3VariableWrapper.setIs_null(isNullVar);
-                    if (!haveDuplicateVariable(addressZ3VariableWrapper, z3Vars)) {
-//                        z3Vars.add(z3VariableWrapper);
-                        z3Vars.add(addressZ3VariableWrapper);
+                    Z3VariableWrapper z3VariableWrapper = new Z3VariableWrapper(z3Variable);
+//                  gán cờ is_null cho các biến loại SimpleType
+                    z3VariableWrapper.setIs_null(isNullVar);
+                    if (!haveDuplicateVariable(z3VariableWrapper, z3Vars)) {
+                        z3Vars.add(z3VariableWrapper);
                     }
                 }
             } else if (variable instanceof ArrayTypeVariable) {
@@ -539,20 +560,8 @@ public class SymbolicExecutionRewrite {
                 SymbolicExecutionRewrite.z3ArrayStateMap.get().put(name, z3ArrayBase);
             } else if (variable instanceof ParameterizedTypeVariable) {
                 Sort domain = ctx.mkBitVecSort(32);
-                Sort range;
-
                 Class<?> genericClass = variableGenericTypeMap.get(name);
-                if (genericClass.equals(Long.class)) {
-                    range = ctx.mkBitVecSort(64);
-                } else if (genericClass.equals(Double.class)) {
-                    range = ctx.mkFPSortDouble();
-                } else if (genericClass.equals(Float.class)) {
-                    range = ctx.mkFPSortSingle();
-                } else if (genericClass.equals(Integer.class)) {
-                    range = ctx.mkBitVecSort(32);
-                } else {
-                    throw new RuntimeException("Chua ho tro kieu Generic cho" + genericClass);
-                }
+                Sort range = getZ3Sort(genericClass, ctx);
 
                 ArraySort z3ArraySort = ctx.mkArraySort(domain, range);
                 Expr z3ParameterizedBase = ctx.mkConst(name, z3ArraySort);
@@ -575,7 +584,7 @@ public class SymbolicExecutionRewrite {
 
     // Hàm overload này cho phép pass suy index symbolic kiểm tra duplicate trên
     // một danh sách biến Z3 tạm, thay vì chỉ dựa vào danh sách solve chính.
-    private boolean haveDuplicateVariable(Z3VariableWrapper z3Variable, List<Z3VariableWrapper> z3Vars) {
+    public static boolean haveDuplicateVariable(Z3VariableWrapper z3Variable, List<Z3VariableWrapper> z3Vars) {
         for (Z3VariableWrapper i : z3Vars) {
             if (i.equals(z3Variable)) {
                 return true;
@@ -693,7 +702,8 @@ public class SymbolicExecutionRewrite {
                             int arrayLength = parameterArrayLengths.getOrDefault(paramName, 1);
 
                             try {
-                                Expr lengthVar = ctx.mkBVConst(paramName + ".length", 32);
+                                String suffix = decl.getType().isArrayType() ? ".length" : ".size";
+                                Expr lengthVar = ctx.mkBVConst(paramName + suffix, 32);
                                 Expr evaluatedLength = model.evaluate(lengthVar, true);
 
                                 if (evaluatedLength instanceof BitVecNum) {
@@ -1053,9 +1063,17 @@ public class SymbolicExecutionRewrite {
                 return super.visit(node);
             }
 
+
+            // Hiện tại mới chỉ xử lí .get của List
             @Override
             public boolean visit(MethodInvocation node) {
                 String methodName = node.getName().getIdentifier();
+                String className = ((SimpleName) node.getExpression()).getIdentifier();
+
+                if (!variableGenericTypeMap.containsKey(className)) {
+                    return super.visit(node);
+                }
+
                 if (!methodName.equals("get") || !(node.getExpression() instanceof SimpleName)) {
                     return super.visit(node);
                 }
@@ -1146,6 +1164,43 @@ public class SymbolicExecutionRewrite {
             return super.visit(node);
         }
 
+        @Override
+        public boolean visit(MethodInvocation node) {
+            String methodName = node.getName().getIdentifier();
+
+            if (node.getExpression() == null || !(node.getExpression() instanceof SimpleName)) {
+                return super.visit(node);
+            }
+
+            String className = ((SimpleName) node.getExpression()).getIdentifier();
+
+            if (!arrayName.equals(className) || !variableGenericTypeMap.containsKey(className)) {
+                return super.visit(node);
+            }
+
+            if (!methodName.equals("get")) {
+                return super.visit(node);
+            }
+
+            if (node.arguments().isEmpty()) {
+                return super.visit(node);
+            }
+
+            ASTNode indexNode = (ASTNode) node.arguments().get(0);
+            if (indexNode instanceof NumberLiteral) {
+                try {
+                    int index = Integer.parseInt(((NumberLiteral) indexNode).getToken());
+                    if (index >= 0) {
+                        this.maxIndex = Math.max(this.maxIndex, index);
+                    }
+                } catch (NumberFormatException ignored) {
+                    System.out.println("CHUA XU LI INDEX CU THE");
+                }
+            }
+
+            return super.visit(node);
+        }
+
         private int getMaxConcreteIndex() {
             return maxIndex;
         }
@@ -1164,7 +1219,7 @@ public class SymbolicExecutionRewrite {
 
         if (genericClass != null) {
             // 3. Chuyển đổi Class sang PrimitiveTypeNode (để Tool hiểu loại dữ liệu)
-            PrimitiveType.Code primitiveCode = mapClassToJDTPrimitiveCode(genericClass);
+            PrimitiveType.Code primitiveCode = getPrimitiveTypeCode(genericClass);
             PrimitiveTypeNode primitiveTypeNode = new PrimitiveTypeNode();
             primitiveTypeNode.setTypeCode(primitiveCode);
             virtualArray.setType(primitiveTypeNode);
@@ -1252,11 +1307,20 @@ public class SymbolicExecutionRewrite {
     }
 
     /**
-     * Hàm hỗ trợ chuyển đổi String sang PrimitiveType.Code của AST
+     * Lấy Primitive Code dựa trên kiểu tương ứng.
      */
-    private PrimitiveType.Code getPrimitiveTypeCode(String typeName) {
+    private PrimitiveType.Code getPrimitiveTypeCode(Object input) {
+
+        String typeName;
+        if (input instanceof Class) {
+            typeName = ((Class<?>) input).getSimpleName().toLowerCase();
+        } else {
+            typeName = input.toString().toLowerCase();
+        }
+
         switch (typeName) {
             case "int":
+            case "integer":
                 return PrimitiveType.INT;
             case "boolean":
                 return PrimitiveType.BOOLEAN;
@@ -1265,6 +1329,7 @@ public class SymbolicExecutionRewrite {
             case "short":
                 return PrimitiveType.SHORT;
             case "char":
+            case "character":
                 return PrimitiveType.CHAR;
             case "long":
                 return PrimitiveType.LONG;
@@ -1276,6 +1341,33 @@ public class SymbolicExecutionRewrite {
                 return PrimitiveType.VOID;
             default:
                 return PrimitiveType.INT;
+        }
+    }
+
+    /**
+     * Chuyển đổi tên kiểu dữ liệu hoặc Class sang Z3 Sort tương ứng.
+     */
+    private Sort getZ3Sort(Object typeInput, Context ctx) {
+        String typeName;
+        if (typeInput instanceof Class) {
+            typeName = ((Class<?>) typeInput).getSimpleName().toLowerCase();
+        } else {
+            typeName = typeInput.toString().toLowerCase();
+        }
+
+        switch (typeName) {
+            case "long":
+                return ctx.mkBitVecSort(64);
+            case "double":
+                return ctx.mkFPSortDouble();
+            case "float":
+                return ctx.mkFPSortSingle();
+            case "boolean":
+                return ctx.mkBoolSort();
+            case "int":
+            case "integer":
+            default:
+                return ctx.mkBitVecSort(32);
         }
     }
 

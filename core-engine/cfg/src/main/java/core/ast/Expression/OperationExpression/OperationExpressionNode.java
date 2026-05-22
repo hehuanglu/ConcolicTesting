@@ -8,14 +8,10 @@ import core.ast.Expression.Array.ArrayAccessNode;
 import core.ast.Expression.ExpressionNode;
 import core.ast.Expression.Literal.*;
 import core.ast.Expression.Literal.NumberLiteral.IntegerLiteralNode;
-import core.ast.Expression.Literal.NumberLiteral.LongLiteralNode;
 import core.ast.Expression.Literal.NumberLiteral.NumberLiteralNode;
 import core.ast.Expression.Method.MethodInvocationNode;
-import com.microsoft.z3.*;
-import core.ast.Expression.Method.StringMethodNode;
 import core.ast.Type.AnnotatableType.SimpleTypeNode;
 import core.ast.Expression.Name.NameNode;
-import core.ast.Type.AnnotatableType.SimpleTypeNode;
 import core.symbolicExecution.MemoryModel;
 import core.variable.Variable;
 import org.eclipse.jdt.core.dom.*;
@@ -47,8 +43,6 @@ public abstract class OperationExpressionNode extends ExpressionNode {
             return PrefixExpressionNode.createZ3Expression((PrefixExpressionNode) operand, ctx, vars, memoryModel);
         } else if (operand instanceof ParenthesizedExpressionNode) {
             return ParenthesizedExpressionNode.createZ3Expression((ParenthesizedExpressionNode) operand, ctx, vars, memoryModel);
-        } else if (operand instanceof MethodInvocationNode) {
-            return MethodInvocationNode.createZ3Expression((MethodInvocationNode) operand, memoryModel, ctx, vars);
         } else if (operand instanceof NameNode) {
             NameNode n = (NameNode) operand;
             String name = NameNode.getStringNameNode(n);
@@ -81,24 +75,24 @@ public abstract class OperationExpressionNode extends ExpressionNode {
         } else if (operand instanceof LiteralNode) {
             if (operand instanceof NumberLiteralNode) {
                 String tokenVal = ((NumberLiteralNode) operand).getTokenValue();
-                if(operand instanceof LongLiteralNode){
-                    String numStr = tokenVal.substring(0, tokenVal.length() - 1);
-                    boolean isHex = numStr.toLowerCase().startsWith("0x");
-                    boolean isBinary = numStr.toLowerCase().startsWith("0b");
-                    boolean isOctal = numStr.startsWith("0") && !isHex && !isBinary && numStr.length() > 1;
-                    long val;
-                    if (isHex) {
-                        val = Long.parseLong(numStr.substring(2), 16);
-                    } else if (isBinary) {
-                        val = Long.parseLong(numStr.substring(2), 2);
-                    } else if (isOctal) {
-                        val = Long.parseLong(numStr, 8);
-                    } else {
-                        val = Long.parseLong(numStr, 10);
-                    }
-                    return ctx.mkBV(val, 64);
-                }
-                else if (operand instanceof IntegerLiteralNode) {
+//                if(operand instanceof LongLiteralNode){
+//                    String numStr = tokenVal.substring(0, tokenVal.length() - 1);
+//                    boolean isHex = numStr.toLowerCase().startsWith("0x");
+//                    boolean isBinary = numStr.toLowerCase().startsWith("0b");
+//                    boolean isOctal = numStr.startsWith("0") && !isHex && !isBinary && numStr.length() > 1;
+//                    long val;
+//                    if (isHex) {
+//                        val = Long.parseLong(numStr.substring(2), 16);
+//                    } else if (isBinary) {
+//                        val = Long.parseLong(numStr.substring(2), 2);
+//                    } else if (isOctal) {
+//                        val = Long.parseLong(numStr, 8);
+//                    } else {
+//                        val = Long.parseLong(numStr, 10);
+//                    }
+//                    return ctx.mkBV(val, 64);
+//                }
+                if (operand instanceof IntegerLiteralNode) {
                     boolean isLong = tokenVal.toUpperCase().endsWith("L");
                     String numStr = isLong ? tokenVal.substring(0, tokenVal.length() - 1) : tokenVal;
                     numStr = numStr.replace("_", ""); // Remove underscores
@@ -118,7 +112,7 @@ public abstract class OperationExpressionNode extends ExpressionNode {
                     if (isLong) {
                         return ctx.mkBV(val, 64);
                     } else {
-                        return ctx.mkInt((int) val);
+                        return ctx.mkBV((int) val,32);
                     }
                 } else {
                     double val = Double.parseDouble(tokenVal.replace("_", ""));

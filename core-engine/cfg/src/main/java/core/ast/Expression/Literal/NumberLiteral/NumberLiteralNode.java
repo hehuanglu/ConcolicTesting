@@ -15,10 +15,6 @@ public abstract class NumberLiteralNode extends LiteralNode {
             IntegerLiteralNode integerLiteralNode = new IntegerLiteralNode();
             integerLiteralNode.setTokenValue(tokenValue);
             return integerLiteralNode;
-        }else if(isLongValue(tokenValue)){;
-            LongLiteralNode longLiteralNode = new LongLiteralNode();
-            longLiteralNode.setTokenValue(tokenValue);
-            return longLiteralNode;
         }
         else { /*isDoubleValue(tokenValue)*/
             DoubleLiteralNode doubleLiteralNode = new DoubleLiteralNode();
@@ -39,12 +35,8 @@ public abstract class NumberLiteralNode extends LiteralNode {
         return tokenValue.contains(".");
     }
 
-    public static boolean isLongValue(String tokenValue) {
-        return tokenValue.contains("L");
-    }
-
     public static boolean isIntegerValue(String tokenValue) {
-        return !isDoubleValue(tokenValue) && !isLongValue(tokenValue);
+        return !isDoubleValue(tokenValue);
     }
 
     public final boolean isIntegerLiteralNode() {
