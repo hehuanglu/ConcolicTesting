@@ -409,11 +409,28 @@ public final class CloneProject {
             ASTNode converted = convertTernaryToIf(statement);
             // Nếu có sự thay đổi (đã tách thành công), gọi đệ quy cho node mới
             if (converted != statement) {
+                // xử lý riêng trường hợp khai báo toán tử 3 ngôi
+                if (statement instanceof VariableDeclarationStatement) {
+                    // bỏ 2 dấu {} của block này
+                    return generateCodeForBlockBody((Block)converted, coverage);
+                }
                 return generateCodeForOneStatement(converted, markMethodSeparator, coverage);
             }
         }
 
         return generateCodeForNormalStatement(statement, markMethodSeparator);
+    }
+
+    private static String generateCodeForBlockBody(Block block, ASTHelper.Coverage coverage) {
+        StringBuilder result = new StringBuilder();
+        if (block != null) {
+            List<ASTNode> statements = block.statements();
+            for (int i = 0; i < statements.size(); i++) {
+                // Lấy mã nguồn của từng statement trong block
+                result.append(generateCodeForOneStatement(statements.get(i), ";", coverage));
+            }
+        }
+        return result.toString();
     }
 
     private static String generateCodeForBlock(Block block, ASTHelper.Coverage coverage) {

@@ -206,18 +206,19 @@ public class StringMethodNode extends MethodInvocationNode {
         ExpressionNode indexNode = (ExpressionNode) node.arguments.get(0);
         Expr indexExpr = OperationExpressionNode.createZ3Expression(indexNode, ctx, vars, memoryModel);
 
-        if(indexExpr instanceof BitVecNum){
-            BitVecNum bitVecNum = (BitVecNum) indexExpr;
-            IntExpr indexInt = ctx.mkBV2Int(bitVecNum,true);
-            return  ctx.mkExtract(targetStr, indexInt, ctx.mkInt(1));
-        }
-        else if (!(indexExpr instanceof IntExpr)) {
-            throw new RuntimeException("charAt index must be int");
+        // 1. CHUẨN HÓA KIỂU DỮ LIỆU
+        // Dùng BitVecExpr để bao trùm cả hằng số (BitVecNum) lẫn biến số (BitVec)
+        if (indexExpr instanceof BitVecExpr) {
+            indexExpr = ctx.mkBV2Int((BitVecExpr) indexExpr, true);
+        } else if (!(indexExpr instanceof IntExpr)) {
+            throw new RuntimeException("charAt index must be evaluable to an Int or BitVec");
         }
 
         IntExpr indexInt = (IntExpr) indexExpr;
-
         IntExpr one = ctx.mkInt(1);
+
+        // 2. THỰC THI PHÉP TOÁN TRÊN STRING
+        // Dùng mkExtract nạp chồng cho SeqExpr để lấy ra 1 ký tự
         return ctx.mkExtract(targetStr, indexInt, one);
     }
 
