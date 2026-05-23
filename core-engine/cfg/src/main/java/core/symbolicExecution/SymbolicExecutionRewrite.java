@@ -156,7 +156,7 @@ public class SymbolicExecutionRewrite {
                 // Các Expr này sẽ được evaluate lại sau khi model chính được solve xong.
                 collectSymbolicArrayIndexesFromAst(astNode, ctx);
 
-                // BẮT, NỘI SOI KIỂU VÀ TẠO BIẾN GIẢ Z3
+//                 BẮT, NỘI SOI KIỂU VÀ TẠO BIẾN GIẢ Z3
                 astNode.accept(new ASTVisitor() {
                     @Override
                     public boolean visit(MethodInvocation methodInvocation) {
@@ -505,17 +505,17 @@ public class SymbolicExecutionRewrite {
             String name = declaration.getName().toString();
 
             Variable variable = memoryModel.getVariable(name);
-
+            BoolExpr isNullVar =  ctx.mkNot(ctx.mkBoolConst(name + "_is_null"));
             if (variable instanceof PrimitiveTypeVariable) {
                 Expr z3Variable = Variable.createZ3Variable(variable, ctx);
                 if (z3Variable != null) {
                     Z3VariableWrapper z3VariableWrapper = new Z3VariableWrapper(z3Variable);
+                    z3VariableWrapper.setIs_null(isNullVar);
                     if (!haveDuplicateVariable(z3VariableWrapper, z3Vars)) {
                         z3Vars.add(z3VariableWrapper);
                     }
                 }
             } else if (variable instanceof SimpleTypeVariable) {
-                BoolExpr isNullVar =  ctx.mkNot(ctx.mkBoolConst(name + "_is_null"));
                 Expr z3Variable = Variable.createZ3Variable(variable, ctx);
                 if (z3Variable != null) {
                     Z3VariableWrapper z3VariableWrapper = new Z3VariableWrapper(z3Variable);
@@ -553,12 +553,14 @@ public class SymbolicExecutionRewrite {
 
                 // Bọc xong đưa vào danh sách Z3Vars để đi luồng chính
                 Z3VariableWrapper z3VariableWrapper = new Z3VariableWrapper(z3ArrayBase);
+                z3VariableWrapper.setIs_null(isNullVar);
                 if (!haveDuplicateVariable(z3VariableWrapper, z3Vars)) {
                     z3Vars.add(z3VariableWrapper);
                 }
 
                 SymbolicExecutionRewrite.z3ArrayStateMap.get().put(name, z3ArrayBase);
             } else if (variable instanceof ParameterizedTypeVariable) {
+
                 Sort domain = ctx.mkBitVecSort(32);
                 Class<?> genericClass = variableGenericTypeMap.get(name);
                 Sort range = getZ3Sort(genericClass, ctx);
@@ -566,6 +568,7 @@ public class SymbolicExecutionRewrite {
                 ArraySort z3ArraySort = ctx.mkArraySort(domain, range);
                 Expr z3ParameterizedBase = ctx.mkConst(name, z3ArraySort);
                 Z3VariableWrapper z3VariableWrapper = new Z3VariableWrapper(z3ParameterizedBase);
+                z3VariableWrapper.setIs_null(isNullVar);
                 if (!haveDuplicateVariable(z3VariableWrapper, z3Vars)) {
                     z3Vars.add(z3VariableWrapper);
                 }
@@ -1466,6 +1469,8 @@ public class SymbolicExecutionRewrite {
             return 8.0;
         } else if ("void".equals(className)) {
             return null;
+        } else if("java.lang.String".equals(className)) {
+            return "dumb String";
         }
         throw new RuntimeException("Unsupported type: " + className);
     }

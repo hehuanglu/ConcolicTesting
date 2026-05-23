@@ -141,6 +141,17 @@ public class InfixExpressionNode extends OperationExpressionNode {
             }
         }
 
+        // Nếu Trái là Int, Phải là BitVec -> Ép Trái theo size của Phải
+        if (Z3LeftOperand instanceof IntExpr && Z3RightOperand instanceof BitVecExpr) {
+            int targetSize = ((BitVecExpr) Z3RightOperand).getSortSize();
+            Z3LeftOperand = ctx.mkInt2BV(targetSize, (IntExpr) Z3LeftOperand);
+        }
+// Nếu Trái là BitVec, Phải là Int -> Ép Phải theo size của Trái
+        else if (Z3LeftOperand instanceof BitVecExpr && Z3RightOperand instanceof IntExpr) {
+            int targetSize = ((BitVecExpr) Z3LeftOperand).getSortSize();
+            Z3RightOperand = ctx.mkInt2BV(targetSize, (IntExpr) Z3RightOperand);
+        }
+
         if (Z3LeftOperand instanceof BitVecExpr && Z3RightOperand instanceof BitVecExpr) {
             //Xử lý phép toán BitVec
             boolean isShift = operator.equals(InfixExpression.Operator.LEFT_SHIFT)

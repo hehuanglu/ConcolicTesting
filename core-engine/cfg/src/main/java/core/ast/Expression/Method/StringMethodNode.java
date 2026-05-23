@@ -206,9 +206,15 @@ public class StringMethodNode extends MethodInvocationNode {
         ExpressionNode indexNode = (ExpressionNode) node.arguments.get(0);
         Expr indexExpr = OperationExpressionNode.createZ3Expression(indexNode, ctx, vars, memoryModel);
 
-        if (!(indexExpr instanceof IntExpr)) {
+        if(indexExpr instanceof BitVecNum){
+            BitVecNum bitVecNum = (BitVecNum) indexExpr;
+            IntExpr indexInt = ctx.mkBV2Int(bitVecNum,true);
+            return  ctx.mkExtract(targetStr, indexInt, ctx.mkInt(1));
+        }
+        else if (!(indexExpr instanceof IntExpr)) {
             throw new RuntimeException("charAt index must be int");
         }
+
         IntExpr indexInt = (IntExpr) indexExpr;
 
         IntExpr one = ctx.mkInt(1);
