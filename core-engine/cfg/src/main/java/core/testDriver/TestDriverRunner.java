@@ -89,7 +89,7 @@ public final class TestDriverRunner {
         String markedData = getDataFromFile(FilePath.concreteExecuteResultPath);
         String[] markedStatements = markedData.split("---end---");
         for (int i = 0; i < markedStatements.length; i++) {
-            String[] markedStatementData = markedStatements[i].split("===");
+            String[] markedStatementData = markedStatements[i].split("===", -1);
             if (i == markedStatements.length - 1) {
                 if (markedStatementData.length == 0 || markedStatementData[0].isBlank()) {
                     continue; // bỏ qua dòng trống

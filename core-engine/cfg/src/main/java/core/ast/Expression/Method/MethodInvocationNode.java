@@ -53,18 +53,8 @@ public class MethodInvocationNode extends ExpressionNode {
 
         String methodName = methodInvocation.getName().toString();
 
-
         if (methodInvocation.getExpression() != null) { // method invocation in the same class
             String className = methodInvocation.getExpression().toString();
-
-            if (methodName.equals("get")) {
-                List<AstNode> arguments = new ArrayList<>();
-                for (Object arg : methodInvocation.arguments()) {
-                    arguments.add(ExpressionNode.executeExpression((Expression) arg, memoryModel));
-                }
-                // Trả về MethodInvocationNode chứa tên List (expressionStr) và index (arguments)
-                return new MethodInvocationNode(className, methodName, arguments);
-            }
 
             IMethodBinding methodBinding = methodInvocation.resolveMethodBinding();
             if (methodBinding != null) {
@@ -75,16 +65,9 @@ public class MethodInvocationNode extends ExpressionNode {
             }
 
             if (className.equals("String") || className.equals("java.lang.String")) {
-                List<AstNode> arguments = new ArrayList<>();
-                // thực thi tượng trưng từng arguments của String
-                for (int i = 0; i < methodInvocation.arguments().size(); i++) {
-                    AstNode argNode = ExpressionNode.executeExpression((Expression) methodInvocation.arguments().get(i), memoryModel);
-                    arguments.add(argNode);
-                }
-                // thực thi tượng trưng target
-                AstNode target = ExpressionNode.executeExpression(methodInvocation.getExpression(), memoryModel);
-                return new StringMethodNode(target, methodName, arguments);
+                return StringMethodNode.executeStringMethod(methodInvocation, memoryModel);
             }
+
 
             if (methodName.equals("get")) {
                 List<AstNode> arguments = new ArrayList<>();

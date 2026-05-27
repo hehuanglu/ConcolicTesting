@@ -16,6 +16,8 @@ import core.path.MarkedPath;
 import core.path.MarkedStatement;
 import core.path.Path;
 import core.symbolicExecution.SymbolicExecutionRewrite;
+import core.symbolicExecution.UnsatPathException;
+import core.testDriver.LoopPathGenerator;
 import core.testDriver.TestDriverGenerator;
 import core.testDriver.TestDriverRunner;
 import core.testDriver.TestDriverUtils;
@@ -36,7 +38,12 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.net.URL;
+import java.net.URLClassLoader;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.text.DecimalFormat;
 import java.util.*;
 import java.util.concurrent.*;
@@ -53,12 +60,14 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
     }
 
     public static TestResult runFullConcolic(int id, String path, String methodName, String className, TestGeneration.Coverage coverage) throws Exception {
+
+        System.out.println("Running ConcolicTestingWithStub4Libs...");
         setup(path, className, methodName, coverage);
         setupCfgTree(coverage);
         setupParameters(methodName);
-        TestGeneration.isSetup = true;
 
         // data flow setup
+        /*
         DataFlowHelper.ComputeDefUse(TestGeneration.cfgBeginNode);
         Set<DefUsePair> targetDUAs = DataFlowHelper.findAllDUAs(TestGeneration.cfgBeginNode);
 
@@ -67,9 +76,11 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
             log.info("targetDUA: " + pair);
         }
         TestGeneration.targetDUAs = targetDUAs;
+         */
 
+        TestGeneration.isSetup = true;
         TestResult result = startGenerating(id, coverage);
-
+        result.setMethodName(methodName);
         TestGeneration.isSetup = false;
 
         return result;
@@ -107,6 +118,7 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
         try {
             testResult.setId(id);
 
+            /*
             Object[] evaluatedValues = SymbolicExecutionRewrite.createRandomTestData(TestGeneration.parameterClasses);
 
             TestGeneration.writeDataToFile("", FilePath.concreteExecuteResultPath, false);
@@ -121,15 +133,20 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
             testResult.addToFullTestData(new TestData(TestGeneration.parameterNames, TestGeneration.parameterClasses, evaluatedValues, coveredStatements,
                     TestDriverRunner.getOutput(), TestDriverRunner.getRuntime(), calculateRequiredCoverage(coverage), calculateFunctionCoverage(), calculateSourceCodeCoverage()));
 
+             */
+
 
             // ====== LICO testing method ======
-//            List<Path> licoPaths = LoopPathGenerator.generateLicoPaths(TestGeneration.cfgBeginNode, TestGeneration.cfgEndNode);
-//            int cnt = 1;
-//            for (Path path : licoPaths) {
-//                System.out.println("LICO đang chạy path: " + cnt);
-//                cnt++;
-//                solveAndRunTest(path, testResult, coverage);
-//            }
+            /*
+            List<Path> licoPaths = LoopPathGenerator.generateLicoPaths(TestGeneration.cfgBeginNode, TestGeneration.cfgEndNode);
+            int cnt = 1;
+            for (Path path : licoPaths) {
+                System.out.println("LICO đang chạy path: " + cnt);
+                cnt++;
+                solveAndRunTest(path, testResult, coverage);
+            }
+
+             */
             // ==================================
 
             //----- End test Lico
@@ -137,6 +154,7 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
             // 1. Xây dựng Map tìm kiếm nhanh từ Content -> CfgNode
             Map<String, CfgNode> contentToCfgNodeMap = buildContentToNodeMap(TestGeneration.cfgBeginNode);
 
+            /*
             log.info("Bắt đầu chạy luồng Data Flow Graph...");
             if (!TestGeneration.targetDUAs.isEmpty()) {
                 for (DefUsePair pair : targetDUAs) {
@@ -201,33 +219,56 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
                     }
                 }
             }
+            */
 
-
-            boolean isTestedSuccessfully = true;
+            //boolean isTestedSuccessfully = true;
+            int count = 0;
 
             for (CfgNode uncoveredNode = TestGeneration.findUncoverNode(TestGeneration.cfgBeginNode, coverage); uncoveredNode != null; uncoveredNode = TestGeneration.findUncoverNode(TestGeneration.cfgBeginNode, coverage)) {
-                log.info("Cố gắng phủ nhánh còn thiếu tại Node: {}", uncoveredNode);
+
+                boolean isGoingToTrueBranch = false;
+                CfgNode parent = uncoveredNode.getParent();
+                if (parent instanceof CfgBoolExprNode) {
+                    CfgBoolExprNode cfgBoolExprNode = (CfgBoolExprNode) parent;
+                    if (cfgBoolExprNode.getTrueNode() == uncoveredNode) {
+                        isGoingToTrueBranch = true;
+                    }
+                } else {
+                    System.out.println("Deo oonr rooif");
+                }
+
+                log.info("Cố gắng phủ nhánh còn thiếu tại Node " + (++count) +" : {}" + " - line: " + uncoveredNode.getLineNumber() + " \n -> theo hướng " + isGoingToTrueBranch,
+                        uncoveredNode.getContent().isEmpty() ? uncoveredNode.getParent() : uncoveredNode
+                );
 
                 Path newPath = (new FindPath(TestGeneration.cfgBeginNode, uncoveredNode, TestGeneration.cfgEndNode)).getPath();
 
-                boolean success = solveAndRunTest(newPath, testResult, coverage);
+                if (newPath.getCurrentLast().getData() == uncoveredNode) {
+                    System.out.println("Bor mẹ rồi");
+                }
+                boolean success = solveAndRunTest(newPath, testResult, coverage, id);
 
                 if (!success) {
                     uncoveredNode.setFakeMarked(true);
-                    /*
-                    if (coverage == Coverage.MCDC || coverage == Coverage.BRANCH) {
-                        CfgNode parent = uncoveredNode.getParent();
-                        if (parent instanceof CfgBoolExprNode) {
-                            CfgBoolExprNode cfgBoolExprNode = (CfgBoolExprNode) parent;
-                            if (cfgBoolExprNode.getTrueNode() == uncoveredNode) {
-                                cfgBoolExprNode.setFakeTrueMarked(true);
-                            } else if (cfgBoolExprNode.getFalseNode() == uncoveredNode) {
-                                cfgBoolExprNode.setFakeFalseMarked(true);
-                            }
-                        }
+                    uncoveredNode.setFakeMarked(true);
+                    if(isGoingToTrueBranch) {
+                        ((CfgBoolExprNode) parent).setFakeTrueMarked(true);
+                    } else {
+                        ((CfgBoolExprNode) parent).setFakeFalseMarked(true);
                     }
-
-                     */
+                } else if (uncoveredNode.isMarked() == false) {
+                    java.nio.file.Path errorPath = java.nio.file.Path.of("processing-service/unitTesting/data/error.txt");
+                    try {
+                        Files.createDirectories(errorPath.getParent());
+                        String content = "Method: " + id + System.lineSeparator() +
+                                "Criterion: " + coverage.toString() + System.lineSeparator() +
+                                "Lỗi viết sai biểu thức " + System.lineSeparator() +
+                                "----------------------------------------" + System.lineSeparator();
+                        System.out.println(content);
+                        Files.writeString(errorPath, content, StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                    } catch (IOException ioException) {
+                        log.error("Không thể ghi lỗi vào file error.txt", ioException);
+                    }
                 }
             }
 
@@ -305,16 +346,17 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
             }
             report.append(String.format(" - Thời gian:    %s s\n", df.format((endTime - startTime) / 1000.0)));
             report.append("===================================================");
-
             log.info(report.toString());
+            testResult.setMemoryUsage(averageMemory);
         }
         double totalTime = 0;
         for (TestData data : testResult.getFullTestData()) {
             totalTime += data.getExecuteTime();
         }
-
+        testResult.setExecutionTime(totalTime);
         log.info("Tổng Execute Time (Các Test Cases): {} ms", totalTime);
 
+        /*
         try {
             Set<String> uniqueInputs = new HashSet<>();
             List<Object[]> generatedInputs = new ArrayList<>();
@@ -374,6 +416,8 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
         } catch (Exception e) {
             log.error("Lỗi ở khâu hậu kỳ: {}", e.getMessage(), e);
         }
+
+         */
 
         return testResult;
     }
@@ -456,7 +500,7 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
         log.info("Bắt đầu Setup phân tích hàm: [{}] trong file: {}", methodName, className);
         TestGeneration.compilationUnit = ProjectParserRewrite.parseFileToCompilationUnit(path);
         TestGeneration.funcAstNodeList = ProjectParserRewrite.parseFile(path, TestGeneration.compilationUnit);
-        classKey = (TestGeneration.compilationUnit.getPackage() != null ? TestGeneration.compilationUnit.getPackage().getName().toString() : "") + className.replace(".java", "") + "totalStatement";
+        //classKey = (TestGeneration.compilationUnit.getPackage() != null ? TestGeneration.compilationUnit.getPackage().getName().toString() : "") + className.replace(".java", "") + "totalStatement";
 
         setupFullyClonedClassName(className, path, coverage);
         setUpTestFunc(methodName);
@@ -511,47 +555,152 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
     }
 
     private static Class<?> loadLatestClass(String className) throws Exception {
-        // trỏ đường dẫn về thư mục chứa file .class
+        deleteOldClassFile(className);
+        compileInstrumentedClass(className);
+
         File file = new File(core.FilePath.targetClassesFolderPath);
-        java.net.URL[] urls = new java.net.URL[]{file.toURI().toURL()};
 
-        log.debug("URLClassLoader đang nạp class [{}] từ thư mục: {}", className, file.getAbsolutePath());
+        URLClassLoader classLoader = new URLClassLoader(
+                new URL[]{file.toURI().toURL()},
+                null
+        );
 
-        try (java.net.URLClassLoader cl = new java.net.URLClassLoader(urls, ClassLoader.getSystemClassLoader())) {
-            return cl.loadClass(className);
+        Class<?> latestClass = classLoader.loadClass(className);
+
+        log.debug("URLClassLoader đã nạp class [{}] từ thư mục: {}",
+                className,
+                file.getAbsolutePath());
+
+        return latestClass;
+    }
+
+    private static void deleteOldClassFile(String className) {
+        String relativePath = className.replace(".", File.separator) + ".class";
+        File classFile = new File(core.FilePath.targetClassesFolderPath, relativePath);
+
+        if (classFile.exists()) {
+            boolean deleted = classFile.delete();
+            log.debug("Deleted old class file [{}]: {}", classFile.getAbsolutePath(), deleted);
         }
     }
 
-    private static double calculateFullTestSuiteCoverage(Coverage coverage) throws Exception {
-        Class<?> latestClass = loadLatestClass(fullyClonedClassName);
-        Field field = latestClass.getField(getTotalFunctionCoverageVariableName((MethodDeclaration) TestGeneration.testFunc, coverage));
-        field.setAccessible(true);
-        int totalFunctionStatement = (int) field.get(null);
-        int totalCovered = 0;
-        if (coverage == Coverage.STATEMENT) {
-            totalCovered = MarkedPath.getFullTestSuiteTotalCoveredStatements();
-        } else { // branch
-            totalCovered = MarkedPath.getFullTestSuiteTotalCoveredBranch();
+    private static void compileInstrumentedClass(String className) {
+        try {
+            String relativeJavaPath = className.replace(".", File.separator) + ".java";
+
+            File sourceFile = new File(
+                    "core-engine/cfg/src/main/java",
+                    relativeJavaPath
+            );
+
+            File outputDir = new File(core.FilePath.targetClassesFolderPath);
+
+            if (!sourceFile.exists()) {
+                throw new RuntimeException("Không tìm thấy source file: " + sourceFile.getAbsolutePath());
+            }
+
+            JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
+
+            if (compiler == null) {
+                throw new RuntimeException("Không tìm thấy JavaCompiler. Hãy chạy bằng JDK, không phải JRE.");
+            }
+
+            String classpath = System.getProperty("java.class.path")
+                    + File.pathSeparator
+                    + outputDir.getAbsolutePath();
+
+            int result = compiler.run(
+                    null,
+                    null,
+                    null,
+                    "-encoding", "UTF-8",
+                    "-classpath", classpath,
+                    "-d", outputDir.getAbsolutePath(),
+                    sourceFile.getAbsolutePath()
+            );
+
+            if (result != 0) {
+                throw new RuntimeException("Compile thất bại với exit code: " + result);
+            }
+
+            log.debug("Compile thành công [{}] vào [{}]",
+                    sourceFile.getAbsolutePath(),
+                    outputDir.getAbsolutePath());
+
+        } catch (Exception e) {
+            throw new RuntimeException("Không compile được class instrumented: " + className, e);
         }
+    }
+    private static double calculateFullTestSuiteCoverage(Coverage coverage) throws Exception {
+        // Load class một lần, giữ reference
+        Class<?> latestClass = loadLatestClass(fullyClonedClassName);
+
+        // Lấy field tổng số statement/branch theo coverage
+        String fieldName = getTotalFunctionCoverageVariableName(
+                (MethodDeclaration) TestGeneration.testFunc, coverage);
+
+        Field field;
+        try {
+            field = latestClass.getDeclaredField(fieldName);
+            field.setAccessible(true);
+        } catch (NoSuchFieldException e) {
+            log.error("Field [{}] không tồn tại trong class [{}]", fieldName, latestClass.getName());
+            return 0.0;
+        }
+        Field maxRec = latestClass.getDeclaredField("MAX_RECURSION_DEPTH");
+        maxRec.setAccessible(true);
+        maxRec.setInt(null, 1);
+
+        int totalFunctionStatement = (int) field.get(null);
+
+        int totalCovered;
+        switch (coverage) {
+            case STATEMENT:
+                totalCovered = MarkedPath.getFullTestSuiteTotalCoveredStatements();
+                break;
+            case BRANCH:
+            case MCDC:
+                totalCovered = MarkedPath.getFullTestSuiteTotalCoveredBranch();
+                log.debug("Detail: {} / {}", totalCovered, totalFunctionStatement);
+                break;
+            default:
+                throw new IllegalArgumentException("Coverage không hỗ trợ: " + coverage);
+        }
+
+        // Tính tỉ lệ coverage
         return (totalCovered * 100.0) / totalFunctionStatement;
     }
 
     private static double calculateRequiredCoverage(TestGeneration.Coverage coverage) throws Exception {
         Class<?> latestClass = loadLatestClass(fullyClonedClassName);
-        Field field = latestClass.getField(getTotalFunctionCoverageVariableName((MethodDeclaration) TestGeneration.testFunc, coverage));
-        field.setAccessible(true);
+        String fieldName = getTotalFunctionCoverageVariableName(
+                (MethodDeclaration) TestGeneration.testFunc, coverage);
+        Field field;
+        try {
+            field = latestClass.getDeclaredField(fieldName);
+            field.setAccessible(true);
+        } catch (NoSuchFieldException e) {
+            log.error("Field [{}] không tồn tại trong class [{}]", fieldName, latestClass.getName());
+            return 0.0;
+        }
 
         int totalFunctionCoverage = (int) field.get(null);
         int totalCovered = 0;
-        if (coverage == TestGeneration.Coverage.STATEMENT) {
-            totalCovered = MarkedPath.getTotalCoveredStatement();
-        } else if (coverage == TestGeneration.Coverage.BRANCH || coverage == TestGeneration.Coverage.MCDC) {
-            totalCovered = MarkedPath.getTotalCoveredBranch();
-            System.out.println(totalCovered);
-        }
-        double currentCoverage = (totalCovered * 100.0) / totalFunctionCoverage;
-        log.debug("Tiến độ Coverage [{}]: {}/{} ({}%)", coverage.toString(), totalCovered, totalFunctionCoverage, currentCoverage);
 
+        switch (coverage) {
+            case STATEMENT:
+                totalCovered = MarkedPath.getTotalCoveredStatement();
+                break;
+            case BRANCH:
+            case MCDC:
+                totalCovered = MarkedPath.getTotalCoveredBranch();
+                break;
+            default:
+                throw new IllegalArgumentException("Coverage không hỗ trợ: " + coverage);
+        }
+
+        double currentCoverage = (totalCovered * 100.0) / totalFunctionCoverage;
+        log.debug("Tiến độ Coverage [{}]: {}/{} ({}%)", coverage, totalCovered, totalFunctionCoverage, currentCoverage);
         return currentCoverage;
     }
 
@@ -645,17 +794,34 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
         return map;
     }
 
-    private static boolean solveAndRunTest(Path path, TestResult testResult, TestGeneration.Coverage coverage)
+    private static boolean solveAndRunTest(Path path, TestResult testResult, TestGeneration.Coverage coverage, int id)
             throws Exception {
 
         SymbolicExecutionRewrite solution = new SymbolicExecutionRewrite(path, TestGeneration.parameters);
 
         try {
             solution.execute();
+        } catch (UnsatPathException e) {
+            log.warn("Path hiện tại UNSATISFIABLE. Bỏ qua path này. Lý do: {}", e.getMessage());
+            return false;
+
         } catch (RuntimeException e) {
             log.error("HỆ THỐNG CRASH SAU KHI GIẢI PATH: {}", e.getMessage(), e);
-            log.warn("Path hiện tại UNSATISFIABLE (Z3 không thể giải). Bỏ qua path này.");
-            return false;
+            java.nio.file.Path errorPath = java.nio.file.Path.of("processing-service/unitTesting/data/error.txt");
+            try {
+                Files.createDirectories(errorPath.getParent());
+                String content = "Method: " + id + System.lineSeparator() +
+                                "Criterion: " + coverage.toString() + System.lineSeparator() +
+                                "Error: " + e.getClass().getName() + System.lineSeparator() +
+                                "Message: " + e.getMessage() + System.lineSeparator() +
+                                "----------------------------------------" + System.lineSeparator();
+
+                Files.writeString(errorPath, content, StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+            } catch (IOException ioException) {
+                log.error("Không thể ghi lỗi vào file error.txt", ioException);
+            }
+
+            throw e;
         }
 
 
@@ -734,6 +900,7 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
             List<MarkedStatement> markedStatements = TestDriverRunner.newRunTestDriver(testDriver, originalFileLocation);
 
             MarkedPath.markPathToCFGV2(TestGeneration.cfgBeginNode, markedStatements);
+            MarkedPath.printCoverageReport(coverage); // new
 
             List<CoveredStatement> coveredStatements = CoveredStatement.switchToCoveredStatementList(markedStatements);
 
@@ -743,10 +910,10 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
                     input,
                     coveredStatements,
                     TestDriverRunner.getOutput(),
-                    TestDriverRunner.getRuntime(),
-                    calculateRequiredCoverage(coverage),
-                    calculateFunctionCoverage(),
-                    calculateSourceCodeCoverage()
+                    TestDriverRunner.getRuntime()
+                    //calculateRequiredCoverage(coverage)
+                    //calculateFunctionCoverage(),
+                    //calculateSourceCodeCoverage()
             ));
         }
 
@@ -774,7 +941,8 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
             throw new RuntimeException("Invalid Coverage");
         }
 
-        return reformatVariableName(result.toString());
+        String ans = reformatVariableName(result.toString());
+        return ans;
     }
 
     private static String reformatVariableName(String name) {

@@ -1,3 +1,23 @@
-text == null===false===true===6---end---text.length() < target.length()===false===true===10---end---String report="STATUS: ";
-===false===false===15---end---return report;
-===false===false===16---end---2.343301===STATUS: 
+first.isEmpty()===false===true===1---end---second.isEmpty()===false===true===4---end---int firstLength=0;
+===false===false===7---end---int i=0===false===false===8---end---i < first.length()===true===false===8---end---char c=first.charAt(i);
+===false===false===9---end---c >= 'A'===true===false===10---end---c <= 'Z'===true===false===11---end---c=(char)(c + 32);
+===false===false===12---end---c >= 'a'===true===false===15---end---c <= 'z'===true===false===16---end---firstLength++;
+===false===false===17---end---i++===false===false===8---end---i < first.length()===false===true===8---end---int secondLength=0;
+===false===false===21---end---int i=0===false===false===22---end---i < second.length()===true===false===22---end---char c=second.charAt(i);
+===false===false===23---end---c >= 'A'===true===false===24---end---c <= 'Z'===true===false===25---end---c=(char)(c + 32);
+===false===false===26---end---c >= 'a'===true===false===29---end---c <= 'z'===true===false===30---end---secondLength++;
+===false===false===31---end---i++===false===false===22---end---i < second.length()===false===true===22---end---firstLength != secondLength===false===true===35---end---char needed='a'===false===false===38---end---needed <= 'z'===true===false===38---end---int countFirst=0;
+===false===false===39---end---int i=0===false===false===40---end---i < first.length()===true===false===40---end---char c=first.charAt(i);
+===false===false===41---end---c >= 'A'===true===false===42---end---c <= 'Z'===true===false===43---end---c=(char)(c + 32);
+===false===false===44---end---c == needed===false===true===47---end---i++===false===false===40---end---i < first.length()===false===true===40---end---int countSecond=0;
+===false===false===51---end---int i=0===false===false===52---end---i < second.length()===true===false===52---end---char c=second.charAt(i);
+===false===false===53---end---c >= 'A'===true===false===54---end---c <= 'Z'===true===false===55---end---c=(char)(c + 32);
+===false===false===56---end---c == needed===false===true===59---end---i++===false===false===52---end---i < second.length()===false===true===52---end---countFirst != countSecond===false===true===63---end---needed++===false===false===38---end---needed <= 'z'===true===false===38---end---int countFirst=0;
+===false===false===39---end---int i=0===false===false===40---end---i < first.length()===true===false===40---end---char c=first.charAt(i);
+===false===false===41---end---c >= 'A'===true===false===42---end---c <= 'Z'===true===false===43---end---c=(char)(c + 32);
+===false===false===44---end---c == needed===true===false===47---end---countFirst++;
+===false===false===48---end---i++===false===false===40---end---i < first.length()===false===true===40---end---int countSecond=0;
+===false===false===51---end---int i=0===false===false===52---end---i < second.length()===true===false===52---end---char c=second.charAt(i);
+===false===false===53---end---c >= 'A'===true===false===54---end---c <= 'Z'===true===false===55---end---c=(char)(c + 32);
+===false===false===56---end---c == needed===false===true===59---end---i++===false===false===52---end---i < second.length()===false===true===52---end---countFirst != countSecond===true===false===63---end---return false;
+===false===false===64---end---4.156417===false

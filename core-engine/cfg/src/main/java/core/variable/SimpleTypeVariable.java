@@ -29,22 +29,14 @@ public class SimpleTypeVariable extends Variable {
     public static Expr createZ3SimpleTypeVariable(SimpleTypeVariable simpleTypeVariable, Context ctx) {
         String name = simpleTypeVariable.getName();
         String typeName = simpleTypeVariable.getTypeName();
-
         SymbolicExecutionRewrite.variableTypeMap.put(name, typeName.toString());
-
-        Sort sort;
-        switch (typeName) {
+        Sort sort; switch (typeName) {
             case "String":
                 sort = ctx.mkStringSort();
                 break;
-            case "Integer":
-                sort = ctx.mkIntSort();
-                break;
-            default:
-                sort = ctx.mkUninterpretedSort(typeName);
-                break;
+            default :
+                sort = ctx.mkStringSort();
         }
-
         Expr res =  ctx.mkConst(name, sort);
         return res;
     }

@@ -1,5 +1,6 @@
 package com.example.unittesting;
 
+import core.z3.Z3NativeLoader;
 import io.swagger.v3.oas.annotations.OpenAPIDefinition;
 import io.swagger.v3.oas.annotations.info.Info;
 import io.swagger.v3.oas.annotations.servers.Server;
@@ -20,32 +21,52 @@ import org.springframework.context.ConfigurableApplicationContext;
 )
 public class UnitTestingApplication {
 
+    static {
+        Z3NativeLoader.load();
+    }
+
     private static ConfigurableApplicationContext context;
     private static String[] args;
 
     public static void main(String[] args) {
         UnitTestingApplication.args = args;
         context = SpringApplication.run(UnitTestingApplication.class, args);
-        System.out.println(context);
+        System.out.println(context); // ...
+    }
+
+    private static final Object RESTART_LOCK = new Object();
+    private static volatile boolean RESTARTING = false;
+
+    public static boolean isRestarting() {
+        return RESTARTING;
     }
 
     public static void restart() {
-//        ApplicationArguments args = context.getBean(ApplicationArguments.class);
+        synchronized (RESTART_LOCK) {
+            // avoid concurrent/overlapping restarts
+            if (RESTARTING) {
+                return;
+            }
+            RESTARTING = true;
+        }
 
         Thread thread = new Thread(() -> {
-            long startRunTestTime = System.nanoTime();
-            context.close();
-            context = SpringApplication.run(UnitTestingApplication.class, args);
-            long endRunTestTime = System.nanoTime();
+            try {
+                long startRunTestTime = System.nanoTime();
+                context.close();
+                context = SpringApplication.run(UnitTestingApplication.class, args);
+                long endRunTestTime = System.nanoTime();
 
-            double runTestDuration = (endRunTestTime - startRunTestTime) / 1000000.0;
-
-            System.out.println("restart time :" + runTestDuration);
-
+                double runTestDuration = (endRunTestTime - startRunTestTime) / 1000000.0;
+                System.out.println("restart time :" + runTestDuration);
+            } finally {
+                RESTARTING = false;
+            }
         });
 
         thread.setDaemon(false);
         thread.start();
     }
+
 
 }

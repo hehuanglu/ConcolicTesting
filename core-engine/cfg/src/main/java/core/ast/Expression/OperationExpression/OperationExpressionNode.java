@@ -118,8 +118,9 @@ public abstract class OperationExpressionNode extends ExpressionNode {
             } else if (operand instanceof  NullLiteralNode){
                 //đặt 0 tượng trưng cho null trong bộ giải z3
                 return ctx.mkInt(0);
-            }
-            else {
+            } else if (operand instanceof StringLiteralNode) {
+                return ctx.mkString(((StringLiteralNode) operand).getStringValue());
+            } else {
                 throw new RuntimeException("Invalid Literal");
             }
         } else if (operand instanceof ArrayAccessNode) {
@@ -173,6 +174,9 @@ public abstract class OperationExpressionNode extends ExpressionNode {
             throw new RuntimeException(expression.getClass() + " is not an OperationExpression!!!");
         }
     }
+
+    // Character.toLowerCase(x);
+    // s.concat()
 
     public static ExpressionNode executeOperandNode(ExpressionNode operand, MemoryModel memoryModel) {
         if (operand instanceof InfixExpressionNode) {

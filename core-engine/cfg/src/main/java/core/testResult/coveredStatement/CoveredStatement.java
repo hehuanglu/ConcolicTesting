@@ -10,7 +10,6 @@ import java.util.Objects;
 public class CoveredStatement {
     private String statementContent = "";
     private int lineNumber = 0;
-
     private String conditionStatus = "";
 
     public CoveredStatement(String statementContent, int lineNumber) {
@@ -57,7 +56,7 @@ public class CoveredStatement {
 
     @Override
     public String toString() {
-        return lineNumber + " " + statementContent + " " + conditionStatus;
+        return String.format("Statement{content='%s', line=%d, status='%s'}", statementContent, lineNumber, conditionStatus);
     }
 
     @Override

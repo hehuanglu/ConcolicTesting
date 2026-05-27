@@ -176,55 +176,120 @@ public class InfixExpressionNode extends OperationExpressionNode {
         }
 
         if (Z3LeftOperand instanceof SeqExpr || Z3RightOperand instanceof SeqExpr) {
-            if (!(Z3LeftOperand instanceof SeqExpr && Z3RightOperand instanceof SeqExpr)) {
-                throw new RuntimeException("Both operands must be SeqExpr for sequence operations: "
-                        + Z3LeftOperand.getClass().getSimpleName() + " and "
-                        + Z3RightOperand.getClass().getSimpleName());
+
+            boolean leftIsSeq = Z3LeftOperand instanceof SeqExpr;
+            boolean rightIsSeq = Z3RightOperand instanceof SeqExpr;
+
+            if (leftIsSeq && rightIsSeq) {
+                SeqExpr<CharSort> left =
+                        (SeqExpr<CharSort>) Z3LeftOperand.translate(ctx);
+                SeqExpr<CharSort> right =
+                        (SeqExpr<CharSort>) Z3RightOperand.translate(ctx);
+
+                if (operator.equals(InfixExpression.Operator.PLUS)) {
+                    return ctx.mkConcat(left, right);
+                } else if (operator.equals(InfixExpression.Operator.EQUALS)) {
+                    return ctx.mkEq(left, right);
+                } else if (operator.equals(InfixExpression.Operator.NOT_EQUALS)) {
+                    return ctx.mkDistinct(left, right);
+                } else if (operator.equals(InfixExpression.Operator.LESS)) {
+                    return ctx.MkStringLt(left, right);
+                } else if (operator.equals(InfixExpression.Operator.LESS_EQUALS)) {
+                    return ctx.MkStringLe(left, right);
+                } else if (operator.equals(InfixExpression.Operator.GREATER)) {
+                    return ctx.MkStringLt(right, left);
+                } else if (operator.equals(InfixExpression.Operator.GREATER_EQUALS)) {
+                    return ctx.MkStringLe(right, left);
+                }
+
+                throw new RuntimeException("Unsupported operator for String operands: " + operator);
             }
 
-            SeqExpr left = (SeqExpr) Z3LeftOperand;
-            SeqExpr right = (SeqExpr) Z3RightOperand;
+            IntExpr left = toJavaNumericInt(ctx, Z3LeftOperand);
+            IntExpr right = toJavaNumericInt(ctx, Z3RightOperand);
 
             if (operator.equals(InfixExpression.Operator.PLUS)) {
-                return ctx.mkConcat(left, right);
-            } else if (operator.equals(InfixExpression.Operator.LESS) ||
-                    operator.equals(InfixExpression.Operator.GREATER) ||
-                    operator.equals(InfixExpression.Operator.LESS_EQUALS) ||
-                    operator.equals(InfixExpression.Operator.GREATER_EQUALS)) {
-                throw new RuntimeException("Comparison operators (<, >, <=, >=) are not supported for SeqExpr in Z3");
+                return ctx.mkAdd(left, right);
+            } else if (operator.equals(InfixExpression.Operator.MINUS)) {
+                return ctx.mkSub(left, right);
+            } else if (operator.equals(InfixExpression.Operator.TIMES)) {
+                return ctx.mkMul(left, right);
+            } else if (operator.equals(InfixExpression.Operator.DIVIDE)) {
+                return ctx.mkDiv(left, right);
+            } else if (operator.equals(InfixExpression.Operator.REMAINDER)) {
+                return ctx.mkMod(left, right);
+            } else if (operator.equals(InfixExpression.Operator.LESS)) {
+                return ctx.mkLt(left, right);
+            } else if (operator.equals(InfixExpression.Operator.LESS_EQUALS)) {
+                return ctx.mkLe(left, right);
+            } else if (operator.equals(InfixExpression.Operator.GREATER)) {
+                return ctx.mkGt(left, right);
+            } else if (operator.equals(InfixExpression.Operator.GREATER_EQUALS)) {
+                return ctx.mkGe(left, right);
+            } else if (operator.equals(InfixExpression.Operator.EQUALS)) {
+                return ctx.mkEq(left, right);
+            } else if (operator.equals(InfixExpression.Operator.NOT_EQUALS)) {
+                return ctx.mkDistinct(left, right);
             }
+
+            throw new RuntimeException("Unsupported mixed String/numeric operator: " + operator);
         }
+
+        IntExpr left = toJavaNumericInt(ctx, Z3LeftOperand);
+        IntExpr right = toJavaNumericInt(ctx, Z3RightOperand);
 
         if (operator.equals(InfixExpression.Operator.PLUS)) {
-            return ctx.mkAdd(Z3LeftOperand, Z3RightOperand);
+            return ctx.mkAdd(left, right);
         } else if (operator.equals(InfixExpression.Operator.MINUS)) {
-            return ctx.mkSub(Z3LeftOperand, Z3RightOperand);
+            return ctx.mkSub(left, right);
         } else if (operator.equals(InfixExpression.Operator.TIMES)) {
-            return ctx.mkMul(Z3LeftOperand, Z3RightOperand);
+            return ctx.mkMul(left, right);
         } else if (operator.equals(InfixExpression.Operator.DIVIDE)) {
-            return ctx.mkDiv(Z3LeftOperand, Z3RightOperand);
+            return ctx.mkDiv(left, right);
         } else if (operator.equals(InfixExpression.Operator.REMAINDER)) {
-            return ctx.mkMod(Z3LeftOperand, Z3RightOperand);
+            return ctx.mkMod(left, right);
         } else if (operator.equals(InfixExpression.Operator.EQUALS)) {
-            return ctx.mkEq(Z3LeftOperand, Z3RightOperand);
+            return ctx.mkEq(left, right);
         } else if (operator.equals(InfixExpression.Operator.NOT_EQUALS)) {
-            return ctx.mkDistinct(Z3LeftOperand, Z3RightOperand);
+            return ctx.mkDistinct(left, right);
         } else if (operator.equals(InfixExpression.Operator.LESS)) {
-            return ctx.mkLt(Z3LeftOperand, Z3RightOperand);
+            return ctx.mkLt(left, right);
         } else if (operator.equals(InfixExpression.Operator.GREATER)) {
-            return ctx.mkGt(Z3LeftOperand, Z3RightOperand);
+            return ctx.mkGt(left, right);
         } else if (operator.equals(InfixExpression.Operator.LESS_EQUALS)) {
-            return ctx.mkLe(Z3LeftOperand, Z3RightOperand);
+            return ctx.mkLe(left, right);
         } else if (operator.equals(InfixExpression.Operator.GREATER_EQUALS)) {
-            return ctx.mkGe(Z3LeftOperand, Z3RightOperand);
-        } else {
-            throw new RuntimeException("Invalid operator for integer operands: " + operator);
+            return ctx.mkGe(left, right);
         }
 
+        throw new RuntimeException("Invalid operator for integer operands: " + operator);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static IntExpr toJavaNumericInt(Context ctx, Expr expr) {
+        Expr translated = expr.translate(ctx);
+
+        if (translated instanceof IntExpr) {
+            return (IntExpr) translated;
+        }
+
+        if (translated instanceof SeqExpr) {
+            SeqExpr<CharSort> seq = (SeqExpr<CharSort>) translated;
+            Expr<CharSort> ch = ctx.mkNth(seq, ctx.mkInt(0));
+            return ctx.charToInt(ch);
+        }
+
+        if (translated.getSort().equals(ctx.mkCharSort())) {
+            return ctx.charToInt((Expr<CharSort>) translated);
+        }
+
+        throw new RuntimeException(
+                "Cannot promote expression to Java int: " + translated + " sort=" + translated.getSort()
+        );
     }
 
     public static ExpressionNode executeInfixExpression(InfixExpression infixExpression, MemoryModel memoryModel) {
-        InfixExpressionNode infixExpressionNode = new InfixExpressionNode();
+        InfixExpressionNode infixExpressionNode = new InfixExpressionNode(); // i
         infixExpressionNode.leftOperand = (ExpressionNode) ExpressionNode.executeExpression(infixExpression.getLeftOperand(), memoryModel);
         infixExpressionNode.rightOperand = (ExpressionNode) ExpressionNode.executeExpression(infixExpression.getRightOperand(), memoryModel);
         infixExpressionNode.operator = infixExpression.getOperator();
@@ -299,6 +364,7 @@ public class InfixExpressionNode extends OperationExpressionNode {
 
             return newNode;
         }
+
 //        if (leftOperand.isLiteralNode() && rightOperand.isLiteralNode()) {
 //            LiteralNode literalResult = LiteralNode.analyzeTwoInfixLiteral((LiteralNode) leftOperand, operator, (LiteralNode) rightOperand);
 //
@@ -334,6 +400,25 @@ public class InfixExpressionNode extends OperationExpressionNode {
 //            }
 //        }
 //        return infixExpressionNode;
+    }
+
+    private static IntExpr charSeqToInt(Context ctx, SeqExpr charSeq) {
+        Expr charElem = ctx.mkNth(charSeq, ctx.mkInt(0));
+        return ctx.charToInt((Expr<CharSort>) charElem);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static IntExpr toIntExpr(Context ctx, Expr<?> e) {
+        if (e instanceof SeqExpr) {
+            // SeqExpr<CharSort> → lấy char thứ 0 → int
+            Expr charElem = ctx.mkNth((SeqExpr) e, ctx.mkInt(0));
+            return ctx.charToInt((Expr<CharSort>) charElem);
+        } else if (e.getSort() instanceof IntSort) {
+            return (IntExpr) e;
+        } else if (e.getSort() instanceof BitVecSort) {
+            return ctx.mkBV2Int((Expr<BitVecSort>) e, false);
+        }
+        throw new RuntimeException("Cannot convert to IntExpr: " + e.getSort());
     }
 
     public static boolean isBitwiseOperator(InfixExpression.Operator operator) {

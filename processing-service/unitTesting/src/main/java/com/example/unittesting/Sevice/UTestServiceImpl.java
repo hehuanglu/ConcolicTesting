@@ -56,7 +56,7 @@ public class UTestServiceImpl implements UTestService {
                         String className = file.getName();
 
                         // TEST TEMPLATE
-//                        createMethodTest("project/anonymous/tmp-prj/" + nameProject + "/tmp-prjt.json", targetId);
+                        // createMethodTest("project/anonymous/tmp-prj/" + nameProject + "/tmp-prjt.json", targetId);
 
                         TestResult result = ConcolicTestingWithStub4Libs.runFullConcolic(targetId, pathMethod, name, className, coverage);
 

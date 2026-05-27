@@ -31,6 +31,16 @@ public class UTestController {
         UnitTestingApplication.restart();
     }
 
+    /** Readiness check for orchestrators (e.g. FullTesting on port 8007). */
+    @GetMapping("/health")
+    public ResponseEntity<String> health() {
+        if (UnitTestingApplication.isRestarting()) {
+            return ResponseEntity.status(503).body("RESTARTING");
+        }
+        return ResponseEntity.ok("UP");
+    }
+
+
     @GetMapping(value = "/unit")
     @Operation(
             summary = "This is API auto run full Concolic ",

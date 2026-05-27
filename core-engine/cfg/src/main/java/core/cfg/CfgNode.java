@@ -20,11 +20,13 @@ public class CfgNode {
     private String content = "";
     private boolean isMarked = false;
     private boolean isFakeMarked = false;
+    private boolean isVisited = false;
     private ASTNode ast;
     private CfgNode parent;
     private List<CfgNode> children = new ArrayList<>();
     private Set<String> defVars = new HashSet<>();
     private Set<String> useVars = new HashSet<>();
+    static int numOfNodes = 0;
 
     public CfgNode(ASTNode ast) {
         this.ast = ast;
@@ -33,6 +35,14 @@ public class CfgNode {
     }
 
     public CfgNode() {
+    }
+
+    public boolean isVisited() {
+        return isVisited;
+    }
+
+    public void setVisited(boolean visited) {
+        isVisited = visited;
     }
 
     public ASTNode getAst() {

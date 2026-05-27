@@ -16,6 +16,8 @@
     <properties>
         <java.version>11</java.version>
         <spring-cloud.version>2020.0.3</spring-cloud.version>
+        <!-- Z3 native libs: Tool/z3-4.16.0-arm64-osx-15.7.3/bin (relative to this module) -->
+        <z3.native.dir>${project.basedir}/../../z3-4.16.0-arm64-osx-15.7.3/bin</z3.native.dir>
     </properties>
     <dependencies>
         <dependency>
@@ -109,9 +111,9 @@
             <scope>compile</scope>
         </dependency>
         <dependency>
-            <groupId>io.github.p-org.solvers</groupId>
+            <groupId>com.microsoft</groupId>
             <artifactId>z3</artifactId>
-            <version>4.8.14-v5</version>
+            <version>4.16.0</version>
         </dependency>
         <dependency>
             <groupId>org.springdoc</groupId>
@@ -154,9 +156,18 @@
     <build>
         <plugins>
             <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <argLine>-Dz3.native.dir=${z3.native.dir}</argLine>
+                </configuration>
+            </plugin>
+            <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <configuration>
+                    <mainClass>com.example.unittesting.UnitTestingApplication</mainClass>
+                    <jvmArguments>-Dz3.native.dir=${z3.native.dir}</jvmArguments>
                     <excludes>
                         <exclude>
                             <groupId>org.projectlombok</groupId>

@@ -20,6 +20,7 @@ public class FindPath {
 
     public FindPath(CfgNode beginNode, CfgNode middleNode, CfgNode endNode) {
         findPath(beginNode, middleNode);
+        /*
         Path firstHaft = path;
         path = null;
         findPath(middleNode.getAfterStatementNode(), endNode);
@@ -28,13 +29,15 @@ public class FindPath {
             firstHaft.getCurrentLast().setNext(lastHaft.getCurrentFirst());
         }
         path = firstHaft;
+
+         */
     }
 
     private void findPath(CfgNode beginNode, CfgNode endNode) {
         if (beginNode == null || path != null) return;
         if (visited.contains(beginNode)) return;
 
-        // Add a path to the list of path if the node is endNode
+        // Nếu đã đến đích
         if (beginNode == endNode) {
             currentPath.add(beginNode);
             path = new Path();
@@ -46,42 +49,57 @@ public class FindPath {
             return;
         } else if (beginNode.getIsEndCfgNode()) {
             return;
-        } else {
-            currentPath.add(beginNode);
-            visited.add(beginNode);
-            if (beginNode instanceof CfgBoolExprNode) {
-                CfgBoolExprNode boolExprNode = (CfgBoolExprNode) beginNode;
-                CfgNode falseNode = boolExprNode.getFalseNode();
-                CfgNode trueNode = boolExprNode.getTrueNode();
-
-                if (path == null) {
-                    if (falseNode == endNode) {
-                        falseNode.setIsFalseNode(true);
-                        findPath(falseNode, endNode);
-                    }
-                }
-                if (path == null) {
-                    findPath(trueNode, endNode);
-                }
-                if (path == null) {
-                    falseNode.setIsFalseNode(true);
-                    findPath(falseNode, endNode);
-                }
-            } else if (beginNode instanceof CfgForEachExpressionNode) {
-                if (path == null) {
-                    findPath(((CfgForEachExpressionNode) beginNode).getHasElementAfterNode(), endNode);
-                }
-                if (path == null) {
-                    findPath(((CfgForEachExpressionNode) beginNode).getNoMoreElementAfterNode(), endNode);
-                }
-            } else {
-                if (path == null) {
-                    findPath(beginNode.getAfterStatementNode(), endNode);
-                }
-            }
-            currentPath.remove(currentPath.size() - 1);
-            visited.remove(beginNode);
         }
+
+        currentPath.add(beginNode);
+        visited.add(beginNode);
+
+        if (beginNode instanceof CfgBoolExprNode) {
+            CfgBoolExprNode boolNode = (CfgBoolExprNode) beginNode;
+            CfgNode falseNode = boolNode.getFalseNode();
+            CfgNode trueNode = boolNode.getTrueNode();
+
+            // Lấy số lần fake đã đánh dấu
+            int falseFake = boolNode.getFakeFalseMarked();
+            int trueFake = boolNode.getFakeTrueMarked();
+
+            // Chọn thứ tự thử: nhánh ít fake trước
+            CfgNode firstNode, secondNode;
+            if (falseFake < trueFake) {
+                firstNode = falseNode;
+                secondNode = trueNode;
+            } else {
+                firstNode = trueNode;
+                secondNode = falseNode;
+            }
+
+            // Thử nhánh ít fake trước
+            if (path == null) {
+                firstNode.setIsFalseNode(firstNode == falseNode);
+                findPath(firstNode, endNode);
+            }
+            if (path == null) {
+                secondNode.setIsFalseNode(secondNode == falseNode);
+                findPath(secondNode, endNode);
+            }
+
+        } else if (beginNode instanceof CfgForEachExpressionNode) {
+            CfgForEachExpressionNode forNode = (CfgForEachExpressionNode) beginNode;
+            if (path == null) {
+                findPath(forNode.getHasElementAfterNode(), endNode);
+            }
+            if (path == null) {
+                findPath(forNode.getNoMoreElementAfterNode(), endNode);
+            }
+
+        } else {
+            if (path == null) {
+                findPath(beginNode.getAfterStatementNode(), endNode);
+            }
+        }
+
+        currentPath.remove(currentPath.size() - 1);
+        visited.remove(beginNode);
     }
 
     public Path getPath() {

@@ -309,6 +309,7 @@ public final class CloneProject {
 
             if (!((MethodDeclaration) astNode).isConstructor()) {
                 result.append(createCloneMethod(methodDeclaration, coverage));
+                // note
                 result.append(createTotalFunctionCoverageVariable(methodDeclaration, totalFunctionStatement, CoverageType.STATEMENT));
                 result.append(createTotalFunctionCoverageVariable(methodDeclaration, totalFunctionBranch, CoverageType.BRANCH));
             } else {

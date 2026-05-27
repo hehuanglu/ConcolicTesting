@@ -13,6 +13,7 @@ public class ASTHelper {
         MCDC,
         PATH
     }
+
     protected static List<String> primitiveTypes = Arrays.asList("boolean", "short", "int", "long", "float", "double", "void");
     protected static List<String> javaLangTypes = Arrays.asList("Boolean", "Byte", "Character.Subset", "Character.UnicodeBlock", "ClassLoader", "Double",
             "Float", "Integer", "Long", "Math", "Number", "Object", "Package", "Process", "Runtime",
@@ -995,6 +996,7 @@ public class ASTHelper {
         CfgBoolExprNode forConditionNode = generateConditionCfg(forConditionAST, cfgEndBlockNode, beginBodyBlockNode, beginForConditionNode, cfgEndBlockNode, compilationUnit, firstLine, coverage);
         forConditionNode.setFalseNode(cfgEndBlockNode);
         forConditionNode.setEndBlockNode(cfgEndBlockNode);
+        forConditionNode.isLoopCondition = true;
 //        if (cfgBodyNode == null) {
 //            forConditionNode.setTrueNode(endBodyBlockNode);
 //        } else {
@@ -1054,6 +1056,7 @@ public class ASTHelper {
         forConditionNode.setAst(forConditionAST);
         setLineNumber(forConditionNode, compilationUnit, forConditionAST, firstLine);
         forConditionNode.setContent(forConditionAST.toString());
+        forConditionNode.isLoopCondition = true;
 
         LinkCurrentNode(tempBeforeNode, forConditionNode, afterNode);
 
@@ -1150,6 +1153,7 @@ public class ASTHelper {
         whileConditionNode.setEndBlockNode(cfgEndBlockNode);
         beforeNode.setAfterStatementNode(whileConditionNode);
         whileConditionNode.setBeforeStatementNode(beforeNode);
+        whileConditionNode.isLoopCondition = true;
 
         //Khoi body
         Statement bodyStatementBlock = ((WhileStatement) whileCfgNode.getAst()).getBody();
@@ -1243,6 +1247,7 @@ public class ASTHelper {
         CfgBoolExprNode whileConditionNode = generateConditionCfg(whileConditionAST, cfgEndBlockNode, beginBodyBlockNode, beginWhileCondition, cfgEndBlockNode, compilationUnit, firstLine, coverage);
         whileConditionNode.setFalseNode(cfgEndBlockNode);
         whileConditionNode.setEndBlockNode(cfgEndBlockNode);
+        whileConditionNode.isLoopCondition = true;
 //
         cfgEndBlockNode.getBeforeEndBoolNodeList().add(whileConditionNode);
         cfgEndBlockNode.setBeforeStatementNode(whileConditionNode);

@@ -13,6 +13,7 @@ import core.ast.Expression.Literal.CharacterLiteralNode;
 import core.ast.Expression.Literal.LiteralNode;
 import core.ast.Expression.Literal.NumberLiteral.DoubleLiteralNode;
 import core.ast.Expression.Literal.NumberLiteral.IntegerLiteralNode;
+import core.ast.Expression.Method.StringMethodNode;
 import core.ast.Expression.Name.NameNode;
 import core.ast.Expression.OperationExpression.OperationExpressionNode;
 import core.ast.Expression.OperationExpression.PrefixExpressionNode;
@@ -123,6 +124,25 @@ public class SymbolicExecutionRewrite {
 
                         if (finalZ3Expression == null) finalZ3Expression = charConstraint;
                         else finalZ3Expression = ctx.mkAnd(finalZ3Expression, charConstraint);
+                    } else if (decl.getType().toString().equals("String")) {
+                        Variable v = symbolicMap.getVariable(name);
+                        Expr z3Var = Variable.createZ3Variable(v, ctx);
+
+                        SeqExpr<CharSort> strVar = (SeqExpr<CharSort>) z3Var;
+
+                        int maxLength = StringMethodNode.BOUND_LENGTH;
+
+                        BoolExpr lengthConstraint = ctx.mkAnd(ctx.mkLe(ctx.mkLength(strVar), ctx.mkInt(maxLength)));
+
+                        ReExpr<SeqSort<CharSort>> asciiCharRange = ctx.mkRange(ctx.mkString("\t"), ctx.mkString("~"));
+                        ReExpr<SeqSort<CharSort>> asciiStringRegex = ctx.mkStar(asciiCharRange);
+
+                        BoolExpr asciiConstraint = ctx.mkInRe(strVar, asciiStringRegex);
+                        BoolExpr stringConstraint = ctx.mkAnd(lengthConstraint, asciiConstraint);
+
+                        if (finalZ3Expression == null) finalZ3Expression = stringConstraint;
+                        else finalZ3Expression = ctx.mkAnd(finalZ3Expression, stringConstraint);
+
                     } else if (decl.getType().isArrayType()) {
                         ArrayType arrayType = (ArrayType) decl.getType();
                         log.info("Phát hiện Parameter là Mảng (Array): {}", name);
@@ -142,10 +162,12 @@ public class SymbolicExecutionRewrite {
             }
         }
 
-        int limit = 0;
+        System.out.println(testPath.getCurrentLast().getData().toString());
         while (currentNode != null) {
-            if (++limit > 400) break;
             currentCfgNode = currentNode.getData();
+            if (currentNode == testPath.getCurrentLast()) {
+                System.out.println("Done");
+            }
             //log.debug("Phân tích Node [Line {}]: {}", currentCfgNode.getLineNumber(), currentCfgNode.getContentReport());
             ASTNode astNode = currentCfgNode.getAst();
 
@@ -285,6 +307,17 @@ public class SymbolicExecutionRewrite {
                 */
 
                 AstNode executedAstNode = Rewrite.reStm(astNode, symbolicMap);
+                if (executedAstNode != null) {
+                    System.out.println("AstNodde : " + executedAstNode.toString());
+                }
+
+                /*
+                try {
+                    executedAstNode = Rewrite.reStm(astNode, symbolicMap);
+                } catch (Exception e) {
+                    throw new RuntimeException("Lỗi khi rewrite statement: " + astNode, e);
+                }
+                */
 
                 if (currentNode.getData() instanceof CfgBoolExprNode) { // Condition
                     CfgBoolExprNode boolNode = (CfgBoolExprNode) currentCfgNode;
@@ -308,13 +341,16 @@ public class SymbolicExecutionRewrite {
                         executedAstNode = PrefixExpressionNode.executePrefixExpressionNode(newAstNode, symbolicMap);
                     }
 
+                    System.out.println("Going to " + (!isGoingToFalseBranch) + " branch !");
+
                     if (executedAstNode instanceof BooleanLiteralNode) {
                         currentNode = currentNode.getNext();
                         continue;
                     }
 
-                    Expr expr = OperationExpressionNode.createZ3Expression(
-                            (ExpressionNode) executedAstNode, ctx, Z3Vars, symbolicMap);
+                    Expr expr = OperationExpressionNode.createZ3Expression((ExpressionNode) executedAstNode, ctx, Z3Vars, symbolicMap);
+
+                    System.out.println("Expr: " + expr);
 
                     BoolExpr constraint;
                     if (expr instanceof BoolExpr) {
@@ -337,13 +373,13 @@ public class SymbolicExecutionRewrite {
                         Expression initializer = fragment.getInitializer();
                         if (initializer != null) { //Declaration with initialization
                             if (stm.getType() instanceof PrimitiveType) {
-                                PrimitiveType type = (PrimitiveType) stm.getType();
 
+                                PrimitiveType type = (PrimitiveType) stm.getType();
                                 symbolicMap.declarePrimitiveTypeVariable(type, name,
                                         ExpressionNode.executeExpression(initializer, symbolicMap));
                             } else if (stm.getType() instanceof SimpleType) {
-                                SimpleType simpleType = (SimpleType) stm.getType();
 
+                                SimpleType simpleType = (SimpleType) stm.getType();
                                 symbolicMap.declareSimpleTypeVariable(simpleType, name,
                                         ExpressionNode.executeExpression(initializer, symbolicMap));
                             } else if (stm.getType() instanceof ArrayType) {
@@ -417,7 +453,7 @@ public class SymbolicExecutionRewrite {
         if (finalZ3Expression != null) {
             log.info("=== XÂY DỰNG XONG PHƯƠNG TRÌNH Z3 CHÍNH ===");
             log.debug(" - Raw Constraint: \n{}", finalZ3Expression.toString());
-            log.info(" - Simplified Constraint: \n{}", finalZ3Expression.simplify());
+            //log.info(" - Simplified Constraint: \n{}", finalZ3Expression.simplify());
         } else {
             log.warn("Không thu thập được bất kỳ Z3 Constraint nào trong hàm này!");
         }
@@ -555,17 +591,18 @@ public class SymbolicExecutionRewrite {
     }
 
     private Model createModel(Context ctx, BoolExpr f) {
-        Solver s = ctx.mkSolver();
-        if (f != null) {
-            s.add(f);
+        if (f == null) {
+            return null;
         }
+        Solver s = ctx.mkSolver();
+        s.add(f);
 
         log.debug("Trạng thái Solver Z3 trước khi Check: \n{}", s.toString());
 
         Status satisfaction = s.check();
         if (satisfaction != Status.SATISFIABLE) {
             log.warn("Biểu thức hiện tại là UNSATISFIABLE. Không thể tìm ra nghiệm Z3.");
-            throw new RuntimeException("Expression is UNSATISFIABLE");
+            throw new UnsatPathException("Expression is UNSATISFIABLE");
         } else {
             log.info("Z3 đã giải thành công (SATISFIABLE)!");
             return s.getModel();
@@ -785,8 +822,8 @@ public class SymbolicExecutionRewrite {
         for (int i = 0; i < parameterClasses.length; i++) {
             // nếu z3 ko giải được, bỏ qua
             if (i >= lines.length) {
-                log.warn("Dữ liệu Z3 bị thiếu hoặc rỗng ở tham số thứ {}. Gán giá trị mặc định (null).", i);
-                result.add(null);
+                //log.warn("Dữ liệu Z3 bị thiếu hoặc rỗng ở tham số thứ {}. Gán giá trị mặc định (null).", i);
+                result.add("");
                 continue;
             }
 
@@ -798,7 +835,7 @@ public class SymbolicExecutionRewrite {
                 if (parameterClass.isPrimitive()) {
                     result.add(parsePrimitiveString(lineData, parameterClass.getName()));
                 } else if (parameterClass == String.class) {
-                    result.add(lineData);
+                    result.add(z3EscapeToJavaLiteral(lineData));
                 }
                 // tham số là mảng
                 else if (parameterClass.isArray()) {
@@ -840,6 +877,63 @@ public class SymbolicExecutionRewrite {
         }
 
         return result.toArray();
+    }
+
+    private static String z3EscapeToJavaLiteral(String raw) {
+        StringBuilder out = new StringBuilder();
+
+        int i = 0;
+        while (i < raw.length()) {
+            char ch = raw.charAt(i);
+
+            if (ch == '\\'
+                    && i + 3 < raw.length()
+                    && raw.charAt(i + 1) == 'u'
+                    && raw.charAt(i + 2) == '{') {
+
+                int end = raw.indexOf('}', i + 3);
+
+                if (end != -1) {
+                    String hex = raw.substring(i + 3, end);
+                    int code = Integer.parseInt(hex, 16);
+
+                    if (code == 9) {
+                        out.append("\\t");
+                    } else if (code == 10) {
+                        out.append("\\n");
+                    } else if (code == 11) {
+                        out.append("\\013"); // vertical tab
+                    } else if (code == 12) {
+                        out.append("\\f");
+                    } else if (code == 13) {
+                        out.append("\\r");
+                    } else if (code < 32) {
+                        out.append(String.format("\\%03o", code));
+                    } else if (code == '"') {
+                        out.append("\\\"");
+                    } else if (code == '\\') {
+                        out.append("\\\\");
+                    } else {
+                        out.append((char) code);
+                    }
+
+                    i = end + 1;
+                    continue;
+                }
+            }
+
+            if (ch == '"') {
+                out.append("\\\"");
+            } else if (ch == '\\') {
+                out.append("\\\\");
+            } else {
+                out.append(ch);
+            }
+
+            i++;
+        }
+
+        return out.toString();
     }
 
     private Object parsePrimitiveString(String valStr, String type) {
@@ -1273,7 +1367,7 @@ public class SymbolicExecutionRewrite {
 
         if ("int".equals(className) || parameterClass == Integer.class) {
 //            return random.nextInt();
-            return 8;
+            return 0;
         } else if ("boolean".equals(className)) {
             return random.nextInt() % 2 == 0;
         } else if ("byte".equals(className)) {
