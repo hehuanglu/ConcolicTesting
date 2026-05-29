@@ -89,7 +89,10 @@ public class SymbolicExecutionRewrite {
         executeParameters(ctx);
 
         for (MockInfo info : currentMockInfos) {
-            Sort z3Sort = ctx.mkIntSort();
+            if (info.returnType != null && info.returnType.equals(String.class)) {
+                continue;
+            }
+            Sort z3Sort = ReflectionStubHelper.getZ3Sort(info.returnType != null ? info.returnType : int.class, ctx);
             Expr mockExpr = ctx.mkConst(info.mockVarName, z3Sort);
             Z3VariableWrapper wrapper = new Z3VariableWrapper(mockExpr);
 
@@ -211,7 +214,21 @@ public class SymbolicExecutionRewrite {
                         mockMethodCounter.put(methodKey, count);
                         String mockVariableName = "mock_" + methodKey + "_" + count;
 
-                        MockInfo info = new MockInfo(className, methodName, mockVariableName);
+                        int argCount = methodInvocation.arguments().size();
+                        String clonedDirPath = "D:\\projectLAB\\backend\\jcia-backend\\core-engine\\cfg\\src\\main\\java\\data\\clonedProject";
+                        Class<?> returnType = ReflectionStubHelper.getReturnType(methodInvocation, className, methodName, argCount, clonedDirPath);
+
+                        if (returnType != null && returnType.equals(String.class)) {
+                            log.debug("Bỏ qua mock vì kiểu trả về là String: {}", methodName);
+                            return super.visit(methodInvocation);
+                        }
+
+                        if (returnType == null) {
+                            log.warn("LỚP LẠ ({}): Không thể tìm được kiểu trả về cho hàm {}. Tự động ép về int.", className, methodName);
+                            returnType = int.class;
+                        }
+
+                        MockInfo info = new MockInfo(className, methodName, mockVariableName, returnType);
                         boolean alreadyExists = false;
                         for (MockInfo existingMock : currentMockInfos) {
                             // Nếu đã từng mock hàm này rồi thì bỏ qua, không add thêm
@@ -224,17 +241,6 @@ public class SymbolicExecutionRewrite {
 
                         if (!alreadyExists) {
                             currentMockInfos.add(info); // Chỉ add khi chưa tồn tại
-                        }
-
-                        int argCount = methodInvocation.arguments().size();
-
-                        String clonedDirPath = "D:\\projectLAB\\backend\\jcia-backend\\core-engine\\cfg\\src\\main\\java\\data\\clonedProject";
-
-                        Class<?> returnType = ReflectionStubHelper.getReturnType(methodInvocation, className, methodName, argCount, clonedDirPath);
-
-                        if (returnType == null) {
-                            log.warn("LỚP LẠ ({}): Không thể tìm được kiểu trả về cho hàm {}. Tự động ép về int.", className, methodName);
-                            returnType = int.class;
                         }
 
                         if (returnType != null) {
@@ -1379,11 +1385,13 @@ public class SymbolicExecutionRewrite {
         public String methodName;
         public String mockVarName;
         public String solveValue;
+        public Class<?> returnType;
 
-        public MockInfo(String className, String methodName, String mockVarName) {
+        public MockInfo(String className, String methodName, String mockVarName, Class<?> returnType) {
             this.className = className;
             this.methodName = methodName;
             this.mockVarName = mockVarName;
+            this.returnType = returnType;
         }
     }
 

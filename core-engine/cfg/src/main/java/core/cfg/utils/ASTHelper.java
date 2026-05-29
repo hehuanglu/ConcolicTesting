@@ -1,8 +1,16 @@
 package core.cfg.utils;
 
+import com.microsoft.z3.ArrayExpr;
+import core.ast.AstNode;
 import core.cfg.*;
 import core.utils.Utils;
+import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.dom.*;
+import org.eclipse.jdt.core.dom.rewrite.ASTRewrite;
+import org.eclipse.jdt.internal.compiler.ast.BinaryExpression;
+import org.eclipse.jface.text.Document;
+import org.eclipse.jface.text.IDocument;
+import org.eclipse.text.edits.TextEdit;
 
 import java.util.*;
 
@@ -12,6 +20,69 @@ public class ASTHelper {
         BRANCH,
         MCDC,
         PATH
+    }
+
+    public static CompilationUnit applyDesugaringAndReparse(CompilationUnit cu, String originalSourceCode) {
+        if (cu == null) return null;
+        AST ast = cu.getAST();
+        ASTRewrite rewrite = ASTRewrite.create(ast);
+
+        cu.accept(new ASTVisitor() {
+            @Override
+            public boolean visit(ReturnStatement node) {
+                ASTNode result = convertTernaryToIf(node);
+                if (result != node) {
+                    rewrite.replace(node, result, null);
+                }
+                return super.visit(node);
+            }
+
+            @Override
+            public boolean visit(ExpressionStatement node) {
+                ASTNode result = convertTernaryToIf(node);
+                if (result != node) {
+                    rewrite.replace(node, result, null);
+                }
+                return super.visit(node);
+            }
+
+            @Override
+            public boolean visit(VariableDeclarationStatement node) {
+                ASTNode result = convertTernaryToIf(node);
+                if (result != node) {
+                    rewrite.replace(node, result, null);
+                }
+                return super.visit(node);
+            }
+        });
+
+        try {
+            IDocument document = new Document(originalSourceCode);
+            TextEdit edits = rewrite.rewriteAST(document, JavaCore.getOptions());
+            edits.apply(document);
+            String newSource = document.get();
+
+            // Re-parse using the standard parser configuration
+            return parserToCompilationUnit(newSource);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return cu;
+        }
+    }
+
+    private static CompilationUnit parserToCompilationUnit(String sourceCode) {
+        ASTParser parser = ASTParser.newParser(AST.JLS8);
+        parser.setSource(sourceCode.toCharArray());
+        parser.setKind(ASTParser.K_COMPILATION_UNIT);
+        parser.setResolveBindings(true);
+        parser.setBindingsRecovery(true);
+        parser.setEnvironment(null, null, null, true);
+        parser.setUnitName("ReparsedSource.java");
+
+        Map options = JavaCore.getOptions();
+        JavaCore.setComplianceOptions(JavaCore.VERSION_1_8, options);
+        parser.setCompilerOptions(options);
+        return (CompilationUnit) parser.createAST(null);
     }
     protected static List<String> primitiveTypes = Arrays.asList("boolean", "short", "int", "long", "float", "double", "void");
     protected static List<String> javaLangTypes = Arrays.asList("Boolean", "Byte", "Character.Subset", "Character.UnicodeBlock", "ClassLoader", "Double",
@@ -217,10 +288,15 @@ public class ASTHelper {
             if (expr instanceof ConditionalExpression) {
                 // Target = null, isReturn = true
                 return transformTernaryRecursive(ast, (ConditionalExpression) expr, statement, null, true);
+            }else if(expr instanceof InfixExpression){
+                if(((InfixExpression) expr).getOperator() == InfixExpression.Operator.CONDITIONAL_OR
+                    || ((InfixExpression) expr).getOperator() == InfixExpression.Operator.CONDITIONAL_AND){
+                    return generateIfElseStatementForReturn(ast, expr);
+                }
             }
         }
 
-        // TRƯỜNG HỢP 2: Phép gán (x = ... ? ... :)
+        // TRƯỜNG HỢP 2: Phép gán (x = ... ? ... :) hoặc (x = b && c)
         else if (statement instanceof ExpressionStatement) {
             Expression expr = ((ExpressionStatement) statement).getExpression();
             if (expr instanceof Assignment) {
@@ -229,26 +305,36 @@ public class ASTHelper {
                     // Target = vế trái (x), isReturn = false
                     // Hàm trả về IfStatement
                     return transformTernaryRecursive(ast, (ConditionalExpression) assign.getRightHandSide(), statement, assign.getLeftHandSide(), false);
+                } else if (assign.getRightHandSide() instanceof InfixExpression) {
+                    InfixExpression infixExpr = (InfixExpression) assign.getRightHandSide();
+                    if (infixExpr.getOperator() == InfixExpression.Operator.CONDITIONAL_AND ||
+                            infixExpr.getOperator() == InfixExpression.Operator.CONDITIONAL_OR) {
+                        IfStatement ifStatement = generateIfElseStatementForLogicalAssignment(ast, infixExpr, assign.getLeftHandSide().toString());
+                        return ifStatement;
+                    }
                 }
             }
         }
 
-        // TRƯỜNG HỢP 3: Khai báo biến (int x = ... ? ... :)
+        // TRƯỜNG HỢP 3: Khai báo biến (int x = ... ? ... :) hoặc (int x = b && c)
         else if (statement instanceof VariableDeclarationStatement) {
             VariableDeclarationStatement varDecl = (VariableDeclarationStatement) statement;
             // Lấy fragment đầu tiên (ví dụ: "x = ...")
+            if (varDecl.fragments().isEmpty()) return statement;
             VariableDeclarationFragment frag = (VariableDeclarationFragment) varDecl.fragments().get(0);
+            Expression initializer =  frag.getInitializer();
+            if (initializer == null) return statement;
 
-            if (frag.getInitializer() instanceof ConditionalExpression) {
-                // 1. Tạo dòng khai báo tách rời: "int x;" (Bỏ phần gán)
-                VariableDeclarationStatement newDecl = (VariableDeclarationStatement) ASTNode.copySubtree(ast, varDecl);
-                ((VariableDeclarationFragment) newDecl.fragments().get(0)).setInitializer(null);
+            // 1. Tạo dòng khai báo tách rời: "int x;" (Bỏ phần gán)
+            VariableDeclarationStatement newDecl = (VariableDeclarationStatement) ASTNode.copySubtree(ast, varDecl);
+            ((VariableDeclarationFragment) newDecl.fragments().get(0)).setInitializer(null);
 
+            if (initializer instanceof ConditionalExpression) {
                 // 2. Tạo khối If-Else gán giá trị: "if(...) x=... else x=..."
                 // Target = tên biến (x), isReturn = false
                 Statement ifStmt = transformTernaryRecursive(
                         ast,
-                        (ConditionalExpression) frag.getInitializer(),
+                        (ConditionalExpression) initializer,
                         statement,
                         ast.newSimpleName(frag.getName().getIdentifier()),
                         false
@@ -260,13 +346,210 @@ public class ASTHelper {
                 wrapperBlock.statements().add(ifStmt);  // if (...) ...
 
                 return wrapperBlock;
+            } else if(initializer instanceof InfixExpression){
+                InfixExpression infixExpr = (InfixExpression) initializer;
+
+                if (infixExpr.getOperator() == InfixExpression.Operator.CONDITIONAL_AND ||
+                        infixExpr.getOperator() == InfixExpression.Operator.CONDITIONAL_OR) {
+                    IfStatement ifStatement = generateIfElseStatementForLogicalAssignment(ast, initializer, frag.getName().getIdentifier());
+                    Block wrapperBlock = ast.newBlock();
+                    wrapperBlock.statements().add(newDecl); // int x;
+                    wrapperBlock.statements().add(ifStatement);  // if (...) ...
+                    return wrapperBlock;
+                }
             }
         }
 
         // Nếu không phải 3 trường hợp trên, trả về nguyên gốc
         return statement;
     }
+    public static ForStatement convertForEachToFor(AST ast, EnhancedForStatement forEachStmt) {
+        // Khởi tạo ForStatement rỗng
+        ForStatement forStmt = ast.newForStatement();
 
+        // Lấy thông tin từ for-each
+        SingleVariableDeclaration param = forEachStmt.getParameter();
+        Type elementType = param.getType();            // Kiểu dữ liệu (VD: String)
+        SimpleName elementName = param.getName();      // Tên biến (VD: element)
+        Expression Expr = forEachStmt.getExpression(); // Biểu thức lặp (VD: list)
+
+        String indexVarName = "index_" + elementName.toString(); // Biến chạy index
+
+        // 1. Phân tích Type Binding để xác định kiểu dữ liệu
+        boolean isArray = false;
+        boolean isCollection = false;
+
+        ITypeBinding binding = Expr.resolveTypeBinding();
+        if (binding != null) {
+            if (binding.isArray()) {
+                isArray = true;
+            } else if (isCollectionType(binding.getErasure())) {
+                isCollection = true;
+            }
+        }
+
+        // 2. Khởi tạo (Init): int i = 0;
+        VariableDeclarationFragment initFrag = ast.newVariableDeclarationFragment();
+        initFrag.setName(ast.newSimpleName(indexVarName));
+        initFrag.setInitializer(ast.newNumberLiteral("0"));
+
+        VariableDeclarationExpression initExpr = ast.newVariableDeclarationExpression(initFrag);
+        initExpr.setType(ast.newPrimitiveType(PrimitiveType.INT));
+        forStmt.initializers().add(initExpr);
+
+        // 3. Điều kiện (Condition): i < list.length hoặc i < list.size()
+        InfixExpression condition = ast.newInfixExpression();
+        condition.setLeftOperand(ast.newSimpleName(indexVarName));
+        condition.setOperator(InfixExpression.Operator.LESS);
+
+        Expression rightOperandBound = null;
+
+        if (isArray) {
+            // list.length
+            FieldAccess lengthAccess = ast.newFieldAccess();
+            lengthAccess.setExpression((Expression) ASTNode.copySubtree(ast, Expr));
+            lengthAccess.setName(ast.newSimpleName("length"));
+            rightOperandBound = lengthAccess;
+        } else if (isCollection) {
+            // list.size()
+            MethodInvocation sizeInvocation = ast.newMethodInvocation();
+            sizeInvocation.setExpression((Expression) ASTNode.copySubtree(ast, Expr));
+            sizeInvocation.setName(ast.newSimpleName("size"));
+            rightOperandBound = sizeInvocation;
+        } else {
+            // Fallback an toàn nếu không resolve được binding, mặc định coi như mảng
+            FieldAccess fallbackAccess = ast.newFieldAccess();
+            fallbackAccess.setExpression((Expression) ASTNode.copySubtree(ast, Expr));
+            fallbackAccess.setName(ast.newSimpleName("length"));
+            rightOperandBound = fallbackAccess;
+        }
+
+        condition.setRightOperand(rightOperandBound);
+        forStmt.setExpression(condition);
+
+        // 4. Bước nhảy (Update): i++
+        PostfixExpression update = ast.newPostfixExpression();
+        update.setOperand(ast.newSimpleName(indexVarName));
+        update.setOperator(PostfixExpression.Operator.INCREMENT);
+        forStmt.updaters().add(update);
+
+        // 5. Khối lệnh bên trong (Body)
+        Block newBody = ast.newBlock();
+
+        // 5.1 Tạo dòng gán: Type element = list[i] hoặc Type element = list.get(i)
+        VariableDeclarationFragment elementFrag = ast.newVariableDeclarationFragment();
+        elementFrag.setName((SimpleName) ASTNode.copySubtree(ast, elementName));
+
+        Expression elementAccessExpr = null;
+
+        if (isArray) {
+            // list[i]
+            ArrayAccess arrayAccess = ast.newArrayAccess();
+            arrayAccess.setArray((Expression) ASTNode.copySubtree(ast, Expr));
+            arrayAccess.setIndex(ast.newSimpleName(indexVarName));
+            elementAccessExpr = arrayAccess;
+        } else if (isCollection) {
+            // list.get(i)
+            MethodInvocation getInvocation = ast.newMethodInvocation();
+            getInvocation.setExpression((Expression) ASTNode.copySubtree(ast, Expr));
+            getInvocation.setName(ast.newSimpleName("get"));
+            getInvocation.arguments().add(ast.newSimpleName(indexVarName));
+            elementAccessExpr = getInvocation;
+        } else {
+            // Fallback mặc định
+            ArrayAccess fallbackAccess = ast.newArrayAccess();
+            fallbackAccess.setArray((Expression) ASTNode.copySubtree(ast, Expr));
+            fallbackAccess.setIndex(ast.newSimpleName(indexVarName));
+            elementAccessExpr = fallbackAccess;
+        }
+
+        elementFrag.setInitializer(elementAccessExpr);
+
+        VariableDeclarationStatement elementDecl = ast.newVariableDeclarationStatement(elementFrag);
+        elementDecl.setType((Type) ASTNode.copySubtree(ast, elementType));
+        newBody.statements().add(elementDecl);
+
+        // 5.2 Copy lại toàn bộ code cũ bên trong vòng lặp for-each đưa vào đây
+        Statement originalBody = forEachStmt.getBody();
+        if (originalBody instanceof Block) {
+            Block origBlock = (Block) originalBody;
+            for (Object stmt : origBlock.statements()) {
+                newBody.statements().add(ASTNode.copySubtree(ast, (ASTNode) stmt));
+            }
+        } else {
+            // Trường hợp for-each không có ngoặc nhọn { }
+            newBody.statements().add(ASTNode.copySubtree(ast, originalBody));
+        }
+
+        forStmt.setBody(newBody);
+
+        return forStmt;
+    }
+    // Hàm đệ quy kiểm tra Collection
+    private static boolean isCollectionType(ITypeBinding binding) {
+        if (binding == null) return false;
+
+        String name = binding.getQualifiedName();
+        if (name.equals("java.util.Collection") || name.equals("java.util.List") || name.equals("java.util.Set")) {
+            return true;
+        }
+
+        for (ITypeBinding interfaceBinding : binding.getInterfaces()) {
+            if (isCollectionType(interfaceBinding.getErasure())) {
+                return true;
+            }
+        }
+
+        return isCollectionType(binding.getSuperclass());
+    }
+    private static IfStatement generateIfElseStatementForReturn(AST ast, Expression condition) {
+        // 1. Thiết lập điều kiện If
+        IfStatement ifStmt = ast.newIfStatement();
+        ifStmt.setExpression((Expression) ASTNode.copySubtree(ast, condition));
+
+        // 2. Tạo khối Then: { return true; }
+        Block thenBlock = ast.newBlock();
+        ReturnStatement thenReturn = ast.newReturnStatement();
+        thenReturn.setExpression(ast.newBooleanLiteral(true)); // return true
+        thenBlock.statements().add(thenReturn);
+
+        ifStmt.setThenStatement(thenBlock);
+
+        // 3. Tạo khối Else: { return false; }
+        Block elseBlock = ast.newBlock();
+        ReturnStatement elseReturn = ast.newReturnStatement();
+        elseReturn.setExpression(ast.newBooleanLiteral(false)); // return false
+        elseBlock.statements().add(elseReturn);
+
+        ifStmt.setElseStatement(elseBlock);
+
+        return ifStmt;
+    }
+    private static IfStatement generateIfElseStatementForLogicalAssignment(AST ast,Expression initializer,String varName) {
+        // 1. Thiết lập điều kiện If
+        IfStatement ifStmt = ast.newIfStatement();
+        ifStmt.setExpression((Expression) ASTNode.copySubtree(ast, initializer));
+//        2. Tạo khối Then
+        Block thenBlock = ast.newBlock();
+        Assignment thenAssign = ast.newAssignment();
+        thenAssign.setLeftHandSide(ast.newSimpleName(varName));
+        thenAssign.setRightHandSide(ast.newBooleanLiteral(true));
+        ExpressionStatement thenStmt = ast.newExpressionStatement(thenAssign);
+        thenBlock.statements().add(thenStmt);
+
+        ifStmt.setThenStatement(thenBlock);
+        // 3. Tạo khối else
+        Block elseBlock = ast.newBlock();
+        Assignment elseAssign = ast.newAssignment();
+        elseAssign.setLeftHandSide(ast.newSimpleName(varName));
+        elseAssign.setRightHandSide(ast.newBooleanLiteral(false));
+        ExpressionStatement elseStmt = ast.newExpressionStatement(elseAssign);
+        elseBlock.statements().add(elseStmt);
+
+        ifStmt.setElseStatement(elseBlock);
+
+        return ifStmt;
+    }
     // Hàm tạo câu lệnh Gán (x = y;)
     private static Statement createAssignment(AST ast, Expression leftHandSide, Expression rightHandSide) {
         Assignment assignment = ast.newAssignment();
@@ -356,6 +639,10 @@ public class ASTHelper {
     // khối lệnh mà đứng trước nút End của khối
     public static CfgNode generateCFGForOneStatement(ASTNode statement, CfgNode beforeNode, CfgNode afterNode, CompilationUnit compilationUnit, int firstLine, Coverage coverage) {
         CfgNode currentNode;
+
+        if (statement instanceof EnhancedForStatement) {
+            statement = convertForEachToFor(statement.getAST(), (EnhancedForStatement) statement);
+        }
 
         if (statement instanceof SwitchStatement) {
             currentNode = new CfgSwitchStatementBlockNode();

@@ -5,6 +5,7 @@ import core.Z3Vars.Z3VariableWrapper;
 import core.ast.AstNode;
 import core.ast.Expression.ExpressionNode;
 import core.ast.Expression.Literal.LiteralNode;
+import core.ast.Expression.Name.SimpleNameNode;
 import core.symbolicExecution.MemoryModel;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.Expression;
@@ -211,14 +212,14 @@ public class InfixExpressionNode extends OperationExpressionNode {
 
     public static ExpressionNode executeInfixExpression(InfixExpression infixExpression, MemoryModel memoryModel) {
         InfixExpressionNode infixExpressionNode = new InfixExpressionNode();
-        infixExpressionNode.leftOperand = (ExpressionNode) ExpressionNode.executeExpression(infixExpression.getLeftOperand(), memoryModel);
-        infixExpressionNode.rightOperand = (ExpressionNode) ExpressionNode.executeExpression(infixExpression.getRightOperand(), memoryModel);
+        infixExpressionNode.leftOperand = executeInfixOperand(infixExpression.getLeftOperand(), memoryModel);
+        infixExpressionNode.rightOperand = executeInfixOperand(infixExpression.getRightOperand(), memoryModel);
         infixExpressionNode.operator = infixExpression.getOperator();
 
         List<AstNode> extendedOperands = new ArrayList<>();
         if (infixExpression.extendedOperands().size() > 0) {
             for (int i = 0; i < infixExpression.extendedOperands().size(); i++) {
-                extendedOperands.add(AstNode.executeASTNode((ASTNode) infixExpression.extendedOperands().get(i), memoryModel));
+                extendedOperands.add(executeInfixOperand((Expression) infixExpression.extendedOperands().get(i), memoryModel));
             }
         }
         infixExpressionNode.extendedOperands = extendedOperands;
@@ -226,6 +227,17 @@ public class InfixExpressionNode extends OperationExpressionNode {
         ExpressionNode expressionNode = executeInfixExpressionNode(infixExpressionNode, memoryModel);
 
         return expressionNode;
+    }
+
+    private static ExpressionNode executeInfixOperand(Expression operand, MemoryModel memoryModel) {
+        AstNode executed = ExpressionNode.executeExpression(operand, memoryModel);
+        if (executed instanceof ExpressionNode) {
+            return (ExpressionNode) executed;
+        }
+
+        SimpleNameNode fallback = new SimpleNameNode(operand.toString());
+        fallback.markFake();
+        return fallback;
     }
 
     public static ExpressionNode executeInfixExpressionNode(InfixExpressionNode infixExpressionNode,
