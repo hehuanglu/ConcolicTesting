@@ -119,6 +119,18 @@ public class MethodInvocationNode extends ExpressionNode {
                 if (methodName.equals("size")) {
                     return new MethodInvocationNode(expressionStr, methodName, new ArrayList<>());
                 }
+
+                if (methodName.equals("add")) {
+                    List<AstNode> arguments = new ArrayList<>();
+                    for (Object arg : methodInvocation.arguments()) {
+                        arguments.add(ExpressionNode.executeExpression((Expression) arg, memoryModel));
+                    }
+
+                    MethodInvocationNode methodInvocationNode = new MethodInvocationNode(expressionStr, methodName, arguments);
+                    createZ3Expression(methodInvocationNode, memoryModel, SymbolicExecutionRewrite.globalCtx.get(), SymbolicExecutionRewrite.globalZ3Vars.get());
+
+                    return methodInvocationNode;
+                }
             }
 
             MethodDeclaration methodDeclaration = getInvokedMethodAST(methodName);
@@ -332,13 +344,43 @@ public class MethodInvocationNode extends ExpressionNode {
             } else if ("size".equals(methodName)) {
 
                 ParameterizedTypeVariable listVar = (ParameterizedTypeVariable) var;
-                Expr sizeVar = listVar.getSize();
+                Expr sizeVar = listVar.getLatestSize();
                 Z3VariableWrapper wrapper = new Z3VariableWrapper(sizeVar);
 
                 if (!SymbolicExecutionRewrite.haveDuplicateVariable(wrapper, vars)) {
                     vars.add(wrapper);
                 }
                 return sizeVar;
+            } else if ("add".equals(methodName)) {
+
+                Expr z3ListBase = SymbolicExecutionRewrite.z3ArrayStateMap.get().get(className);
+                if (z3ListBase == null) {
+                    throw new RuntimeException("Không tìm thấy trạng thái Z3 cho List: " + className);
+                }
+                ExpressionNode valueNode = (ExpressionNode) args.get(0);
+                Expr z3ValueToAdd = OperationExpressionNode.createZ3Expression(valueNode, ctx, vars, memoryModel);
+                ParameterizedTypeVariable listVar = (ParameterizedTypeVariable) var;
+                Expr indexToStore = listVar.getLatestSize();
+
+                listVar.incrementVersion();
+                int newVersion = listVar.getVersion();
+
+                String newSizeVarName = className + ".size_" + newVersion;
+                BitVecExpr newSizeConstant = (BitVecExpr) ctx.mkBVConst(newSizeVarName, 32);
+                Expr formula = ctx.mkBVAdd((BitVecExpr) listVar.getBaseSize(), ctx.mkBV(newVersion, 32));
+                BoolExpr sizeConstraint = ctx.mkEq(newSizeConstant, (BitVecExpr) formula);
+                SymbolicExecutionRewrite.extraConstraints.add(sizeConstraint);
+
+                ArrayExpr newArrayState = ctx.mkStore((ArrayExpr) z3ListBase, indexToStore, z3ValueToAdd);
+                SymbolicExecutionRewrite.z3ArrayStateMap.get().put(className, newArrayState);
+
+                listVar.addNewSizeVersion(newSizeConstant);
+                Z3VariableWrapper wrapper = new Z3VariableWrapper(newSizeConstant);
+                if (!SymbolicExecutionRewrite.haveDuplicateVariable(wrapper, vars)) {
+                    vars.add(wrapper);
+                }
+
+                return ctx.mkTrue();
             }
         }
         throw new RuntimeException("Invalid type");
