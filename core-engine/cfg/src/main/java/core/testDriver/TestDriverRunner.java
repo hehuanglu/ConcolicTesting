@@ -3,6 +3,7 @@ package core.testDriver;
 import core.FilePath;
 import core.cmd.CommandLine;
 import core.path.MarkedStatement;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
@@ -11,6 +12,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+@Slf4j
 public final class TestDriverRunner {
     private static double runtime;
     private static String output;
@@ -47,7 +49,7 @@ public final class TestDriverRunner {
             try (BufferedReader r = new BufferedReader(new java.io.InputStreamReader(pCompile.getInputStream()))) {
                 String line;
                 while ((line = r.readLine()) != null) {
-                    System.out.println("[COMPILE LOG] " + line);
+                    log.debug("[COMPILE LOG] {}", line);
                 }
             }
 
@@ -62,7 +64,7 @@ public final class TestDriverRunner {
             try (BufferedReader r = new BufferedReader(new java.io.InputStreamReader(pRun.getInputStream()))) {
                 String line;
                 while ((line = r.readLine()) != null) {
-                    System.out.println("[TEST DRIVER LOG] " + line);
+                    log.debug("[TEST DRIVER LOG] {}", line);
                 }
             }
             pRun.waitFor();
@@ -87,20 +89,50 @@ public final class TestDriverRunner {
         List<MarkedStatement> result = new ArrayList<>();
 
         String markedData = getDataFromFile(FilePath.concreteExecuteResultPath);
+        if (markedData == null || markedData.isBlank()) return result;
         String[] markedStatements = markedData.split("---end---");
         for (int i = 0; i < markedStatements.length; i++) {
             String[] markedStatementData = markedStatements[i].split("===");
+            // Bỏ qua dòng trống
+            if (markedStatementData.length == 0 || markedStatementData[0].isBlank()) {
+                continue;
+            }
+
             if (i == markedStatements.length - 1) {
-                if (markedStatementData.length == 0 || markedStatementData[0].isBlank()) {
-                    continue; // bỏ qua dòng trống
+                try {
+                    // Nếu đây là rác, ta sẽ ném lỗi
+                    runtime = Double.parseDouble(markedStatementData[0].trim());
+                    if (markedStatementData.length > 1) {
+                        output = markedStatementData[1];
+                    }
+                } catch (NumberFormatException e) {
+                    log.info(" Bỏ qua rác ở khối runtime: {}", markedStatementData[0]);
+                    runtime = 0.0;
                 }
-                runtime = Double.parseDouble(markedStatementData[0]);
-                output = markedStatementData[1];
-            } else {
-                String statement = markedStatementData[0];
-                boolean isTrueConditionalStatement = Boolean.parseBoolean(markedStatementData[1]);
-                boolean isFalseConditionalStatement = Boolean.parseBoolean(markedStatementData[2]);
-                int id = Integer.parseInt(markedStatementData[3]);
+          }
+            else {
+                // Cờ chuẩn ta phải có ít nhất 3 phần. Ít hơn là rác, ta bỏ qua.
+                if (markedStatementData.length < 3) continue;
+
+                String statement = markedStatementData[0].trim();
+                String trueStr = markedStatementData[1].trim().toLowerCase();
+                String falseStr = markedStatementData[2].trim().toLowerCase();
+
+                if (!trueStr.equals("true") && !trueStr.equals("false")) continue;
+                if (!falseStr.equals("true") && !falseStr.equals("false")) continue;
+
+                boolean isTrueConditionalStatement = Boolean.parseBoolean(trueStr);
+                boolean isFalseConditionalStatement = Boolean.parseBoolean(falseStr);
+
+                int id = -1;
+                if (markedStatementData.length > 3) {
+                    try {
+                        id = Integer.parseInt(markedStatementData[3].trim());
+                    } catch (NumberFormatException e) {
+                        id = -1;
+                    }
+                }
+
                 MarkedStatement uncheckedMarkedStatement = new MarkedStatement(statement, isTrueConditionalStatement, isFalseConditionalStatement, id);
                 if (!result.contains(uncheckedMarkedStatement)) {
                     result.add(uncheckedMarkedStatement);

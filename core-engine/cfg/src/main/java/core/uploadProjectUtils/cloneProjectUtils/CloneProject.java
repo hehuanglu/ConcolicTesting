@@ -107,7 +107,7 @@ public final class CloneProject {
     }
 
     public static void cloneProject(String originalDirPath, String destinationDirPath, ASTHelper.Coverage coverage, String fileName) throws IOException, InterruptedException {
-        command = new StringBuilder("javac -d " + FilePath.targetClassesFolderPath + " ");
+        command = new StringBuilder("javac -encoding UTF-8 -d " + FilePath.targetClassesFolderPath + " ");
         iCloneProject(originalDirPath, destinationDirPath, coverage, fileName);
         System.out.println(command);
 

@@ -322,7 +322,7 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
             for (TestData data : testResult.getFullTestData()) {
                 Object[] input = data.getTestDataSet().toArray();
 
-                String markInput = Arrays.toString(input);
+                String markInput = Arrays.deepToString(input);
 
                 if (!uniqueInputs.contains(markInput)) {
                     uniqueInputs.add(markInput);
@@ -509,15 +509,35 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
     }
 
     private static Class<?> loadLatestClass(String className) throws Exception {
-        // trỏ đường dẫn về thư mục chứa file .class
         File file = new File(core.FilePath.targetClassesFolderPath);
-        java.net.URL[] urls = new java.net.URL[]{file.toURI().toURL()};
+        log.debug("Đang ép nạp class [{}] từ thư mục: {}", className, file.getAbsolutePath());
 
-        log.debug("URLClassLoader đang nạp class [{}] từ thư mục: {}", className, file.getAbsolutePath());
+        ClassLoader customLoader = new ClassLoader(ClassLoader.getSystemClassLoader()) {
+            @Override
+            public Class<?> loadClass(String name) throws ClassNotFoundException {
+                if (name.startsWith("data.clonedProject")) {
+                    try {
+                        String filePth = name.replace('.', '/') + ".class";
+                        File classFile = new File(core.FilePath.targetClassesFolderPath, filePth);
 
-        try (java.net.URLClassLoader cl = new java.net.URLClassLoader(urls, ClassLoader.getSystemClassLoader())) {
-            return cl.loadClass(className);
-        }
+                        if (classFile.exists()) {
+                            byte[] classBytes = java.nio.file.Files.readAllBytes(classFile.toPath());
+                            // Sinh class mới tinh, bypass cache
+                            return defineClass(name, classBytes, 0, classBytes.length);
+                        } else {
+                            // Nếu không thấy file, ném ngoại lệ luôn, cấm lôi hàng cũ ra xài!
+                            throw new ClassNotFoundException("BÁO ĐỘNG: Không tìm thấy file .class tại " + classFile.getAbsolutePath());
+                        }
+                    } catch (Exception e) {
+                        throw new ClassNotFoundException("Lỗi nghiêm trọng khi ép byte class: " + name, e);
+                    }
+                }
+                // Code hệ thống (String, System,...) thì cho qua bình thường
+                return super.loadClass(name);
+            }
+        };
+
+        return customLoader.loadClass(className);
     }
 
     private static double calculateFullTestSuiteCoverage(Coverage coverage) throws Exception {
@@ -651,7 +671,8 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
         try {
             solution.execute();
         } catch (RuntimeException e) {
-            log.warn("Path hiện tại UNSATISFIABLE (Z3 không thể giải). Bỏ qua path này.");
+            log.warn("Path hiện tại UNSATISFIABLE. Bỏ qua path này.");
+            log.error("UNSATISFIABLE vì: {}",e.getMessage());
             return false;
         }
 
@@ -691,14 +712,16 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
         Set<String> executedInThisPath = new HashSet<>();
 
         for (Object[] input : inputCandidates) {
-            String inputSign = Arrays.toString(input);
+            String inputSign = Arrays.deepToString(input);
 
             // Kiểm tra trong lịch sử testResult xem input này đã từng xuất hiện chưa
             boolean isDuplicateGlobal = false;
 
             for (TestData oldData : testResult.getFullTestData()) {
                 Object[] oldInput = oldData.getTestDataSet().toArray();
-                String oldInputSign = Arrays.toString(oldInput);
+
+                // Dùng deepToString để so sánh ruột mảng
+                String oldInputSign = Arrays.deepToString(oldInput);
 
                 // Nếu trùng với input chuẩn bị chạy
                 if (oldInputSign.equals(inputSign)) {
@@ -734,6 +757,14 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
 
             List<CoveredStatement> coveredStatements = CoveredStatement.switchToCoveredStatementList(markedStatements);
 
+            boolean hitException = false;
+            for (CoveredStatement stmt : coveredStatements) {
+                if (stmt.getStatementContent().startsWith("EXCEPTION_THROWN")) {
+                    hitException = true;
+                    log.warn("Đụng phải Exception: {}. Chấm dứt Path này, thử đường khác!", stmt.getStatementContent());
+                    break;
+                }
+            }
             testResult.addToFullTestData(new TestData(
                     TestGeneration.parameterNames,
                     TestGeneration.parameterClasses,
@@ -745,6 +776,11 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
                     calculateFunctionCoverage(),
                     calculateSourceCodeCoverage()
             ));
+
+            if (hitException) {
+                return false;
+            }
+
         }
 
         return true;

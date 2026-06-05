@@ -57,8 +57,7 @@ public class QualifiedNameNode extends NameNode {
     }
 
     public static ExpressionNode executeQualifiedNameNode(QualifiedNameNode qualifiedNameNode, MemoryModel memoryModel) {
-        /*????*/
-        return null;
+        return qualifiedNameNode;
     }
 
     public static String getStringQualifiedName(QualifiedName qualifiedName) {

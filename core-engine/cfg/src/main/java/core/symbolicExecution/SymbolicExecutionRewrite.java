@@ -17,6 +17,7 @@ import core.ast.Expression.Name.NameNode;
 import core.ast.Expression.OperationExpression.OperationExpressionNode;
 import core.ast.Expression.OperationExpression.PrefixExpressionNode;
 import core.ast.Type.AnnotatableType.PrimitiveTypeNode;
+import core.ast.VariableDeclaration.VariableDeclarationFragmentNode;
 import core.ast.additionalNodes.Node;
 import core.cfg.CfgBoolExprNode;
 import core.cfg.CfgNode;
@@ -25,6 +26,7 @@ import core.testGeneration.TestGeneration;
 import core.variable.*;
 import lombok.extern.slf4j.Slf4j;
 import org.eclipse.jdt.core.dom.*;
+import org.eclipse.jdt.core.dom.AST;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -59,6 +61,7 @@ public class SymbolicExecutionRewrite {
     public static ThreadLocal<Context> globalCtx = new ThreadLocal<>();
     public static ThreadLocal<List<Z3VariableWrapper>> globalZ3Vars = new ThreadLocal<>();
     public static Map<String, Class<?>> variableGenericTypeMap = new HashMap<>();
+    public static java.util.List<BoolExpr> arrayLengthConstraints = new java.util.ArrayList<>();
 
     public SymbolicExecutionRewrite(Path testPath, List<ASTNode> parameters) {
         this.testPath = testPath;
@@ -79,6 +82,10 @@ public class SymbolicExecutionRewrite {
         globalCtx.set(ctx);
         globalZ3Vars.set(Z3Vars);
         z3ArrayStateMap.get().clear();
+
+        if (arrayLengthConstraints != null) {
+            arrayLengthConstraints.clear();
+        }
 
         executeParameters(ctx);
 
@@ -148,7 +155,6 @@ public class SymbolicExecutionRewrite {
                 // Ở đây ta dùng chính symbolicMap/Z3Vars/ctx của luồng solve chính để chuyển
                 // index như i, a + b, i + 1... thành Expr của cùng một Context.
                 // Các Expr này sẽ được evaluate lại sau khi model chính được solve xong.
-                /*
                 collectSymbolicArrayIndexesFromAst(astNode, ctx);
 
                 // BẮT, NỘI SOI KIỂU VÀ TẠO BIẾN GIẢ Z3
@@ -276,7 +282,6 @@ public class SymbolicExecutionRewrite {
                         return super.visit(methodInvocation);
                     }
                 });
-                */
 
                 AstNode executedAstNode = Rewrite.reStm(astNode, symbolicMap);
 
@@ -326,62 +331,13 @@ public class SymbolicExecutionRewrite {
                 } else if (astNode instanceof VariableDeclarationStatement) {
                     VariableDeclarationStatement stm = (VariableDeclarationStatement) astNode;
                     List<VariableDeclarationFragment> fragments = stm.fragments();
+
                     for (VariableDeclarationFragment fragment : fragments) {
-                        String name = fragment.getName().getIdentifier();
-                        Expression initializer = fragment.getInitializer();
-                        if (initializer != null) { //Declaration with initialization
-                            if (stm.getType() instanceof PrimitiveType) {
-                                PrimitiveType type = (PrimitiveType) stm.getType();
-
-                                symbolicMap.declarePrimitiveTypeVariable(type, name,
-                                        ExpressionNode.executeExpression(initializer, symbolicMap));
-                            } else if (stm.getType() instanceof SimpleType) {
-                                SimpleType simpleType = (SimpleType) stm.getType();
-
-                                symbolicMap.declareSimpleTypeVariable(simpleType, name,
-                                        ExpressionNode.executeExpression(initializer, symbolicMap));
-                            } else if (stm.getType() instanceof ArrayType) {
-                                ArrayType type = (ArrayType) stm.getType();
-                                ArrayCreation arrayCreation = (ArrayCreation) initializer;
-                                ArrayCreationWithNewKeyWord strategy = new ArrayCreationWithNewKeyWord();
-                                AstNode element = ArrayCreationNode.executeArrayCreation(arrayCreation,
-                                        symbolicMap, strategy);
-                                ArrayNode arrayNode = (ArrayNode) element;
-                                int numberOfDimensions = arrayNode.getNumberOfDimensions();
-                                for (int i = 0; i < numberOfDimensions; i++) {
-                                    ExpressionNode lengthOfArray = arrayNode.getLengthOfDimensions();
-                                    if (lengthOfArray instanceof NameNode) {
-                                        String nameNode = NameNode.getStringNameNode((NameNode) lengthOfArray);
-                                        Expr nameNodeExpr = Variable.createZ3Variable(symbolicMap.getVariable(nameNode), ctx);
-
-                                        BoolExpr constraint;
-                                        if (nameNodeExpr instanceof BitVecExpr) {
-                                            constraint = ctx.mkBVSGE((BitVecExpr) nameNodeExpr, ctx.mkBV(0, ((BitVecExpr) nameNodeExpr).getSortSize()));
-                                        } else if (nameNodeExpr instanceof ArithExpr) {
-                                            constraint = ctx.mkGe((ArithExpr) nameNodeExpr, ctx.mkInt(0));
-                                        } else {
-                                            throw new RuntimeException("Unexpected type for array length: " + nameNodeExpr);
-                                        }
-
-                                        if (finalZ3Expression == null) finalZ3Expression = constraint;
-                                        else finalZ3Expression = ctx.mkAnd(finalZ3Expression, constraint);
-                                    }
-                                }
-                                symbolicMap.declareArrayTypeVariable(type, name, type.getDimensions(), element);
-                            } else {
-                                throw new RuntimeException(stm.getType().getClass() + " is invalid!!");
-                            }
-                        } else { // Declaration without initialization
-                            if (stm.getType() instanceof PrimitiveType) {
-                                PrimitiveType type = (PrimitiveType) stm.getType();
-
-                                symbolicMap.declarePrimitiveTypeVariable(type, name,
-                                        PrimitiveTypeNode.changePrimitiveTypeToLiteralInitialization(type));
-
-                            } else {
-                                throw new RuntimeException("Only deal with PrimitiveType!!");
-                            }
-                        }
+                        VariableDeclarationFragmentNode.executeVariableDeclarationFragment(
+                                fragment,
+                                stm.getType(),
+                                symbolicMap
+                        );
                     }
 
                 }
@@ -419,7 +375,8 @@ public class SymbolicExecutionRewrite {
         for (Z3VariableWrapper var : Z3Vars) {
             String varName = var.getPrimitiveVar().toString();
             if (varName.endsWith(".length")) {
-                BoolExpr positiveLengthConstraint = ctx.mkGe((ArithExpr) var.getPrimitiveVar(), ctx.mkInt(0));
+                BoolExpr positiveLengthConstraint = ctx.mkBVSGE((BitVecExpr) var.getPrimitiveVar(), ctx.mkBV(0, 32));
+
                 if (finalZ3Expression == null) {
                     finalZ3Expression = positiveLengthConstraint;
                 } else {
@@ -428,10 +385,42 @@ public class SymbolicExecutionRewrite {
             }
         }
 
+        if (arrayLengthConstraints != null && !arrayLengthConstraints.isEmpty()) {
+            for (BoolExpr constraint : arrayLengthConstraints) {
+                if (finalZ3Expression == null) {
+                    finalZ3Expression = constraint;
+                } else {
+                    finalZ3Expression = ctx.mkAnd(finalZ3Expression, constraint);
+                }
+            }
+        }
+
         model = createModel(ctx, (BoolExpr) finalZ3Expression);
         // Sau khi đã có model chính, mới evaluate các index symbolic đã thu được trước đó.
         // Đây là phần cốt lõi của "mức 1": index không có solver riêng, mà dùng trực tiếp
         // nghiệm của solver chính để suy ra maxIndex cho từng tham số mảng.
+
+        if (model != null) {
+            for (Z3VariableWrapper var : Z3Vars) {
+                String varName = var.getPrimitiveVar().toString();
+                if (varName.endsWith(".length")) {
+                    String arrayName = varName.substring(0, varName.length() - 7); // Cắt đuôi ".length"
+                    try {
+                        Expr evaluatedExpr = model.evaluate(var.getPrimitiveVar(), true);
+                        if (evaluatedExpr instanceof com.microsoft.z3.IntNum) {
+                            int realLength = ((com.microsoft.z3.IntNum) evaluatedExpr).getInt();
+
+                            // cập nhật RAM bằng chiều dài thật do Z3 giải
+                            parameterArrayLengths.put(arrayName, realLength);
+                            log.debug("Z3 đã chốt hạ chiều dài mảng [{}] là: {}", arrayName, realLength);
+                        }
+                    } catch (Exception e) {
+                        log.warn("Lỗi đồng bộ chiều dài mảng từ Z3: " + e.getMessage());
+                    }
+                }
+            }
+        }
+
         updateArrayParameterLengthsFromModel();
         evaluateAndSaveTestDataCreated(ctx);
         return Z3Vars;
@@ -481,21 +470,18 @@ public class SymbolicExecutionRewrite {
             } else if (variable instanceof ArrayTypeVariable) {
                 // Khai báo mảng mới
                 // Chỉ số mảng luôn là int 32-bit
-                Sort domain = ctx.mkIntSort();
+                Sort domain = ctx.mkBitVecSort(32);
 
                 // lấy đúng kích thước sort
-                Sort range = ctx.mkIntSort();
+                Sort range = ctx.mkBitVecSort(32);
                 if (declaration.getType().isArrayType()) {
                     ArrayType arrType = (ArrayType) declaration.getType();
+
                     String elementTypeName = arrType.getElementType().toString();
 
-                    if (elementTypeName.equals("long")) {
-                        range = ctx.mkIntSort();
-                    } else if (elementTypeName.equals("double")) {
-                        range = ctx.mkFPSortDouble();
-                    } else if (elementTypeName.equals("float")) {
-                        range = ctx.mkFPSortSingle();
-                    }
+                    if (elementTypeName.equals("long")) range = ctx.mkBitVecSort(64);
+                    else if (elementTypeName.equals("double")) range = ctx.mkFPSortDouble();
+                    else if (elementTypeName.equals("float")) range = ctx.mkFPSortSingle();
                 }
 
                 // Tạo kiểu mảng z3
@@ -663,11 +649,11 @@ public class SymbolicExecutionRewrite {
                             int arrayLength = parameterArrayLengths.getOrDefault(paramName, 1);
 
                             try {
-                                Expr lengthVar = ctx.mkIntConst(paramName + ".length");
+                                Expr lengthVar = ctx.mkBVConst(paramName + ".length", 32);
                                 Expr evaluatedLength = model.evaluate(lengthVar, true);
 
-                                if (evaluatedLength instanceof IntNum) {
-                                    int z3SolvedLength = ((IntNum) evaluatedLength).getInt();
+                                if (evaluatedLength instanceof BitVecNum) {
+                                    int z3SolvedLength = ((BitVecNum) evaluatedLength).getInt();
                                     if (z3SolvedLength > 0 && z3SolvedLength <= 1000) {
                                         arrayLength = z3SolvedLength;
                                         log.info("Mảng '{}': Z3 giải ra độ dài = {}", paramName, arrayLength);
@@ -681,32 +667,30 @@ public class SymbolicExecutionRewrite {
                             StringBuilder arrStr = new StringBuilder();
 
                             // lấy kiểu dữ liệu của mảng từ AST
-//                            ArrayType arrayType = (ArrayType) decl.getType();
-//                            String elementTypeName = arrayType.getElementType().toString();
                             String elementTypeName = "";
                             if (decl.getType().isArrayType()) {
-                                // Nếu là mảng (int[], String[]...)
+                                // Nếu là mảng
                                 ArrayType arrayType = (ArrayType) decl.getType();
                                 elementTypeName = arrayType.getElementType().toString();
                             } else {
-                                // Nếu là List<Integer>, List<String>...
+                                // Nếu là List<Integer>, List<String>
                                 Class<?> genericClass = variableGenericTypeMap.get(paramName);
                                 elementTypeName = genericClass.getSimpleName();
                             }
 
                             try {
                                 // Chọn kích thước sort theo kiểu dữ liệu
-                                Sort domainSort = ctx.mkIntSort();
+                                Sort domainSort = ctx.mkBitVecSort(32);
                                 Sort rangeSort;
 
                                 if (elementTypeName.equals("long")) {
-                                    rangeSort = ctx.mkIntSort();
+                                    rangeSort = ctx.mkBitVecSort(64);
                                 } else if (elementTypeName.equals("double")) {
                                     rangeSort = ctx.mkFPSortDouble();
                                 } else if (elementTypeName.equals("float")) {
                                     rangeSort = ctx.mkFPSortSingle();
                                 } else {
-                                    rangeSort = ctx.mkIntSort();
+                                    rangeSort = ctx.mkBitVecSort(32);
                                 }
 
                                 // dựng lại tham chiếu đến mảng gốc ban đầu với đúng sort
@@ -715,19 +699,21 @@ public class SymbolicExecutionRewrite {
                                     z3ArrayBase = ctx.mkConst(paramName, ctx.mkArraySort(domainSort, rangeSort));
                                 }
                                 for (int k = 0; k < arrayLength; k++) {
-                                    Expr kExpr = ctx.mkInt(k);
+                                    Expr kExpr = ctx.mkBV(k, 32);
                                     Expr selectExpr = ctx.mkSelect((ArrayExpr) z3ArrayBase, kExpr);
 
                                     Expr evaluatedElement = model.evaluate(selectExpr, true).simplify();
 
                                     String valStr = "0";
 
-                                    if (evaluatedElement instanceof IntNum) {
-                                        IntNum intNum = (IntNum) evaluatedElement;
+                                    if (evaluatedElement instanceof BitVecNum) {
+                                        BitVecNum bvNum = (BitVecNum) evaluatedElement;
+                                        BigInteger bigVal = bvNum.getBigInteger();
+
                                         if (elementTypeName.equals("long") || elementTypeName.equals("Long")) {
-                                            valStr = String.valueOf(intNum.getBigInteger().longValue()) + "L";
+                                            valStr = String.valueOf(bigVal.longValue()) + "L";
                                         } else {
-                                            valStr = String.valueOf(intNum.getInt());
+                                            valStr = String.valueOf(bigVal.intValue());
                                         }
                                     } else if (evaluatedElement instanceof FPNum) {
                                         FPNum fpNum = (FPNum) evaluatedElement;
@@ -757,7 +743,7 @@ public class SymbolicExecutionRewrite {
                                 }
                                 log.debug("Đã dịch xong Mảng [{}]: [{}]", paramName, arrStr.toString());
                             } catch (Exception e) {
-                                System.out.println("   ---> Lỗi lấy mảng Z3: " + e.getMessage());
+                                log.error("Lỗi lấy mảng Z3: {}", e.getMessage());
                             }
 
                             result.append(arrStr.toString());
@@ -805,36 +791,42 @@ public class SymbolicExecutionRewrite {
                 }
                 // tham số là mảng
                 else if (parameterClass.isArray()) {
-                    String[] strElements = lineData.split(",");
+                    String cleanedData = lineData.replace("[", "").replace("]", "").trim();
 
                     // Lấy kiểu dữ liệu bên trong mảng
                     Class<?> componentType = parameterClass.getComponentType();
 
-                    // tạo mảng
-                    Object arrayInstance = Array.newInstance(componentType, strElements.length);
+                    // Nếu chuỗi rỗng -> sinh ngay mảng độ dài 0
+                    if (cleanedData.isEmpty()) {
+                        result.add(Array.newInstance(componentType, 0));
+                    } else {
+                        String[] strElements = cleanedData.split(",");
 
-                    // Nhét từng con số vào mảng
-                    for (int j = 0; j < strElements.length; j++) {
-                        // Ép chuỗi thành số
-                        Object val = parsePrimitiveString(strElements[j].trim(), componentType.getName());
-                        // Lưu vào mảng
-                        Array.set(arrayInstance, j, val);
+                        // tạo mảng
+                        Object arrayInstance = Array.newInstance(componentType, strElements.length);
+
+                        // Nhét từng con số vào mảng
+                        for (int j = 0; j < strElements.length; j++) {
+                            // Ép chuỗi thành số
+                            Object val = parsePrimitiveString(strElements[j].trim(), componentType.getName());
+                            // Lưu vào mảng
+                            Array.set(arrayInstance, j, val);
+                        }
+                        // Thêm mảng hoàn chỉnh vào danh sách kết quả
+                        result.add(arrayInstance);
                     }
-
-                    // Thêm mảng hoàn chỉnh vào danh sách kết quả
-                    result.add(arrayInstance);
-                } else if (java.util.List.class.isAssignableFrom(parameterClass)) {
-                    // Cắt chuỗi theo dấu phẩy
-                    String[] strElements = lineData.split(",");
+                } else if (List.class.isAssignableFrom(parameterClass)) {
+                    String cleanedData = lineData.replace("[", "").replace("]", "").trim();
                     List<Object> listInstance = new ArrayList<>();
 
-                    for (String str : strElements) {
-                        listInstance.add(parsePrimitiveString(str.trim(), "int"));
+                    if (!cleanedData.isEmpty()) {
+                        // Cắt chuỗi theo dấu phẩy
+                        String[] strElements = cleanedData.split(",");
+                        for (String str : strElements) {
+                            listInstance.add(parsePrimitiveString(str.trim(), "int"));
+                        }
                     }
                     result.add(listInstance);
-                } else {
-                    log.warn("Chưa hỗ trợ ép kiểu Object phức tạp: {}. Tự động gán null.", parameterClass.getName());
-                    result.add(null);
                 }
             } catch (Exception e) {
                 log.error("Lỗi ép kiểu dữ liệu từ Z3 [{}] sang Java [{}]: {}", lineData, parameterClass.getName(), e.getMessage(), e);

@@ -29,6 +29,19 @@ public class CoveredStatement {
 
         for (MarkedStatement markedStatement : markedStatements) {
             CfgNode cfgNode = markedStatement.getCfgNode();
+
+            // Xử lý riêng cho Exception hoặc Node rỗng
+            if (cfgNode == null) {
+                String stmtStr = markedStatement.getStatement();
+                if (stmtStr != null && stmtStr.startsWith("EXCEPTION_THROWN")) {
+                    // Biến nó thành một CoveredStatement ảo với dòng -1 để lưu vết vào file JSON
+                    CoveredStatement exceptionStatement = new CoveredStatement(stmtStr, -1);
+                    exceptionStatement.conditionStatus = "";
+                    coveredStatements.add(exceptionStatement);
+                }
+                continue;
+            }
+
             CoveredStatement coveredStatement = new CoveredStatement(cfgNode.getContent(), cfgNode.getLineNumber());
 
             if (markedStatement.isTrueConditionalStatement()) {

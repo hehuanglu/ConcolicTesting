@@ -57,14 +57,13 @@ public abstract class OperationExpressionNode extends ExpressionNode {
             }
 
             if (operand.isFake()) {
-                return ctx.mkBVConst(name, 32);   // bypass memory + không gọi toString()
+                return ctx.mkBVConst(name, 32);
             }
 
             if (name != null && name.endsWith(".length")) {
                 System.out.println("đưa " + name + " cho Z3 giải quyết!");
 
-                // Tạo hẳn 1 ẩn số 32-bit cho Z3
-                Expr lengthVar = ctx.mkIntConst(name);
+                Expr lengthVar = ctx.mkBVConst(name, 32);
 
                 Z3VariableWrapper wrapper = new Z3VariableWrapper(lengthVar);
                 if (getDuplicateVariableIndex(wrapper, vars) == -1) {
@@ -74,7 +73,7 @@ public abstract class OperationExpressionNode extends ExpressionNode {
                 return lengthVar;
             }
             return createZ3Variable(n, ctx, vars, memoryModel);
-        } else if (operand instanceof LiteralNode) {
+        }else if (operand instanceof LiteralNode) {
             if (operand instanceof NumberLiteralNode) {
                 String tokenVal = ((NumberLiteralNode) operand).getTokenValue();
 
@@ -96,9 +95,9 @@ public abstract class OperationExpressionNode extends ExpressionNode {
                         val = Long.parseLong(numStr, 10);
                     }
                     if (isLong) {
-                        return ctx.mkInt(val);
+                        return ctx.mkBV(val, 64);
                     } else {
-                        return ctx.mkInt((int) val);
+                        return ctx.mkBV(val, 32);
                     }
                 } else {
                     double val = Double.parseDouble(tokenVal.replace("_", ""));
@@ -190,7 +189,10 @@ public abstract class OperationExpressionNode extends ExpressionNode {
             return operand;
         } else if (operand instanceof SimpleTypeNode) {
             return operand;
-        } else {
+        } else if (operand instanceof LiteralNode) {
+            return operand;
+        }
+        else {
             throw new RuntimeException(operand.getClass() + " is Invalid expressionNode");
         }
     }

@@ -95,7 +95,7 @@ public class MethodInvocationNode extends ExpressionNode {
                 return new MethodInvocationNode(className, methodName, arguments);
             }
 
-            if (className.equals("Math") && (methodName.equals("abs") || methodName.equals("max") || methodName.equals("min"))) {
+            if ((className.equals("Math") || className.equals("java.lang.Math")) && (methodName.equals("abs") || methodName.equals("max") || methodName.equals("min"))) {
                 List<AstNode> arguments = new ArrayList<>();
                 for (int i = 0; i < methodInvocation.arguments().size(); i++) {
                     AstNode argNode = ExpressionNode.executeExpression((Expression) methodInvocation.arguments().get(i), memoryModel);
