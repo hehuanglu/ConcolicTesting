@@ -58,7 +58,6 @@ public class MethodInvocationNode extends ExpressionNode {
 
         if (methodInvocation.getExpression() != null) { // method invocation in the same class
             String className = methodInvocation.getExpression().toString();
-
             IMethodBinding methodBinding = methodInvocation.resolveMethodBinding();
             if (methodBinding != null) {
                 ITypeBinding declaringClass = methodBinding.getDeclaringClass();
@@ -85,14 +84,6 @@ public class MethodInvocationNode extends ExpressionNode {
                 }
                 AstNode target = ExpressionNode.executeExpression(methodInvocation.getExpression(), memoryModel);
                 return new LongMethodNode(target,methodName,arguments);
-            }
-            if (methodName.equals("get")) {
-                List<AstNode> arguments = new ArrayList<>();
-                for (Object arg : methodInvocation.arguments()) {
-                    arguments.add(ExpressionNode.executeExpression((Expression) arg, memoryModel));
-                }
-                // Trả về MethodInvocationNode chứa tên List (expressionStr) và index (arguments)
-                return new MethodInvocationNode(className, methodName, arguments);
             }
 
 
@@ -329,8 +320,10 @@ public class MethodInvocationNode extends ExpressionNode {
                     return null;
                 }
             }
-        } else if (SymbolicExecutionRewrite.variableGenericTypeMap.containsKey(className)) {
-            Variable var = memoryModel.getVariable(className);
+        }
+
+        Variable var = memoryModel.getVariable(className);
+        if (var instanceof ParameterizedTypeVariable) {
             if ("get".equals(methodName)) {
                 Expr z3ListBase = SymbolicExecutionRewrite.z3ArrayStateMap.get().get(className);
 
@@ -383,6 +376,7 @@ public class MethodInvocationNode extends ExpressionNode {
                 return ctx.mkTrue();
             }
         }
+
         throw new RuntimeException("Invalid type");
     }
 

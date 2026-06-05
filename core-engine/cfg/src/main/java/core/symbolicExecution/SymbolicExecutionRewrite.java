@@ -25,11 +25,12 @@ import core.cfg.CfgBoolExprNode;
 import core.cfg.CfgNode;
 import core.path.Path;
 import core.testGeneration.TestGeneration;
+import core.utils.Utils;
 import core.variable.*;
 import lombok.extern.slf4j.Slf4j;
 import org.eclipse.jdt.core.dom.*;
 import org.eclipse.jdt.core.dom.AST;
-import org.springframework.beans.BeanUtils;
+//import org.springframework.beans.BeanUtils;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -172,14 +173,6 @@ public class SymbolicExecutionRewrite {
                         String methodName = methodInvocation.getName().getIdentifier();
                         String className = (methodInvocation.getExpression() != null) ? methodInvocation.getExpression().toString() : "";
 
-                        if (variableGenericTypeMap.containsKey(className)) {
-                            List<String> listMethods = Arrays.asList("get", "size", "set", "add");
-                            if (listMethods.contains(methodName)) {
-                                log.debug("Bỏ qua Mock cho hàm của List: {}.", methodName);
-                                return super.visit(methodInvocation);
-                            }
-                        }
-
                         ASTNode parentNode = methodInvocation.getParent();
                         String currentTestingMethodName = "";
 
@@ -260,7 +253,7 @@ public class SymbolicExecutionRewrite {
                             }
 
                             AST ast = methodInvocation.getAST();
-                            PrimitiveType.Code typeCode = getPrimitiveTypeCode(returnType.getSimpleName());
+                            PrimitiveType.Code typeCode = Utils.getPrimitiveTypeCode(returnType.getSimpleName());
 
                             if (typeCode != null) {
                                 // Mapping kiểu dữ liệu cho hàm in kết quả Z3
@@ -587,7 +580,7 @@ public class SymbolicExecutionRewrite {
 
                 // Bọc xong đưa vào danh sách Z3Vars để đi luồng chính
                 Z3VariableWrapper z3VariableWrapper = new Z3VariableWrapper(z3ArrayBase);
-                z3VariableWrapper.setIs_null(isNullVar);
+                // z3VariableWrapper.setIs_null(isNullVar);
                 if (!haveDuplicateVariable(z3VariableWrapper, z3Vars)) {
                     z3Vars.add(z3VariableWrapper);
                 }
@@ -596,13 +589,13 @@ public class SymbolicExecutionRewrite {
             } else if (variable instanceof ParameterizedTypeVariable) {
 
                 Sort domain = ctx.mkBitVecSort(32);
-                Class<?> genericClass = variableGenericTypeMap.get(name);
-                Sort range = getZ3Sort(genericClass, ctx);
+                ParameterizedTypeVariable pVar = (ParameterizedTypeVariable) variable;
+                Sort range = Utils.getZ3Sort(pVar.getFirstGenericClass(), ctx);
 
                 ArraySort z3ArraySort = ctx.mkArraySort(domain, range);
                 Expr z3ParameterizedBase = ctx.mkConst(name, z3ArraySort);
                 Z3VariableWrapper z3VariableWrapper = new Z3VariableWrapper(z3ParameterizedBase);
-                z3VariableWrapper.setIs_null(isNullVar);
+                // z3VariableWrapper.setIs_null(isNullVar);
                 if (!haveDuplicateVariable(z3VariableWrapper, z3Vars)) {
                     z3Vars.add(z3VariableWrapper);
                 }
@@ -712,10 +705,10 @@ public class SymbolicExecutionRewrite {
                     } else {
                         stringValue = evaluateResult.toString();
                     }
-                    Expr is_null = model.evaluate(z3VariableWrapper.getIs_null(),true);
-                    if(!is_null.isTrue()){
-                        stringValue = null;
-                    }
+//                    Expr is_null = model.evaluate(z3VariableWrapper.getIs_null(),true);
+//                    if(!is_null.isTrue()){
+//                        stringValue = null;
+//                    }
 
                     evaluatedValues.put(name, stringValue);
 
@@ -767,15 +760,15 @@ public class SymbolicExecutionRewrite {
                                 ArrayType arrayType = (ArrayType) decl.getType();
                                 elementTypeName = arrayType.getElementType().toString();
                             } else {
-                                // Nếu là List<Integer>, List<String>...
-                                Class<?> genericClass = variableGenericTypeMap.get(paramName);
-                                elementTypeName = genericClass.getSimpleName();
+                                Variable variable = symbolicMap.getVariable(paramName);
+                                ParameterizedTypeVariable pVar = (ParameterizedTypeVariable) variable;
+                                elementTypeName = pVar.getFirstGenericClass().getSimpleName();
                             }
 
                             try {
                                 // Chọn kích thước sort theo kiểu dữ liệu
                                 Sort domainSort = ctx.mkBitVecSort(32);
-                                Sort rangeSort = getZ3Sort(elementTypeName, ctx);
+                                Sort rangeSort = Utils.getZ3Sort(elementTypeName, ctx);
 
                                 // dựng lại tham chiếu đến mảng gốc ban đầu với đúng sort
                                 Expr z3ArrayBase = ctx.mkConst(paramName, ctx.mkArraySort(domainSort, rangeSort));
@@ -900,10 +893,10 @@ public class SymbolicExecutionRewrite {
                     result.add(listInstance);
                 }
                 // kiểm tra xem có phải kiểu simple type không
-                else if (BeanUtils.isSimpleValueType(parameterClass)){
+/*                else if (BeanUtils.isSimpleValueType(parameterClass)){
                     Object parseValue = parseSimpleTypeString(lineData,parameterClass);
                     result.add(parseValue);
-                }
+                }*/
                 else {
                     log.warn("Chưa hỗ trợ ép kiểu Object phức tạp: {}. Tự động gán null.", parameterClass.getName());
                     result.add(null);
@@ -1094,14 +1087,16 @@ public class SymbolicExecutionRewrite {
             // Hiện tại mới chỉ xử lí .get của List
             @Override
             public boolean visit(MethodInvocation node) {
-                String methodName = node.getName().getIdentifier();
                 if (node.getExpression() == null || !(node.getExpression() instanceof SimpleName)) {
                     log.debug("Bỏ qua hoặc không thể xác định className");
                     return super.visit(node);
                 }
-                String className = ((SimpleName) node.getExpression()).getIdentifier();
 
-                if (!variableGenericTypeMap.containsKey(className)) {
+                String varName = ((SimpleName) node.getExpression()).getIdentifier();
+                Variable variable = symbolicMap.getVariable(varName);
+                String methodName = node.getName().getIdentifier();
+
+                if (!(variable instanceof ParameterizedTypeVariable)) {
                     return super.visit(node);
                 }
 
@@ -1125,10 +1120,10 @@ public class SymbolicExecutionRewrite {
                             (ExpressionNode) executedIndexNode, ctx, Z3Vars, symbolicMap);
 
                     symbolicArrayIndexExpressions
-                            .computeIfAbsent(className, ignored -> new ArrayList<>())
+                            .computeIfAbsent(varName, ignored -> new ArrayList<>())
                             .add(symbolicIndexExpr);
 
-                    ParameterizedTypeVariable listVar = (ParameterizedTypeVariable) symbolicMap.getVariable(className);
+                    ParameterizedTypeVariable listVar = (ParameterizedTypeVariable) symbolicMap.getVariable(varName);
                     Expr latestSizeExpr = listVar.getLatestSize();
                     BoolExpr sizeGtIdx = ctx.mkBVSGT((BitVecExpr) latestSizeExpr, (BitVecExpr) symbolicIndexExpr);
                     extraConstraints.add(sizeGtIdx);
@@ -1140,7 +1135,7 @@ public class SymbolicExecutionRewrite {
                     extraConstraints.add(idxBound);
 
                 } catch (RuntimeException ex) {
-                    System.out.println("Khong the thu thap index symbolic cho List " + className + ": " + ex.getMessage());
+                    System.out.println("Khong the thu thap index symbolic cho List " + varName + ": " + ex.getMessage());
                 }
 
                 return super.visit(node);
@@ -1249,62 +1244,32 @@ public class SymbolicExecutionRewrite {
     }
 
     private ArrayNode createVirtualArrayForParameterized(ParameterizedType pType, int length, String variableName) {
-        // 1. Khởi tạo khay chứa ảo (ArrayNode)
         ArrayNode virtualArray = new ArrayNode();
-
-        // Với Collection (List/Stack/Queue), ta luôn mặc định là mảng 1 chiều trong Symbolic Execution
         virtualArray.setNumberOfDimensions(1);
         virtualArray.setLengthOfDimensions(IntegerLiteralNode.executeIntegerLiteral(length));
 
-        // 2. Xác định kiểu phần tử từ Map Generic (thay vì dùng getElementType như mảng)
         Class<?> genericClass = variableGenericTypeMap.get(variableName);
-
         if (genericClass != null) {
-            // 3. Chuyển đổi Class sang PrimitiveTypeNode (để Tool hiểu loại dữ liệu)
-            PrimitiveType.Code primitiveCode = getPrimitiveTypeCode(genericClass);
+            PrimitiveType.Code primitiveCode = Utils.getPrimitiveTypeCode(genericClass);
             PrimitiveTypeNode primitiveTypeNode = new PrimitiveTypeNode();
             primitiveTypeNode.setTypeCode(primitiveCode);
             virtualArray.setType(primitiveTypeNode);
-
-            // 4. Đổ các "ô nhớ giả" (default elements) vào khay chứa
-            // Ta sử dụng lại chính logic changePrimitiveTypeToLiteralInitializationArray của Tool
-            // để tạo ra danh sách các LiteralNode mặc định (như 0, 0.0, false...)
             LiteralNode[] defaultElements = changeClassToLiteralInitializationArray(genericClass, length);
             virtualArray.setElements(0, defaultElements);
         }
-
         return virtualArray;
     }
 
-    // Dịch từ Class sang Code của JDT PrimitiveType
-    private PrimitiveType.Code mapClassToJDTPrimitiveCode(Class<?> clazz) {
-        if (clazz.equals(Long.class)) return PrimitiveType.LONG;
-        if (clazz.equals(Double.class)) return PrimitiveType.DOUBLE;
-        if (clazz.equals(Float.class)) return PrimitiveType.FLOAT;
-        if (clazz.equals(Boolean.class)) return PrimitiveType.BOOLEAN;
-        if (clazz.equals(Character.class)) return PrimitiveType.CHAR;
-        return PrimitiveType.INT; // Mặc định là Integer
-    }
 
-    // Tạo mảng các Literal mặc định giống hệt cách mảng đang làm
     private LiteralNode[] changeClassToLiteralInitializationArray(Class<?> clazz, int length) {
-        // Ta ánh xạ từ Class sang đúng các hàm sinh Array của Tool
         if (clazz.equals(Integer.class)) {
-
             return IntegerLiteralNode.createIntegerLiteralInitializationArray(length);
-
         } else if (clazz.equals(Double.class)) {
-
             return DoubleLiteralNode.createDoubleLiteralInitializationArray(length);
-
         } else if (clazz.equals(Character.class)) {
-
             return CharacterLiteralNode.createCharacterLiteralInitializationArray(length);
-
         } else if (clazz.equals(Boolean.class)) {
-
             return BooleanLiteralNode.createBooleanLiteralInitializationArray(length);
-
         } else {
             throw new RuntimeException("Chưa hỗ trợ khởi tạo mảng cho kiểu: " + clazz.getName());
         }
@@ -1348,70 +1313,6 @@ public class SymbolicExecutionRewrite {
         return result;
     }
 
-    /**
-     * Lấy Primitive Code dựa trên kiểu tương ứng.
-     */
-    private PrimitiveType.Code getPrimitiveTypeCode(Object input) {
-
-        String typeName;
-        if (input instanceof Class) {
-            typeName = ((Class<?>) input).getSimpleName().toLowerCase();
-        } else {
-            typeName = input.toString().toLowerCase();
-        }
-
-        switch (typeName) {
-            case "int":
-            case "integer":
-                return PrimitiveType.INT;
-            case "boolean":
-                return PrimitiveType.BOOLEAN;
-            case "byte":
-                return PrimitiveType.BYTE;
-            case "short":
-                return PrimitiveType.SHORT;
-            case "char":
-            case "character":
-                return PrimitiveType.CHAR;
-            case "long":
-                return PrimitiveType.LONG;
-            case "float":
-                return PrimitiveType.FLOAT;
-            case "double":
-                return PrimitiveType.DOUBLE;
-            case "void":
-                return PrimitiveType.VOID;
-            default:
-                return PrimitiveType.INT;
-        }
-    }
-
-    /**
-     * Chuyển đổi tên kiểu dữ liệu hoặc Class sang Z3 Sort tương ứng.
-     */
-    private Sort getZ3Sort(Object typeInput, Context ctx) {
-        String typeName;
-        if (typeInput instanceof Class) {
-            typeName = ((Class<?>) typeInput).getSimpleName().toLowerCase();
-        } else {
-            typeName = typeInput.toString().toLowerCase();
-        }
-
-        switch (typeName) {
-            case "long":
-                return ctx.mkBitVecSort(64);
-            case "double":
-                return ctx.mkFPSortDouble();
-            case "float":
-                return ctx.mkFPSortSingle();
-            case "boolean":
-                return ctx.mkBoolSort();
-            case "int":
-            case "integer":
-            default:
-                return ctx.mkBitVecSort(32);
-        }
-    }
 
     public static class MockInfo {
         public String className;
@@ -1580,32 +1481,6 @@ public class SymbolicExecutionRewrite {
         return currentCfgNode;
     }
 
-    // TEST
-    private static Class<?> convertStringToClass(String typeName) {
-        switch (typeName) {
-            case "Integer":
-            case "int":
-                return int.class;
-            case "Long":
-            case "long":
-                return long.class;
-            case "Double":
-            case "double":
-                return double.class;
-            case "Float":
-            case "float":
-                return float.class;
-            case "String":
-                return String.class;
-            default:
-                // Nếu là một Object class tự định nghĩa khác, cố gắng nạp class qua Reflection
-                try {
-                    return Class.forName("data.clonedProject." + typeName); // Sửa lại package chuẩn của bạn nếu cần
-                } catch (ClassNotFoundException e) {
-                    return Object.class; // Hướng bao vây nếu không tìm thấy
-                }
-        }
-    }
 }
 
 
