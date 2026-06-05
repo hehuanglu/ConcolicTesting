@@ -40,8 +40,8 @@ public class MemoryModel { // ONLY FOR PRIMITIVE TYPES!!!!
         S.put(new ArrayTypeVariable(type, name, numberOfDimensions), element);
     }
 
-    public void declareParameterizedTypeVariable(ParameterizedType type, String name, AstNode element) {
-        S.put(new ParameterizedTypeVariable(type, name, SymbolicExecutionRewrite.globalCtx.get().mkBVConst(name + ".size", 32)), element);
+    public void declareParameterizedTypeVariable(ParameterizedType type, String name, AstNode element, boolean isParameter) {
+        S.put(new ParameterizedTypeVariable(type, name, SymbolicExecutionRewrite.globalCtx.get().mkBVConst(name + ".size", 32), isParameter), element);
     }
 
     public void declareSimpleTypeVariable(SimpleType simpleType, String name, AstNode element) {

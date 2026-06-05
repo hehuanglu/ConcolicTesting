@@ -1,13 +1,17 @@
 package core.variable;
 
-import com.microsoft.z3.Expr;
+import com.microsoft.z3.*;
+import core.Z3Vars.Z3VariableWrapper;
+import core.ast.AstNode;
+import core.symbolicExecution.SymbolicExecutionRewrite;
 import core.utils.Utils;
 import org.eclipse.jdt.core.dom.ParameterizedType;
 import org.eclipse.jdt.core.dom.Type;
-
+import lombok.extern.slf4j.Slf4j;
 import java.util.ArrayList;
 import java.util.List;
 
+@Slf4j
 public class ParameterizedTypeVariable extends Variable {
     private ParameterizedType parameterizedType;
     private String collectionType;
@@ -15,7 +19,7 @@ public class ParameterizedTypeVariable extends Variable {
     private List<Class<?>> genericClasses = new ArrayList<>();
     private int version = 0;
 
-    public ParameterizedTypeVariable(ParameterizedType parameterizedType, String name, Expr size) {
+    public ParameterizedTypeVariable(ParameterizedType parameterizedType, String name, Expr size, boolean isParameter) {
         super.setName(name);
         this.parameterizedType = parameterizedType;
         this.collectionType = parameterizedType.getType().toString();
@@ -32,6 +36,27 @@ public class ParameterizedTypeVariable extends Variable {
             }
         }
 
+        if (!isParameter) {
+            Context ctx = SymbolicExecutionRewrite.globalCtx.get();
+            Expr sizeEqualsZero = ctx.mkEq(size, ctx.mkBV(0, 32));
+            SymbolicExecutionRewrite.extraConstraints.add((BoolExpr) sizeEqualsZero);
+        }
+    }
+
+
+    public static Expr createZ3ParameterizedTypeVariable(ParameterizedTypeVariable pVar, Context ctx) {
+        String name = pVar.getName();
+        if (pVar.getType() != null) {
+            SymbolicExecutionRewrite.variableTypeMap.put(name, pVar.getType().toString());
+        } else {
+            throw new RuntimeException("ParameterizedTypeVariable is null!");
+        }
+        Sort domain = ctx.mkBitVecSort(32);
+        Sort range = Utils.getZ3Sort(pVar.getFirstGenericClass(), ctx);
+        ArraySort z3ArraySort = ctx.mkArraySort(domain, range);
+        Expr z3ParameterizedBase = ctx.mkConst(name, z3ArraySort);
+        SymbolicExecutionRewrite.z3ArrayStateMap.get().put(name, z3ParameterizedBase);
+        return z3ParameterizedBase;
     }
 
 

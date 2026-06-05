@@ -66,7 +66,6 @@ public class SymbolicExecutionRewrite {
     public static ThreadLocal<Map<String, Expr>> z3ArrayStateMap = ThreadLocal.withInitial(java.util.HashMap::new);
     public static ThreadLocal<Context> globalCtx = new ThreadLocal<>();
     public static ThreadLocal<List<Z3VariableWrapper>> globalZ3Vars = new ThreadLocal<>();
-    public static Map<String, Class<?>> variableGenericTypeMap = new HashMap<>();
     public static List<BoolExpr> extraConstraints = new ArrayList<>();
 
     public SymbolicExecutionRewrite(Path testPath, List<ASTNode> parameters) {
@@ -146,7 +145,7 @@ public class SymbolicExecutionRewrite {
                         int inferredLength = inferArrayParameterLength(name);
                         parameterArrayLengths.put(name, inferredLength);
                         ArrayNode virtualList = createVirtualArrayForParameterized(pType, inferredLength, name);
-                        symbolicMap.declareParameterizedTypeVariable(pType, name, virtualList);
+                        symbolicMap.declareParameterizedTypeVariable(pType, name, virtualList,true);
                     }
                 }
             }
@@ -389,8 +388,7 @@ public class SymbolicExecutionRewrite {
                                 if (rawTypeName.equals("List")) {
 
                                     if (!pType.typeArguments().isEmpty()) {
-                                        Type argType = (Type) pType.typeArguments().get(0);
-                                        SymbolicExecutionRewrite.variableGenericTypeMap.put(name, getTypeClass(argType));
+                                        SymbolicExecutionRewrite.variableTypeMap.put(name, pType.toString());
                                     }
 
                                     if (rightExpression instanceof ClassInstanceCreationNode) {
@@ -401,7 +399,7 @@ public class SymbolicExecutionRewrite {
                                             z3ArrayStateMap.get().put(name, emptyZ3List);
                                         }
                                     }
-                                    symbolicMap.declareParameterizedTypeVariable(pType, name, rightExpression);
+                                    symbolicMap.declareParameterizedTypeVariable(pType, name, rightExpression, false);
                                 }
                             }
                             else {
@@ -419,15 +417,14 @@ public class SymbolicExecutionRewrite {
 
                                 if (rawTypeName.equals("List") || rawTypeName.equals("ArrayList")) {
                                     if (!pType.typeArguments().isEmpty()) {
-                                        Type argType = (Type) pType.typeArguments().get(0);
-                                        SymbolicExecutionRewrite.variableGenericTypeMap.put(name, getTypeClass(argType));
+                                        SymbolicExecutionRewrite.variableTypeMap.put(name, pType.toString());
                                     }
 
                                     // Tạo node định danh cơ bản và phi thẳng vào symbolicMap
                                     SimpleNameNode simpleNameNode = new SimpleNameNode();
                                     simpleNameNode.setIdentifier(name);
 
-                                    symbolicMap.declareParameterizedTypeVariable(pType, name, simpleNameNode);
+                                    symbolicMap.declareParameterizedTypeVariable(pType, name, simpleNameNode, false);
                                 }
                             } else {
                                 throw new RuntimeException("Only deal with PrimitiveType!!");
@@ -587,19 +584,13 @@ public class SymbolicExecutionRewrite {
 
                 SymbolicExecutionRewrite.z3ArrayStateMap.get().put(name, z3ArrayBase);
             } else if (variable instanceof ParameterizedTypeVariable) {
-
-                Sort domain = ctx.mkBitVecSort(32);
-                ParameterizedTypeVariable pVar = (ParameterizedTypeVariable) variable;
-                Sort range = Utils.getZ3Sort(pVar.getFirstGenericClass(), ctx);
-
-                ArraySort z3ArraySort = ctx.mkArraySort(domain, range);
-                Expr z3ParameterizedBase = ctx.mkConst(name, z3ArraySort);
-                Z3VariableWrapper z3VariableWrapper = new Z3VariableWrapper(z3ParameterizedBase);
-                z3VariableWrapper.setIs_null(isNullVar);
-                if (!haveDuplicateVariable(z3VariableWrapper, z3Vars)) {
-                    z3Vars.add(z3VariableWrapper);
+                Expr z3Variable = Variable.createZ3Variable(variable, ctx);
+                if (z3Variable != null) {
+                    Z3VariableWrapper z3VariableWrapper = new Z3VariableWrapper(z3Variable);
+                    if (!haveDuplicateVariable(z3VariableWrapper, z3Vars)) {
+                        z3Vars.add(z3VariableWrapper);
+                    }
                 }
-                SymbolicExecutionRewrite.z3ArrayStateMap.get().put(name, z3ParameterizedBase);
             } else {
                 throw new RuntimeException("Invalid type variable");
             }
@@ -896,7 +887,8 @@ public class SymbolicExecutionRewrite {
                 else if (BeanUtils.isSimpleValueType(parameterClass)){
                     Object parseValue = parseSimpleTypeString(lineData,parameterClass);
                     result.add(parseValue);
-                } else {
+                }
+                else {
                     log.warn("Chưa hỗ trợ ép kiểu Object phức tạp: {}. Tự động gán null.", parameterClass.getName());
                     result.add(null);
                 }
@@ -1210,7 +1202,7 @@ public class SymbolicExecutionRewrite {
 
             String className = ((SimpleName) node.getExpression()).getIdentifier();
 
-            if (!arrayName.equals(className) || !variableGenericTypeMap.containsKey(className)) {
+            if (!arrayName.equals(className) || !variableTypeMap.containsKey(className)) {
                 return super.visit(node);
             }
 
@@ -1247,7 +1239,7 @@ public class SymbolicExecutionRewrite {
         virtualArray.setNumberOfDimensions(1);
         virtualArray.setLengthOfDimensions(IntegerLiteralNode.executeIntegerLiteral(length));
 
-        Class<?> genericClass = variableGenericTypeMap.get(variableName);
+        Class<?> genericClass = Utils.extractGenericType(variableTypeMap.get(variableName));
         if (genericClass != null) {
             PrimitiveType.Code primitiveCode = Utils.getPrimitiveTypeCode(genericClass);
             PrimitiveTypeNode primitiveTypeNode = new PrimitiveTypeNode();
@@ -1418,7 +1410,7 @@ public class SymbolicExecutionRewrite {
 
     private static Object createRandomCollectionVariableData(Class<?> parameterClass, String parameterName) {
         List<Object> listInstance = new ArrayList<>();
-        Class<?> targetType = variableGenericTypeMap.get(parameterName);
+        Class<?> targetType = Utils.extractGenericType(variableTypeMap.get(parameterName));
         for (int i = 0; i < 10; i++) {
             Object randomData = createRandomPrimitiveVariableData(targetType);
             listInstance.add(randomData);

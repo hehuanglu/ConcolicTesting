@@ -60,7 +60,6 @@ public final class TestDriverUtils {
 
     public static List<String> getParameterNames(List<ASTNode> parameters) {
         List<String> names = new ArrayList<>();
-        SymbolicExecutionRewrite.variableGenericTypeMap.clear();
         for (int i = 0; i < parameters.size(); i++) {
             ASTNode param = parameters.get(i);
             if (param instanceof SingleVariableDeclaration) {
@@ -71,8 +70,7 @@ public final class TestDriverUtils {
                 if (type instanceof ParameterizedType) {
                     ParameterizedType pType = (ParameterizedType) type;
                     if (!pType.typeArguments().isEmpty()) {
-                        Type argType = (Type) pType.typeArguments().get(0);
-                        SymbolicExecutionRewrite.variableGenericTypeMap.put(declaration.getName().getIdentifier(), getTypeClass(argType));
+                         SymbolicExecutionRewrite.variableTypeMap.put(declaration.getName().getIdentifier(), pType.toString());
                     }
                 }
             } else if (param instanceof VariableDeclarationFragment) {

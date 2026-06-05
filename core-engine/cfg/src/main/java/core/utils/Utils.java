@@ -411,4 +411,15 @@ public class Utils {
                 return PrimitiveType.INT;
         }
     }
+
+    public static Class<?> extractGenericType(String fullType) {
+        if (fullType == null || !fullType.contains("<")) {
+            return null;
+        }
+        int start = fullType.indexOf("<") + 1;
+        int end = fullType.indexOf(">");
+        String typeName = fullType.substring(start, end).trim();
+
+        return mapStringtoClass(typeName);
+    }
 }
