@@ -30,7 +30,7 @@ import core.variable.*;
 import lombok.extern.slf4j.Slf4j;
 import org.eclipse.jdt.core.dom.*;
 import org.eclipse.jdt.core.dom.AST;
-//import org.springframework.beans.BeanUtils;
+import org.springframework.beans.BeanUtils;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -580,7 +580,7 @@ public class SymbolicExecutionRewrite {
 
                 // Bọc xong đưa vào danh sách Z3Vars để đi luồng chính
                 Z3VariableWrapper z3VariableWrapper = new Z3VariableWrapper(z3ArrayBase);
-                // z3VariableWrapper.setIs_null(isNullVar);
+                z3VariableWrapper.setIs_null(isNullVar);
                 if (!haveDuplicateVariable(z3VariableWrapper, z3Vars)) {
                     z3Vars.add(z3VariableWrapper);
                 }
@@ -595,7 +595,7 @@ public class SymbolicExecutionRewrite {
                 ArraySort z3ArraySort = ctx.mkArraySort(domain, range);
                 Expr z3ParameterizedBase = ctx.mkConst(name, z3ArraySort);
                 Z3VariableWrapper z3VariableWrapper = new Z3VariableWrapper(z3ParameterizedBase);
-                // z3VariableWrapper.setIs_null(isNullVar);
+                z3VariableWrapper.setIs_null(isNullVar);
                 if (!haveDuplicateVariable(z3VariableWrapper, z3Vars)) {
                     z3Vars.add(z3VariableWrapper);
                 }
@@ -705,10 +705,10 @@ public class SymbolicExecutionRewrite {
                     } else {
                         stringValue = evaluateResult.toString();
                     }
-//                    Expr is_null = model.evaluate(z3VariableWrapper.getIs_null(),true);
-//                    if(!is_null.isTrue()){
-//                        stringValue = null;
-//                    }
+                    Expr is_null = model.evaluate(z3VariableWrapper.getIs_null(),true);
+                    if(!is_null.isTrue()){
+                        stringValue = null;
+                    }
 
                     evaluatedValues.put(name, stringValue);
 
@@ -893,11 +893,10 @@ public class SymbolicExecutionRewrite {
                     result.add(listInstance);
                 }
                 // kiểm tra xem có phải kiểu simple type không
-/*                else if (BeanUtils.isSimpleValueType(parameterClass)){
+                else if (BeanUtils.isSimpleValueType(parameterClass)){
                     Object parseValue = parseSimpleTypeString(lineData,parameterClass);
                     result.add(parseValue);
-                }*/
-                else {
+                } else {
                     log.warn("Chưa hỗ trợ ép kiểu Object phức tạp: {}. Tự động gán null.", parameterClass.getName());
                     result.add(null);
                 }
