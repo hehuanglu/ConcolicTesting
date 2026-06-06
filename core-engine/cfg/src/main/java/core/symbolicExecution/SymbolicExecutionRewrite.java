@@ -79,7 +79,7 @@ public class SymbolicExecutionRewrite {
         currentCfgNode = null;
         parameterArrayLengths.clear();
         symbolicArrayIndexExpressions.clear();
-
+        extraConstraints.clear();
 
 
         HashMap<String, String> cfg = new HashMap();
@@ -185,17 +185,20 @@ public class SymbolicExecutionRewrite {
                             currentTestingMethodName = ((MethodDeclaration) parentNode).getName().getIdentifier();
                         }
 
-                        // Nếu expression là một biến đã tồn tại trong bộ nhớ (ví dụ: String input)
-                        // thì đây là gọi hàm từ object, không phải gọi hàm static từ Class -> KHÔNG MOCK
                         if (methodInvocation.getExpression() != null) {
-                            String expressionStr = methodInvocation.getExpression().toString();
-                            try {
-                                if (symbolicMap.getVariable(expressionStr) != null) {
-                                    System.out.println("Bỏ qua mock vì " + expressionStr + " là một biến đối tượng.");
-                                    return super.visit(methodInvocation);
+                            Expression rootExpr = methodInvocation.getExpression();
+                            while (rootExpr instanceof MethodInvocation) {
+                                rootExpr = ((MethodInvocation) rootExpr).getExpression();
+                            }
+                            if (rootExpr != null) {
+                                String expressionStr = rootExpr.toString();
+                                try {
+                                    if (symbolicMap.getVariable(expressionStr) != null) {
+                                        System.out.println("Bỏ qua mock vì " + expressionStr + " là một biến đối tượng.");
+                                        return super.visit(methodInvocation);
+                                    }
+                                } catch (Exception ignored) {
                                 }
-                            } catch (Exception ignored) {
-                                // Nếu không tìm thấy trong symbolicMap thì có thể là tên Class thật
                             }
                         }
 
@@ -383,13 +386,13 @@ public class SymbolicExecutionRewrite {
                             } else if (stm.getType() instanceof ParameterizedType) {
                                 ParameterizedType pType = (ParameterizedType) stm.getType();
                                 String rawTypeName = pType.getType().toString();
+
+                                if (!pType.typeArguments().isEmpty()) {
+                                    SymbolicExecutionRewrite.variableTypeMap.put(name, pType.toString());
+                                }
                                 AstNode rightExpression = ExpressionNode.executeExpression(initializer, symbolicMap);
 
                                 if (rawTypeName.equals("List")) {
-
-                                    if (!pType.typeArguments().isEmpty()) {
-                                        SymbolicExecutionRewrite.variableTypeMap.put(name, pType.toString());
-                                    }
 
                                     if (rightExpression instanceof ClassInstanceCreationNode) {
                                         ClassInstanceCreationNode classInstanceNode = (ClassInstanceCreationNode) rightExpression;
@@ -420,7 +423,6 @@ public class SymbolicExecutionRewrite {
                                         SymbolicExecutionRewrite.variableTypeMap.put(name, pType.toString());
                                     }
 
-                                    // Tạo node định danh cơ bản và phi thẳng vào symbolicMap
                                     SimpleNameNode simpleNameNode = new SimpleNameNode();
                                     simpleNameNode.setIdentifier(name);
 
@@ -589,6 +591,18 @@ public class SymbolicExecutionRewrite {
                     Z3VariableWrapper z3VariableWrapper = new Z3VariableWrapper(z3Variable);
                     if (!haveDuplicateVariable(z3VariableWrapper, z3Vars)) {
                         z3Vars.add(z3VariableWrapper);
+                    }
+
+                    ParameterizedTypeVariable pVar = (ParameterizedTypeVariable) variable;
+                    Expr sizeVar = pVar.getBaseSize();
+                    if (sizeVar != null) {
+                        Z3VariableWrapper sizeWrapper = new Z3VariableWrapper(sizeVar);
+                        if (!haveDuplicateVariable(sizeWrapper, z3Vars)) {
+                            z3Vars.add(sizeWrapper);
+                            SymbolicExecutionRewrite.variableTypeMap.put(sizeVar.toString(), "int");
+                        }
+                    } else {
+                        throw new RuntimeException("SizeExpr is null");
                     }
                 }
             } else {
@@ -802,6 +816,12 @@ public class SymbolicExecutionRewrite {
                                                 valStr = fpNum.toString();
                                             }
                                         }
+                                    } else if (evaluatedElement instanceof SeqExpr) {
+                                        String rawVal = evaluatedElement.toString();
+                                        String cleanVal = rawVal.replace("\"", "");
+                                        valStr = "\"" + cleanVal + "\"";
+                                    } else {
+                                        throw new RuntimeException("Không thể dựng lại mảng cho kiểu dữ  liệu: " + elementTypeName);
                                     }
 
                                     arrStr.append(valStr);
@@ -831,7 +851,7 @@ public class SymbolicExecutionRewrite {
         }
     }
 
-    public Object[] getEvaluatedTestData(Class<?>[] parameterClasses) {
+    public Object[] getEvaluatedTestData(Class<?>[] parameterClasses, List<String> parameterNames) {
         List<Object> result = new ArrayList<>();
 
         String[] lines = this.globalZ3Result.split("\\r?\\n");
@@ -846,6 +866,7 @@ public class SymbolicExecutionRewrite {
             }
 
             Class<?> parameterClass = parameterClasses[i];
+            String parameterName = parameterNames.get(i);
             String lineData = lines[i].trim();
 
             // tham số là biến đơn
@@ -874,12 +895,12 @@ public class SymbolicExecutionRewrite {
                     // Thêm mảng hoàn chỉnh vào danh sách kết quả
                     result.add(arrayInstance);
                 } else if (java.util.List.class.isAssignableFrom(parameterClass)) {
-                    // Cắt chuỗi theo dấu phẩy
+                    String elementClass = Utils.extractGenericName(variableTypeMap.get(parameterName));
                     String[] strElements = lineData.split(",");
                     List<Object> listInstance = new ArrayList<>();
 
                     for (String str : strElements) {
-                        listInstance.add(parsePrimitiveString(str.trim(), "int"));
+                        listInstance.add(parsePrimitiveString(str.trim(), elementClass));
                     }
                     result.add(listInstance);
                 }
@@ -937,7 +958,7 @@ public class SymbolicExecutionRewrite {
         throw new IllegalArgumentException("Chưa hỗ trợ kiểu này: " + type.getName());
     }
     private Object parsePrimitiveString(String valStr, String type) {
-        valStr = valStr.trim();
+        valStr = valStr.replace("\"", "").trim();
 
         if ("int".equals(type)) return Integer.parseInt(valStr);
         if ("boolean".equals(type)) return Boolean.parseBoolean(valStr);
@@ -1083,11 +1104,11 @@ public class SymbolicExecutionRewrite {
                     return super.visit(node);
                 }
 
-                String varName = ((SimpleName) node.getExpression()).getIdentifier();
-                Variable variable = symbolicMap.getVariable(varName);
                 String methodName = node.getName().getIdentifier();
+                String varName = ((SimpleName) node.getExpression()).getIdentifier();
+                String type = variableTypeMap.get(varName);
 
-                if (!(variable instanceof ParameterizedTypeVariable)) {
+                if (type == null || !type.contains("List")) {
                     return super.visit(node);
                 }
 
@@ -1245,8 +1266,8 @@ public class SymbolicExecutionRewrite {
             PrimitiveTypeNode primitiveTypeNode = new PrimitiveTypeNode();
             primitiveTypeNode.setTypeCode(primitiveCode);
             virtualArray.setType(primitiveTypeNode);
-            LiteralNode[] defaultElements = changeClassToLiteralInitializationArray(genericClass, length);
-            virtualArray.setElements(0, defaultElements);
+            // LiteralNode[] defaultElements = changeClassToLiteralInitializationArray(genericClass, length);
+            // virtualArray.setElements(0, defaultElements);
         }
         return virtualArray;
     }

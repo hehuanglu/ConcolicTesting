@@ -55,10 +55,10 @@ public class MethodInvocationNode extends ExpressionNode {
 
         String methodName = methodInvocation.getName().toString();
 
-
         if (methodInvocation.getExpression() != null) { // method invocation in the same class
             String className = methodInvocation.getExpression().toString();
             IMethodBinding methodBinding = methodInvocation.resolveMethodBinding();
+            boolean isStatic = (methodBinding != null) && Modifier.isStatic(methodBinding.getModifiers());
             if (methodBinding != null) {
                 ITypeBinding declaringClass = methodBinding.getDeclaringClass();
                 if (declaringClass != null) {
@@ -74,7 +74,10 @@ public class MethodInvocationNode extends ExpressionNode {
                     arguments.add(argNode);
                 }
                 // thực thi tượng trưng target
-                AstNode target = ExpressionNode.executeExpression(methodInvocation.getExpression(), memoryModel);
+                AstNode target = null;
+                if (!isStatic) {
+                    target = ExpressionNode.executeExpression(methodInvocation.getExpression(), memoryModel);
+                }
                 return new StringMethodNode(target, methodName, arguments);
             }
             else if(className.equals("Long") || className.equals("java.lang.Long")){
@@ -96,14 +99,13 @@ public class MethodInvocationNode extends ExpressionNode {
                 return new MethodInvocationNode(className, methodName, arguments);
             }
 
-            if (className.contains("java.util.List")) {
+            if (className.startsWith("java.util.List")) {
                 String expressionStr = methodInvocation.getExpression().toString();
                 if (methodName.equals("get")) {
                     List<AstNode> arguments = new ArrayList<>();
                     for (Object arg : methodInvocation.arguments()) {
                         arguments.add(ExpressionNode.executeExpression((Expression) arg, memoryModel));
                     }
-                    // Trả về MethodInvocationNode chứa tên List (expressionStr) và index (arguments)
                     return new MethodInvocationNode(expressionStr, methodName, arguments);
                 }
 
@@ -339,10 +341,10 @@ public class MethodInvocationNode extends ExpressionNode {
                 ParameterizedTypeVariable listVar = (ParameterizedTypeVariable) var;
                 Expr sizeVar = listVar.getLatestSize();
                 Z3VariableWrapper wrapper = new Z3VariableWrapper(sizeVar);
-
-                if (!SymbolicExecutionRewrite.haveDuplicateVariable(wrapper, vars)) {
-                    vars.add(wrapper);
-                }
+                // Chi add size goc vao Z3Var thoi
+//                if (!SymbolicExecutionRewrite.haveDuplicateVariable(wrapper, vars)) {
+//                    vars.add(wrapper);
+//                }
                 return sizeVar;
             } else if ("add".equals(methodName)) {
 
@@ -368,10 +370,11 @@ public class MethodInvocationNode extends ExpressionNode {
                 SymbolicExecutionRewrite.z3ArrayStateMap.get().put(className, newArrayState);
 
                 listVar.addNewSizeVersion(newSizeConstant);
-                Z3VariableWrapper wrapper = new Z3VariableWrapper(newSizeConstant);
-                if (!SymbolicExecutionRewrite.haveDuplicateVariable(wrapper, vars)) {
-                    vars.add(wrapper);
-                }
+                // Chi add size goc vao Z3Var thoi
+//                Z3VariableWrapper wrapper = new Z3VariableWrapper(newSizeConstant);
+//                if (!SymbolicExecutionRewrite.haveDuplicateVariable(wrapper, vars)) {
+//                    vars.add(wrapper);
+//                }
 
                 return ctx.mkTrue();
             }

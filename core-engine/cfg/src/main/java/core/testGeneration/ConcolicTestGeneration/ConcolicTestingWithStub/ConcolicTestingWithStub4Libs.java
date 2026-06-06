@@ -662,7 +662,7 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
         TestGeneration.parameterNames = TestDriverUtils.getParameterNames(TestGeneration.parameters);
         TestGeneration.parameterClasses = TestDriverUtils.getParameterClasses(TestGeneration.parameters);
 
-        Object[] evaluatedValues = solution.getEvaluatedTestData(TestGeneration.parameterClasses);
+        Object[] evaluatedValues = solution.getEvaluatedTestData(TestGeneration.parameterClasses, TestGeneration.parameterNames);
 
         log.debug("Z3 giải ra bộ input thô: {}", Arrays.toString(evaluatedValues));
 

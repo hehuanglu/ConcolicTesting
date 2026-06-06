@@ -337,8 +337,11 @@ public class Utils {
                 return ctx.mkBoolSort();
             case "int":
             case "integer":
-            default:
                 return ctx.mkBitVecSort(32);
+            case "string":
+                return ctx.mkStringSort();
+            default:
+                throw new UnsupportedOperationException("Unsupported z3Sort type");
         }
     }
 
@@ -373,7 +376,7 @@ public class Utils {
             case "String":
                 return String.class;
             default:
-                throw new RuntimeException("Unsupported ");
+                throw new UnsupportedOperationException("Unsupported" + typeName);
         }
     }
 
@@ -419,7 +422,15 @@ public class Utils {
         int start = fullType.indexOf("<") + 1;
         int end = fullType.indexOf(">");
         String typeName = fullType.substring(start, end).trim();
-
         return mapStringtoClass(typeName);
+    }
+
+    public static String extractGenericName(String fullType) {
+        if (fullType == null || !fullType.contains("<") || !fullType.contains(">")) {
+            return null;
+        }
+        int start = fullType.indexOf("<") + 1;
+        int end = fullType.lastIndexOf(">");
+        return fullType.substring(start, end).trim();
     }
 }

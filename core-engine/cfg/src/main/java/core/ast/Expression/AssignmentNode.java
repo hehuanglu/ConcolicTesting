@@ -42,7 +42,7 @@ public class AssignmentNode extends ExpressionNode {
             memoryModel.assignVariable(key, assignValue);
             if (assignmentNode.rightHandSide instanceof ClassInstanceCreationNode) {
                 ClassInstanceCreationNode classInstanceNode = (ClassInstanceCreationNode) assignmentNode.rightHandSide;
-                String typeStr = classInstanceNode.getTypeStr();
+                String typeStr = classInstanceNode.getType().toString();
                 if (typeStr != null && (typeStr.startsWith("ArrayList"))) {
                     Expr emptyZ3List = classInstanceNode.getZ3Expression();
                     if (emptyZ3List != null) {
