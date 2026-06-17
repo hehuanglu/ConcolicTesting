@@ -40,6 +40,7 @@ import java.lang.reflect.GenericArrayType;
 import java.math.BigInteger;
 import java.util.*;
 
+import static core.symbolicExecution.ReflectionStubHelper.getZ3Sort;
 import static core.testDriver.TestDriverUtils.getTypeClass;
 
 @Slf4j
@@ -109,7 +110,7 @@ public class SymbolicExecutionRewrite {
             if (info.returnType != null && info.returnType.equals(String.class)) {
                 continue;
             }
-            Sort z3Sort = ReflectionStubHelper.getZ3Sort(info.returnType != null ? info.returnType : int.class, ctx);
+            Sort z3Sort = getZ3Sort(info.returnType != null ? info.returnType : int.class, ctx);
             Expr mockExpr = ctx.mkConst(info.mockVarName, z3Sort);
             Z3VariableWrapper wrapper = new Z3VariableWrapper(mockExpr);
 
@@ -256,7 +257,7 @@ public class SymbolicExecutionRewrite {
                         }
 
                         if (returnType != null) {
-                            Sort z3Sort = ReflectionStubHelper.getZ3Sort(returnType, ctx);
+                            Sort z3Sort = getZ3Sort(returnType, ctx);
 
                             Expr mockExpr = ctx.mkConst(mockVariableName, z3Sort);
 

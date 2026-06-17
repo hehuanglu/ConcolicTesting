@@ -138,21 +138,22 @@ public class MethodInvocationNode extends ExpressionNode {
                     // Trả về MapMethodNode nếu className chứa java.util.Map
                     return new MapMethodNode(expressionStr, methodName, arguments, targetName);
                 } else {
+                    if (methodName.equals("add")) {
+                        arguments = new ArrayList<>();
+                        for (Object arg : methodInvocation.arguments()) {
+                            arguments.add(ExpressionNode.executeExpression((Expression) arg, memoryModel));
+                        }
+
+                        MethodInvocationNode methodInvocationNode = new MethodInvocationNode(expressionStr, methodName, arguments);
+                        createZ3Expression(methodInvocationNode, memoryModel, SymbolicExecutionRewrite.globalCtx.get(), SymbolicExecutionRewrite.globalZ3Vars.get());
+
+                        return methodInvocationNode;
+                    }
                     // Trả về MethodInvocationNode cho phần còn lại (java.util.List)
                     return new MethodInvocationNode(expressionStr, methodName, arguments, targetName);
                 }
 
-                if (methodName.equals("add")) {
-                    List<AstNode> arguments = new ArrayList<>();
-                    for (Object arg : methodInvocation.arguments()) {
-                        arguments.add(ExpressionNode.executeExpression((Expression) arg, memoryModel));
-                    }
 
-                    MethodInvocationNode methodInvocationNode = new MethodInvocationNode(expressionStr, methodName, arguments);
-                    createZ3Expression(methodInvocationNode, memoryModel, SymbolicExecutionRewrite.globalCtx.get(), SymbolicExecutionRewrite.globalZ3Vars.get());
-
-                    return methodInvocationNode;
-                }
             }
 
             MethodDeclaration methodDeclaration = getInvokedMethodAST(methodName);
