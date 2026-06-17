@@ -124,7 +124,7 @@ public final class TestDriverUtils {
      * @param type
      * @return the class of the type
      */
-    private static Class<?> getTypeClass(Type type) {
+    public static Class<?> getTypeClass(Type type) {
         if (type instanceof PrimitiveType) {
             PrimitiveType.Code primitiveTypeCode = (((PrimitiveType) type).getPrimitiveTypeCode());
             return getPrimitiveClass(primitiveTypeCode);

@@ -35,6 +35,8 @@ public abstract class Variable {
 //            throw new RuntimeException("Invalid type");
         } else if (variable instanceof SimpleTypeVariable) {
             return SimpleTypeVariable.createZ3SimpleTypeVariable((SimpleTypeVariable) variable, ctx);
+        } else if (variable instanceof ParameterizedTypeVariable) {
+            return ParameterizedTypeVariable.createZ3ParameterizedTypeVariable((ParameterizedTypeVariable) variable, ctx);
         }
         else {
             throw new RuntimeException("Invalid type");

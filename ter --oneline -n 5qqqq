@@ -1,0 +1,644 @@
+[33m2e7c9c4c[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mkhanh[m[33m, [m[1;31morigin/khanh[m[33m)[m Merge branch 'master' of https://github.com/jcia-sqa/jcia-backend into khanh
+[33m8152d51f[m feat: fixed List, method get
+[33m41c8bab3[m merge
+[33maaccf4ff[m merge SimpleType into 'master'
+[33m7a3ece55[m refactor: implement SLF4J/Logback for core engine logging
+[33m20bd2dba[m Merge branch 'master' of https://github.com/jcia-sqa/jcia-backend
+[33m9272f595[m fully support z3 symbolic length and 64-bit  numeric array (long, float, double)
+[33m53d20c76[m[33m ([m[1;32mLOOP4J[m[33m)[m Fixed: coverage could not be calculated.
+[33m634bb4e6[m support long, double, and float arrays in Z3 solver and TestDriver
+[33m037289df[m Merge branch 'LOOP4J' of https://github.com/jcia-sqa/jcia-backend
+[33m0dfcacec[m Xử lí Integer, ..., String
+[33md669db5c[m Fixes the missing ArrayInitializerNode push error.
+[33mbc6b53b9[m Fixing mocked recursive functions
+[33mab6c98b8[m implement Z3 Array Theory & Z3 context
+[33m3d6e92cc[m Calculate the array length to generate accurate solutions.
+[33m207fbbb6[m implement 1D Array Flattening and fix test data parser
+[33m35eb8e19[m add support for type casting
+[33m6c4c2279[m Integrate the data flow graph into the Concolic and complete the creation of the tests.Completed STUBLIB4UT Generator and Z3 Library Modeling
+[33m85e900e1[m Integrate the data flow graph into the Concolic and complete the creation of the tests.
+[33m8fce06f9[m đếm memory used
+[33m352d7193[m sửa lỗi NaN gây lỗi cho testDrive trong hàm myPow
+[33mbcb6c21c[m khắc phục lỗi xử lý biểu thức trung tố trong hàm tribonacci
+[33m30bf4b9d[m merge
+[33ma5e6cafd[m small fix
+[33m2bef636d[m small fix
+[33m77c18c24[m merge
+[33m798b47f4[m sửa lỗi scanner value và socket hang up do devtool tự động rerun
+[33m24219853[m Merge branch 'LOOP4J' of https://github.com/jcia-sqa/jcia-backend into LOOP4J
+[33m1909448c[m thử debug nhỏ
+[33mf1b61954[m  hoàn thành việc merge với nhánh newPostProject
+[33me924627c[m Merge to newPostProject
+[33mee08e75d[m small fix
+[33m9f97ada5[m Merge branch 'LOOP4J' of https://github.com/jcia-sqa/jcia-backend into LOOP4J
+[33me53fa4aa[m fix assignment with loop
+[33m776a5b17[m  sửa path sinh đường đi,test thành công for lông for
+[33m92a9722e[m Delete core-engine\cfg\src\main\java\data\clonedProject directory
+[33m2cb7b02d[m fix
+[33meef2057a[m fxx biểu thức z3
+[33m75de4c64[m Fix error path generation
+[33me27fae1b[m fix error in solving in z3
+[33ma3d59210[m fix error creating execution path in lico
+[33m53d2d289[m new branch
+[33md7d4038c[m[33m ([m[1;31morigin/newPostProject[m[33m, [m[1;32mnewPostProject[m[33m)[m fix: error random short input - short must be used with cast (short)
+[33ma077cd2f[m Update: using z3 fpsort for float and double and modify expressions
+[33m826b03b0[m Update: Bitvectorize variables after adding to ctx, add some bit operands, and fix postfix and prefix expression after rewriting symbolic execution
+[33m1ecc3c53[m Merge remote-tracking branch 'origin/newPostProject' into newPostProject
+[33m2a97d5f0[m fix: loop's condition makes SMT can't solve - how: remove obvious expresses as 1<10 out of SMT context
+[33mc2c354c0[m fix: Sử dụng FilePath.java để lưu đường dẫn và config, update chạy được trên macos
+[33md1ad7312[m fix: statement coverage find uncovered node
+[33m840edd11[m fix: not find cfg node for statement in mcdc
+[33m1a15e39d[m fix: duplicated marked statements and mismatch marked statements with cfg node
+[33ma082a9f3[m fix: duplicated marked statements and mismatch marked statements with cfg node
+[33m20f51082[m fix: symbolic execution does not return PC when it meets false expression.
+[33mfd871c79[m fix: CloneProject reemerge recursion test and light fix clone method
+[33m12a3b6c6[m điều chỉnh cloneProject để test leetCode dễ hơn (tạm thời)
+[33md92e932a[m fix: array access via index
+[33m546b1566[m fix: symbolic execution for array
+[33me43b6d17[m fix: symbolic execution for array
+[33mbd61f62d[m Merge remote-tracking branch 'origin/newPostProject' into newPostProject
+[33m8f18b95b[m refract upload code
+[33m8728ccae[m fix: null cfg node
+[33m9de47a9b[m fix: stackoverflow when run test driver with test case
+[33m7d5424b9[m fix: stackoverflow when generate test driver with recursion unit
+[33mba2cc9ce[m Thêm hàm fileNameNormalize để chuẩn hóa tên file
+[33m9473ddbc[m fix lỗi bản update trước
+[33md9d1e971[m Xử lý tạm tên file java và tên class không giống nhau
+[33mc272f62e[m fix lỗi clone constructor
+[33m85df0b92[m fix: LoopAnalyzer.java
+[33m1c75ebff[m feat: add analyze loop
+[33m5665aabf[m Thêm hàm fileNameNormalize để chuẩn hóa tên file
+[33me07c7cd3[m fix lỗi bản update trước
+[33m7dd24337[m Xử lý tạm tên file java và tên class không giống nhau
+[33m246321e0[m fix lỗi clone constructor
+[33m59e84309[m add regression testing upload
+[33mde7cdcf3[m add id to unit testing results
+[33mfc74beeb[m add regression test for changed nodes
+[33m167bc355[m add regression test for changed nodes
+[33mb83a9ffb[m feat: add multiple-unit api
+[33m0e15b652[m refactor
+[33madfee512[m add AS4UT
+[33m4f85ed9f[m concolic stub ver2
+[33md4d75735[m concolic stub ver1
+[33mf7237383[m Merge branch 'newPostProject' of https://github.com/jcia-sqa/jcia-backend into newPostProject
+[33m1c6fb709[m method invocation outside the class or in libs (75%)
+[33m8f3ad67f[m method invocation outside the class or in libs (75%)
+[33mdbe98ddb[m fix: clone data and retained original data
+[33me96711f2[m method invocation outside the class or in libs (50%)
+[33mfe09c271[m handle Method Invocation
+[33mc89729ad[m fix MCDC coverage
+[33m528bba55[m add test generation for MCDC coverage
+[33me28d31ba[m add pairwise testing
+[33m0b0591b5[m new CIA response version 1
+[33m2dd461bb[m merge excution_state
+[33m5113cb1b[m unit testing: deal with array type
+[33mafdb22ba[m[33m ([m[1;31morigin/excution_state[m[33m)[m add api delete project
+[33mfe3034d5[m update isEndProgress
+[33m30dfaf6e[m update excution state
+[33m85ad202f[m excution state p2
+[33m94a99652[m excution state
+[33m27f3f0b7[m refactor unit testing service
+[33m81378b19[m update branch
+[33me3e80024[m setup lại clone file như ngày trước
+[33m31278eae[m bug fixes
+[33mdda339b2[m thêm testdriver truyền thống
+[33m52423801[m thêm thông tin cho api concolictessting
+[33mb9bd41a6[m Merge branch 'newPostProject' of https://github.com/jcia-sqa/jcia-backend into newPostProject
+[33m22fbd381[m thêm các thông tin vào api testing (chưa xong)
+[33m46490334[m Revert "reformat code"
+[33m3570d951[m reformat code
+[33m8df93eb9[m thêm loại độ phủ
+[33me39cbd6a[m thêm api cho cả 3 loại độ phủ
+[33m74efd465[m update cloneFile
+[33mc70fccba[m thêm phần clone toàn bộ project sau đó lúc chạy k cần clone
+[33m2349efbd[m thêm service up-project
+[33md70e0a0e[m[33m ([m[1;31morigin/clone-unit-testing[m[33m)[m thêm các thông tin stt mã nguồn api \read
+[33m7efd7a6a[m thêm số dòng và trạng thái điều kiện vào phần trả về cho frontend
+[33m9d31d2fb[m old version unittesting
+[33me30fee97[m thêm z3 dependence vào pom
+[33m63112a5f[m sửa lại phần clone
+[33m6a0b8fd3[m thêm báo cáo concolic test
+[33m5ce96a1a[m tự động hoàn toàn quá trình concolic testing và thêm unit testing
+[33mc04cf9a3[m add CFG4J
+[33mc997f323[m add CFG4J
+[33m8bfc7edb[m change format input save test case
+[33m04328921[m add save test case
+[33m4f908b44[m unit-test
+[33m9a6d9b2a[m fix path
+[33m14ab6709[m up-project
+[33m00e9d290[m unit-test
+[33m31af386f[m update build run
+[33m0a4c180b[m add Getmapping view tree
+[33m163720b3[m api source code
+[33mb2255033[m add services UnitTesting
+[33m65df122b[m Added run script for Mac and Linux
+[33m475b1941[m fix run scripts
+[33m54817684[m Add current working directory info
+[33mc58dbf40[m Added language support for project
+[33m8e333572[m Fix build scripts
+[33med5e0509[m add version
+[33mcec40ba0[m first update
+[33m32a5833d[m update
+[33m4d363432[m update count time and memory
+[33mfd1b6294[m fix version compare git
+[33m09a57fba[m fix method body
+[33m361398b6[m fix lib javafx
+[33mdcb7b639[m add lib-javafx and fix
+[33m1586ad00[m vanphong
+[33me1c56ca4[m vanphong
+[33m28eac2c7[m vanphong
+[33me7feb94b[m vanphong
+[33mbf11a840[m vanphong
+[33m9b91b3a7[m Merge pull request #89 from jcia-sqa/newdev
+[33m61f6c03e[m fix core engine dependencies
+[33m212e9942[m Merge pull request #88 from jcia-sqa/newdev
+[33mc76a76d0[m cia: add save response to csv or excel
+[33mc9b2e9ae[m Add depth
+[33m2d3b32d3[m Add depth
+[33m04410b5a[m Add parent and path in version compare node
+[33m0dbe41f6[m Merge branch 'Spring-dev' of https://github.com/jcia-sqa/jcia-backend into Spring-dev
+[33m302adcf2[m Merge pull request #87 from jcia-sqa/newdev
+[33mcdb715dc[m fix abspath of xmltagnode
+[33m1eb8555b[m Merge pull request #86 from jcia-sqa/newdev
+[33m2c209995[m update xml compare
+[33m9f91fbce[m Add parent and path in version compare node
+[33m263a011a[m Add parent and path in version compare node
+[33mc485c7ff[m Add new Version compare
+[33m5e19c692[m Merge branch 'Spring-dev' of github.com:jcia-sqa/jcia-backend into Spring-dev
+[33mc5c1296b[m Add inheritance shit
+[33me378ff70[m Change some dependencies
+[33m15589f30[m Add oriented dependencies
+[33m2f9a9647[m Added new CIA algo
+[33m89edd345[m Added Spring xml dependency
+[33m3a7d1b0b[m Change some dependencies
+[33me11a8955[m Change some dependencies
+[33m5dbf9a46[m Change some dependencies
+[33m0d18dc4b[m Update
+[33mb7f6c874[m Added Spring xml dependency
+[33mfbbcd8ea[m Added impacted nodes
+[33mbfcab96b[m Fix circular dependency
+[33m870b9d2f[m Change id for remove nodes
+[33m43a2eb55[m Change id for remove nodes
+[33m74cc3753[m Change id for remove nodes
+[33m3bc54315[m Change field name
+[33m25e61636[m Add impacted Set
+[33m955c7d7c[m Refactor Spring service
+[33m8e83a5c9[m Refactor Spring service
+[33me030d1d2[m Refactor Spring service
+[33m6bfe54b4[m Add more Spring dependencies
+[33m3626c70a[m Add more Spring dependencies
+[33me953cec4[m Update weight calculator
+[33mac2cf0ca[m Change allDependencies -> dependencies
+[33mdbe4f537[m Add all dependencies
+[33m9f044940[m It just kinda works
+[33m57c7c567[m it kinda work
+[33m83dcf774[m save works
+[33me5d944e4[m It just works
+[33m49891d0e[m It just works
+[33me35411cb[m It just work
+[33m8e1dc667[m Some struts
+[33m8a4f7753[m Some struts
+[33m8b63f462[m Some struts
+[33m46c873bf[m It just work
+[33mf214f21c[m It just work
+[33m704f299a[m It just work
+[33me6d2a6f4[m save work
+[33ma081ffd3[m save work
+[33m9f65d468[m Merge branch 'Spring-dev' of https://github.com/jcia-sqa/jcia-backend into datdev
+[33m3f7a3b9c[m Merge pull request #85 from jcia-sqa/version-compare
+[33m12fb45bd[m Fix 400 request
+[33md12f3018[m update
+[33maa9fae9b[m revert build, script and docker
+[33m104ef1b1[m Merge branch 'Spring-dev' of github.com:jcia-sqa/jcia-backend into datdev
+[33m9ab1dda9[m Merge branch 'Spring-dev' of github.com:jcia-sqa/jcia-backend into datdev
+[33m4f99ea40[m Change how service communicate
+[33m5ec81d3c[m Merge remote-tracking branch 'origin/Spring-dev' into version-compare
+[33m2f4cdd75[m Change how service communicate
+[33mf8442848[m Revert "Merge remote-tracking branch 'origin/Spring-dev' into version-compare"
+[33m9d27baa1[m Delete unnecessary
+[33mbcc3a01a[m Refactor name
+[33mb7e4a588[m Refactor name
+[33mfdb8525f[m Merge remote-tracking branch 'origin/Spring-dev' into version-compare
+[33m71e87512[m Refactor name
+[33mfe264103[m Change how service communicate
+[33mccbabf2d[m Change how service communicate
+[33m474995b7[m Map xml and jsp to RootNode
+[33mca4c8983[m hot fix node name
+[33md143bc22[m Merge pull request #84 from jcia-sqa/duong-dev
+[33m7c8c9598[m resolve duongdev conflict
+[33me0bb67a7[m Merge
+[33mb3ab0424[m Merge remote-tracking branch 'origin/Spring-dev' into version-compare
+[33m55db522e[m Merge branch 'duong-dev' of github.com:jcia-sqa/jcia-backend into merge_code_16_3_2022
+[33m8e0e9798[m Merge pull request #83 from jcia-sqa/merge_code_16_3_2022
+[33m1bd64252[m update dockerfile, refactor directory, update ci script and build file
+[33ma513e2f4[m gix project api
+[33m6e97d068[m Merge pull request #80 from jcia-sqa/merge_code_16_3_2022
+[33m5f37d019[m resolve branch conflict
+[33m71c948a4[m Merge branch 'Spring-dev' of github.com:jcia-sqa/jcia-backend into Overhaul
+[33m15846fa4[m Add xml and jsp nodes to return
+[33md9353240[m File management overhaul - Testing
+[33m71e96778[m File management overhaul - Testing
+[33mc79090a1[m File management overhaul - Testing
+[33m1795e245[m File management overhaul - Testing
+[33m05030b03[m File management overhaul - Testing
+[33mfd8a1c1b[m File management overhaul - Testing
+[33m3562bb18[m File management overhaul - Testing
+[33mdb48b5f3[m Merge pull request #79 from jcia-sqa/version-compare
+[33m44783dd5[m struts
+[33mfb7067f4[m lmao
+[33m1bb7e3f7[m Merge pull request #76 from jcia-sqa/version-compare
+[33m5f49bea8[m Separate Struts and JSP
+[33m5b07543f[m Separate JSP and Struts
+[33me07a4ff3[m Separate JSP and Struts
+[33m18e446d2[m Hot fix id in xmlNodes
+[33mf2e84999[m Add xml service
+[33m5913cbbb[m Merge pull request #75 from jcia-sqa/datdev
+[33m93f56837[m Merge branch 'datdev' of https://github.com/jcia-sqa/jcia-backend into duong-dev
+[33mc461b598[m update
+[33m72899e61[m Merge remote-tracking branch 'origin/datdev' into version-compare
+[33me12598c6[m Delete target folder
+[33mda4725d1[m update xml compare
+[33m0d2df110[m Merge branch 'Spring-dev' of https://github.com/jcia-sqa/jcia-backend into duong-dev
+[33mc12e90e4[m add xml to core-engine
+[33me92133d0[m add multithreading on build project by path
+[33m513d819d[m multithreading on parser-service
+[33m1db1e910[m Merge pull request #73 from jcia-sqa/version-compare
+[33m0eb15c8f[m Merge branch 'Spring-dev' into version-compare
+[33m12efd32d[m Merge pull request #74 from jcia-sqa/datdev
+[33m847e813e[m change logic while add jsf dependencies in parser-service
+[33m282253f8[m merge jsf-service into parser-service
+[33m3246644e[m Update application.properties
+[33mde9c4ee6[m Merge branch 'Spring-dev' into version-compare
+[33mafc71845[m Merge branch 'datdev' of https://github.com/jcia-sqa/jcia-backend into duong-dev
+[33m096af42f[m update
+[33m675b1710[m Add template Struts analyzer
+[33m073e5116[m add hello API
+[33me87829e2[m Add template Struts analyzer
+[33md539cab4[m Add template Struts analyzer
+[33m5e1824c5[m Add template Struts analyzer
+[33m50a9944a[m Add template Struts analyzer
+[33mde9acff6[m change supported extensions policy in jsf-parser
+[33m0fffa1e4[m Add Struts converter
+[33maf2f4bac[m Update application.properties
+[33m111c612c[m Update application.properties
+[33m561adbac[m Update application.properties
+[33mc4514138[m Update application.properties
+[33m38136c01[m log request ip
+[33m265a7ee4[m Merge branch 'Spring-dev' of https://github.com/jcia-sqa/jcia-backend into duong-dev
+[33mbd2357b3[m Merge branch 'datdev' of https://github.com/jcia-sqa/jcia-backend into duong-dev
+[33mbb864bf3[m Changes
+[33m122ce972[m Merge remote-tracking branch 'origin/Spring-dev' into version-compare
+[33m7a89a59f[m Merge pull request #72 from jcia-sqa/datdev
+[33mb2d6e1fa[m fix dependency
+[33m8cafbe83[m Merge pull request #71 from jcia-sqa/datdev
+[33m4b877f7a[m fix ci script
+[33mc3b3a91f[m fix ci script
+[33m2690c7f1[m fix build and fix ci script
+[33m4f7081a3[m move remote javacia dependency into jcia-backend, using as internal dependency
+[33m661defd9[m add new api route, merge dependency and parsed node into one response in jsf-service
+[33m0f23d034[m Merge pull request #70 from jcia-sqa/datdev
+[33m28589983[m fix null bean while parsing faces-config.xml file
+[33me58e3af2[m fix jsf-services after change in annotates of java response
+[33mc08e93d0[m change cookie to token header on get project API
+[33m6760be2a[m change cookie to token
+[33m0a11c56a[m fix error maven dependencies in strut-service
+[33mc9dcd3d6[m handle jgit exception
+[33m599d7a76[m update analysis flag in clone request in git-service
+[33m46cb8731[m Update application.properties
+[33m2e67c593[m ignore config file
+[33mb2b0a48c[m Add token API
+[33m194e402a[m Merge branch 'version-compare' of https://github.com/jcia-sqa/jcia-backend into version-compare
+[33mcfe96df5[m Merge remote-tracking branch 'origin/Spring-dev' into version-compare
+[33m7c3933a2[m Merge pull request #68 from jcia-sqa/datdev
+[33m83996d37[m Merge pull request #69 from jcia-sqa/version-compare
+[33mf7ba1b65[m Update JavaType.java
+[33m23b677fb[m Change to Java unzip
+[33m25a7a9bf[m update
+[33mb9230033[m optimize clone
+[33mf9bf2701[m optimize get all commits
+[33mac516e23[m update
+[33mfee5f7ea[m Merge branch 'datdev' of github.com:jcia-sqa/jcia-backend into datdev
+[33mf1e60f9b[m update scripts
+[33mdb452b6f[m multithread get all commits
+[33m2213be47[m Merge pull request #63 from jcia-sqa/dependabot/maven/strut-service/org.apache.struts-struts2-core-2.5.26
+[33m93977a72[m Merge pull request #64 from jcia-sqa/dependabot/maven/utility-service/net.lingala.zip4j-zip4j-2.9.1
+[33m3cdc0688[m Merge pull request #65 from jcia-sqa/dependabot/maven/parser-service/net.lingala.zip4j-zip4j-2.9.1
+[33mf3508604[m Merge pull request #66 from jcia-sqa/dependabot/maven/java-service/net.lingala.zip4j-zip4j-2.9.1
+[33mad257880[m Merge pull request #67 from jcia-sqa/dependabot/maven/version-compare-service/net.lingala.zip4j-zip4j-2.9.1
+[33m6c3d7dde[m update try catch
+[33mc7cd60af[m Bump zip4j from 2.8.0 to 2.9.1 in /version-compare-service
+[33m5a8c627a[m Bump zip4j from 2.8.0 to 2.9.1 in /java-service
+[33m7b631022[m Bump zip4j from 2.8.0 to 2.9.1 in /parser-service
+[33m800d3716[m Bump zip4j from 2.8.0 to 2.9.1 in /utility-service
+[33me7cba699[m Bump struts2-core from 2.5.8 to 2.5.26 in /strut-service
+[33mc893aada[m Merge pull request #62 from jcia-sqa/datdev
+[33m58e6392e[m resolve conflict strut-dev spring-dev
+[33m528b3d9a[m add strut service
+[33m79ad7a2d[m Merge branch 'datdev' of github.com:jcia-sqa/jcia-backend into datdev
+[33m59418922[m update strut
+[33mbaa24908[m Merge pull request #61 from jcia-sqa/strut-dev
+[33mef26582f[m update strut
+[33m09e380f6[m Merge pull request #60 from jcia-sqa/version-compare
+[33m2d0da85d[m resole conflict
+[33m84937812[m Update JavaType.java
+[33mb45eb0ab[m Update pom.xml
+[33m4cf4675e[m Update VersionServiceImpl.java
+[33mc226cca9[m Refactor
+[33m6e480ed7[m Refactor
+[33mf3eace22[m save works
+[33m446bc838[m Merge pull request #59 from jcia-sqa/strut-dev
+[33mfcdd62d3[m update ping api
+[33m0b0690c4[m fix .gitignore
+[33m8cb62451[m update parse strut project api and fix path in gateway
+[33ma9dddf82[m Merge pull request #58 from jcia-sqa/dependabot/maven/api-gateway/org.springframework-spring-webmvc-5.1.14.RELEASE
+[33m1799baa2[m Bump spring-webmvc from 5.1.4.RELEASE to 5.1.14.RELEASE in /api-gateway
+[33mebee8fc7[m add strut-service to docker-compose file
+[33m4b8646c6[m Merge pull request #57 from jcia-sqa/dependabot/maven/api-gateway/org.springframework-spring-webmvc-5.1.14.RELEASE
+[33m750aba34[m add support for strut
+[33m7c2ddfad[m init struts service
+[33m69b188d8[m Bump spring-webmvc from 5.1.4.RELEASE to 5.1.14.RELEASE in /api-gateway
+[33me9f63739[m Merge pull request #56 from jcia-sqa/merge_code_15_02_2022
+[33m19f5ffa3[m resolve conflict spring-dev datdev
+[33ma9912b00[m fix conflict .gitignore file and logs file
+[33mc9f0dfe7[m fix merge
+[33mcf28165f[m fix merge
+[33m0b6b777b[m add check if folder is git repo
+[33m325da113[m add check if folder is git repo
+[33mb16180ee[m add check if folder is git repo
+[33mfd13f47a[m Refactor
+[33mcb3f21df[m Refactor
+[33md3f2bdc9[m Merge remote-tracking branch 'origin/Spring-dev' into version-compare
+[33m8252db9a[m Merge remote-tracking branch 'origin/version-compare' into Spring-dev
+[33m0fc312df[m Update for merge
+[33m8417228f[m merge
+[33m5f5e3f8a[m Merge branch 'Spring-dev' of https://github.com/jcia-sqa/jcia-backend into datdev
+[33mebea169f[m Update .gitignore
+[33mfdc57032[m Update for merge
+[33m67cf0a97[m Merge branch 'datdev' of https://github.com/jcia-sqa/jcia-backend into datdev
+[33m80363bd2[m merge
+[33m71fb68ab[m todo: fix id from string to long
+[33mff774d55[m disable cors per service, only allow cors in gateway
+[33mbaddfb53[m fix commit cho ngai duong
+[33me18df5ce[m reconfig cors in gateway
+[33mdf7ece75[m update works
+[33mebccc212[m Merge pull request #54 from jcia-sqa/datdev
+[33m2e037977[m delete zip file before compress
+[33m138f9331[m update works
+[33mb558b79f[m update zip project after clone
+[33m5d8af249[m update new version of git service
+[33m7028c7ee[m update works
+[33mde4892ef[m update works
+[33me38a652d[m update works
+[33m30bf4855[m Merge pull request #53 from jcia-sqa/merge_code_2022_01_23
+[33m412735e9[m Merge branch 'Spring-dev' of github.com:jcia-sqa/jcia-backend into merge_code_2022_01_23
+[33m461306d8[m update
+[33mc6009823[m fix conflict code
+[33m67e2e071[m Update .gitignore
+[33ma75b5abb[m merge code datdev to spring-dev
+[33m347b5993[m update address host, revoke localhost on remote address call between services
+[33m91dd78fe[m Update README.adoc
+[33m5e5f05ed[m Change register and login policy
+[33m484022f1[m add check environment for windows based system (#52)
+[33mb25fabcd[m Add Table Constraints
+[33m0d23a281[m Add Table Constraints
+[33m2e75d23b[m Update jcia-ci.yml
+[33m16417e36[m Add Version and Project saving
+[33m9c0f0909[m Merge pull request #51 from jcia-sqa/version-compare
+[33m191274f5[m add token for User
+[33md708ad3e[m add git token for User
+[33m601c3627[m change storage file policy
+[33mb69ceebe[m Change storage file saving policy
+[33m2d05c63f[m add subdirs utils
+[33m98612efa[m Update README.adoc
+[33m453040aa[m Update mvn-verify.sh
+[33m4f6ce733[m Merge pull request #50 from jcia-sqa/datdev
+[33m8592cfb8[m update api-gateway logback
+[33md0a829e9[m add api-gateway service
+[33m3e646001[m Merge branch 'Spring-dev' of github.com:jcia-sqa/JCIA-Microservices into datdev
+[33mf3c32642[m remove untracked file and fix port in docker-compose.yml file
+[33mc3b1e5a8[m Merge pull request #49 from jcia-sqa/datdev
+[33m09c41e32[m add script files
+[33m381753b5[m fix ci file and add scripts
+[33m95b348c9[m fix ci file and add scripts
+[33m2042bc27[m fix ci file
+[33m8ac023fb[m fix ci file
+[33me95ce5a7[m fix ci file
+[33m311e671a[m fix ci
+[33m5393ecde[m fix ci
+[33md5b110b7[m fix ci
+[33md2c98ff8[m ci
+[33m8d05b304[m Merge pull request #48 from jcia-sqa/datdev
+[33me04c990a[m gitignore logs folder
+[33m81c35851[m toggle version compare option by header parameters in git-service
+[33m6f766a32[m Merge pull request #47 from jcia-sqa/datdev
+[33m19618b6a[m Merge branch 'datdev' of github.com:jcia-sqa/JCIA-Microservices into datdev
+[33m535a4a3f[m refactor api
+[33mdfae1c6f[m Update README.adoc
+[33mdee26806[m Update README.adoc
+[33m6e4720d8[m fix build script for linux
+[33mb4c6a312[m Merge pull request #46 from jcia-sqa/datdev
+[33m622b0c69[m Bump log4j-api from 2.17.0 to 2.17.1 in /github-service (#42)
+[33m130b1b67[m Bump log4j-api from 2.17.0 to 2.17.1 in /xml-service (#43)
+[33m66d51e3e[m Bump log4j-core from 2.17.0 to 2.17.1 in /xml-service (#44)
+[33m30b02a78[m Bump log4j-core from 2.17.0 to 2.17.1 in /github-service (#45)
+[33m4df28b6c[m Update README.adoc
+[33m11729c6b[m update logs folder for all services
+[33m1dd1d1d6[m Merge pull request #41 from jcia-sqa/datdev
+[33m1f94409c[m add logback
+[33mc9ea41d0[m Merge pull request #31 from jcia-sqa/dependabot/maven/xml-service/org.apache.logging.log4j-log4j-api-2.17.0
+[33m6fe1fa87[m Merge pull request #32 from jcia-sqa/dependabot/maven/github-service/org.apache.logging.log4j-log4j-api-2.17.0
+[33mca74ede8[m Merge pull request #33 from jcia-sqa/dependabot/maven/xml-service/org.apache.logging.log4j-log4j-core-2.17.0
+[33m2f73f749[m Merge pull request #40 from jcia-sqa/datdev
+[33me751ffbf[m Merge pull request #34 from jcia-sqa/dependabot/maven/github-service/org.apache.logging.log4j-log4j-core-2.17.0
+[33m43500411[m Merge pull request #39 from jcia-sqa/datdev
+[33m015ff20a[m update docker compose and build script
+[33m3c454508[m Merge pull request #38 from jcia-sqa/datdev
+[33m397ac5f0[m changes in properties file parser and logger
+[33m09b4c4a5[m Merge pull request #37 from jcia-sqa/datdev
+[33m924a2de3[m refactor code and add logback
+[33m7f625bb1[m Merge pull request #36 from jcia-sqa/datdev
+[33m76c17eaf[m update repo api
+[33me41388c7[m change github service
+[33m918d8277[m Merge pull request #35 from jcia-sqa/datdev
+[33m83131227[m done dependencies from properties node to xmlNodes
+[33m8f0d64b0[m refactor xml parser to multithreading
+[33ma8df5ed2[m Bump log4j-core from 2.15.0 to 2.17.0 in /github-service
+[33m9a4b1c31[m Bump log4j-core from 2.15.0 to 2.17.0 in /xml-service
+[33m79de28c9[m Bump log4j-api from 2.15.0 to 2.17.0 in /github-service
+[33m32bcd316[m Bump log4j-api from 2.15.0 to 2.17.0 in /xml-service
+[33m0784fb53[m Merge pull request #26 from jcia-sqa/datdev
+[33m83a6fd1a[m Merge pull request #22 from jcia-sqa/dependabot/maven/github-service/org.apache.logging.log4j-log4j-api-2.15.0
+[33md4f2a5ec[m Merge pull request #23 from jcia-sqa/dependabot/maven/xml-service/org.apache.logging.log4j-log4j-api-2.15.0
+[33me74e15d3[m Merge pull request #24 from jcia-sqa/dependabot/maven/xml-service/org.apache.logging.log4j-log4j-core-2.15.0
+[33mf4b83d45[m Merge pull request #25 from jcia-sqa/dependabot/maven/github-service/org.apache.logging.log4j-log4j-core-2.15.0
+[33m8fa363a9[m refactor analyzing xml dependencies to multi-thread
+[33m8453235a[m Bump log4j-core from 2.13.2 to 2.15.0 in /github-service
+[33mcc693a39[m Bump log4j-core from 2.13.2 to 2.15.0 in /xml-service
+[33m91a0a514[m Bump log4j-api from 2.7 to 2.15.0 in /xml-service
+[33m006ca0e1[m Bump log4j-api from 2.7 to 2.15.0 in /github-service
+[33m7ca64f19[m Merge pull request #21 from jcia-sqa/datdev
+[33m7dd37e8b[m Merge branch 'Spring-dev' of github.com:jcia-sqa/JCIA-Microservices into datdev
+[33mf98158c8[m Merge pull request #20 from jcia-sqa/bump-dependency
+[33mfb9a231e[m Merge pull request #18 from jcia-sqa/dependabot/maven/github-service/org.apache.logging.log4j-log4j-core-2.13.2
+[33m2386b6c4[m Merge pull request #17 from jcia-sqa/dependabot/maven/xml-service/org.apache.logging.log4j-log4j-core-2.13.2
+[33m3a01a28e[m Merge pull request #16 from jcia-sqa/dependabot/maven/xml-service/org.jsoup-jsoup-1.14.2
+[33mf952aea6[m Merge pull request #15 from jcia-sqa/datdev
+[33ma1d7a7cd[m disable cors
+[33m1957b1c8[m update cors
+[33m65e16e6d[m open cors
+[33ma16e72f5[m Merge pull request #14 from jcia-sqa/datdev
+[33m14b87efb[m add delete-token api
+[33me2ab523d[m update work
+[33mb8afcf69[m Merge pull request #13 from jcia-sqa/datdev
+[33me013d3b6[m update works
+[33m384fbe24[m Merge branch 'Spring-dev' of github.com:jcia-sqa/JCIA-Microservices into datdev
+[33m581e3086[m add function description
+[33m89cb1e28[m khi anh qua thung lũng
+[33m21f75d6b[m add analyzeDependencies from custom bean config to view
+[33mfbf7db22[m Merge pull request #12 from jcia-sqa/datdev
+[33m03a8546e[m add api for organization in github-service
+[33mb42a0881[m Bump log4j-core from 2.7 to 2.13.2 in /github-service
+[33m28fb93ef[m Bump log4j-core from 2.7 to 2.13.2 in /xml-service
+[33m9a946a89[m Bump jsoup from 1.11.2 to 1.14.2 in /xml-service
+[33m0481f6af[m fix duplicated node when sending multiple parse request in xml-service
+[33me3aa65a4[m refactor api in github service
+[33m2f9f9aa5[m Fix compare
+[33me69fd55b[m Merge branch 'Spring-dev' of https://github.com/jcia-sqa/JCIA-Microservices into Spring-dev
+[33m7d0da360[m Add new Annotation type
+[33m96706d92[m Merge pull request #8 from jcia-sqa/datdev
+[33mc9216c93[m fix clone repo by branch
+[33m442ebddc[m Merge pull request #7 from jcia-sqa/datdev
+[33m4e9c4c06[m update api to clone 2 repo by branches and commits, refactor api in github service
+[33m3da31f85[m using regex to scan bean injection in xhtml
+[33mb4603189[m Merge pull request #6 from jcia-sqa/datdev
+[33m4cf8fc54[m Update README.adoc
+[33m3bb11dcb[m add dependencies from bean to view(xmlTagNode)
+[33m49b370e8[m disable message queue
+[33m1b842ffb[m recalculate xmlNode id when call api
+[33m370e454c[m Merge pull request #5 from jcia-sqa/datdev
+[33mbd71cc3b[m done clone repo by commit id
+[33m9159bb65[m add analyzeDependency between beans
+[33mabff9da9[m update work
+[33m9516d9ab[m Merge branch 'Spring-dev' of github.com:jcia-sqa/JCIA-Microservices into datdev
+[33ma11a381a[m update work
+[33m2f134f8a[m Merge branch 'Spring-dev' of https://github.com/jcia-sqa/JCIA-Microservices into Spring-dev
+[33m2dc91e64[m Add new Annotation type
+[33m9236c72f[m update clone repo, cấm được xoá, xoá làm chó
+[33m3282c236[m Merge pull request #4 from jcia-sqa/datdev
+[33m21e79660[m update github service
+[33ma0e55397[m update work
+[33m025ca701[m Merge pull request #3 from jcia-sqa/datdev
+[33m605b2f2e[m Merge branch 'Spring-dev' of github.com:jcia-sqa/JCIA-Microservices into datdev
+[33m5b3ad576[m Add deleted Node to Project tree
+[33m07921282[m Add deleted Node to Project tree
+[33m7d843f92[m Add deleted Node to Project tree
+[33m620dbcd4[m Add deleted Node to Project tree
+[33med40749e[m Add deleted Node to Project tree
+[33me3c46cd4[m Fix compare version bug
+[33me6ddd01d[m make rest api accept json body
+[33md65ce7aa[m refactor code
+[33me14c5973[m refactor code
+[33m4c34b5b7[m add xml parser
+[33m594cca37[m optimize import
+[33m3540ba5a[m Merge pull request #2 from jcia-sqa/dat-dev
+[33mff8ee9d3[m Merge branch 'Spring-dev' of https://github.com/jcia-sqa/JCIA-Microservices into dat-dev
+[33ma17f4d66[m ignored files
+[33mbcb1b0eb[m enable hot swapping for services
+[33m086ad114[m Fix compare version bug
+[33m576de12e[m Add more options to rsave file as user
+[33m9ffdfb68[m open cors for file service
+[33mc707bedd[m Add more options to read file
+[33m4703a7fd[m add File Service, add path to Java Class
+[33m46a62ccf[m Hide allNode and allDep Parser
+[33mb8a428f4[m Build tree for VerCompare
+[33mee4694e3[m Change options for VerCompare
+[33m46047a0c[m allDep to Parser
+[33m5101c805[m allNodes to Parser
+[33m4c509038[m Add second choice to compare by File
+[33m5f0a9262[m Compare by File
+[33m283fdb19[m Add parser with file.
+[33meb5b5bdd[m Add authenticator for user service
+[33mdfb5fb51[m JavaNode Refinement and Refactor.
+[33m0dfce6c9[m App Version comparison
+[33md4406e4f[m Wrap Dep to rootNode
+[33m798babc3[m Add Dep
+[33mccdfa76b[m Add parent to TreeNode
+[33mf000ba85[m Add compare verion service
+[33m73b61897[m Add parent nodes
+[33m3d1f9f49[m Add CIA Service
+[33mecce216b[m Add CIA Service
+[33m49b76475[m Parser Service with file path
+[33m047c1c3b[m Parser Service with file path
+[33m3230920d[m Add dependency list
+[33m5b17e075[m Add dependency list
+[33ma8f72f94[m Add parser service connection
+[33m21f461d2[m Add version comparison service
+[33m5770beb7[m update Readme
+[33m62d6f237[m update Readme
+[33m3397e2da[m Update README.adoc
+[33m69a6d209[m Update README.adoc
+[33m19a8c4be[m Update README.adoc
+[33m76f258fe[m Rename README.md to README.adoc
+[33m59f19e9b[m Update README.md
+[33m467fef29[m Add Parser Service and Cleanup Port, new README
+[33m7c018fd0[m Dependency for Spring
+[33m3e96db6f[m Dependency for Spring
+[33m406b8012[m Dependency for Spring
+[33ma7b65586[m Dependency for Spring
+[33m3c65c79e[m Modifiers for Java
+[33mb9c55977[m Merge remote-tracking branch 'origin/Spring-dev' into Spring-dev
+[33m90e20cc4[m Modifiers for Java
+[33mb844b056[m open cors for services
+[33m3d062aba[m Add new API
+[33m9e870123[m Parser service
+[33mef1b2877[m Refactor
+[33mdd2cec93[m Refactor
+[33m5d5cc270[m Refactor
+[33m3de33d75[m Refactor
+[33m96fd018d[m Refactor
+[33m348a8462[m Refactor
+[33m1e191a62[m Refactor
+[33m803821b8[m Refactor
+[33m30931db1[m Refactor
+[33m923f75a8[m Refactor
+[33mbdc1542f[m Refactor Java Node
+[33maa421866[m Add spring Dependency
+[33mb89f28a8[m Refactor dependency
+[33m2718fc80[m Refactor java service
+[33mbc46db16[m Refactor java service, adding spring service
+[33md2bcb1d7[m Merge branch 'Spring-dev' of https://github.com/jcia-sqa/JCIA-Microservices into Spring-dev
+[33m4ad60fd8[m Refactor java service
+[33m985534d7[m Add spring service
+[33md1d4f0f2[m Adding spring service
+[33m9c5a6e31[m Adding parse zip file in utility service
+[33m85d487ad[m Adding parse zip file in utility service
+[33m9eded379[m Add spring service
+[33m9a54fe8f[m Add spring service
+[33m1f564828[m Adding parse zip file
+[33mcc9df2b9[m refactor upload service
+[33mba5144b5[m refactor user service to user service and project service
+[33m9a889677[m refactor user service to user service and project service
+[33m103ccf86[m refactor user service to user service and project service
+[33mf411b0aa[m refactor user service to user service and project service
+[33m7461031f[m add java service
+[33me943c604[m add java service
+[33m6649d863[m add user service
+[33m3dfd86ce[m add user service
+[33m9289ff69[m add java service
+[33mcf12ee95[m add java service
+[33m18f18d47[m add java service
+[33ma71bc9d0[m add utility service
+[33md9c766ed[m add utility service
+[33mce81bf26[m add git ignore
+[33mc9242035[m add git ignore
+[33m6e023a80[m add git ignore
+[33m008556f1[m add utility-service
+[33m6b2d188b[m add discovery-service
+[33me6f6cd62[m add discovery-service
+[33m8dd0af0c[m delete all
+[33m35d785ee[m Merge pull request #1 from jcia-sqa/develop
+[33m31b96ba1[m initial upload file service
+[33me299b787[m initial commit
+[33m3febab2e[m initial commit
+[33mf7da40db[m initial commit
+[33mab266c22[m Initial commit

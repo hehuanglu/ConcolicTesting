@@ -62,7 +62,7 @@ public abstract class OperationExpressionNode extends ExpressionNode {
                 System.out.println("đưa " + name + " cho Z3 giải quyết!");
 
                 // Tạo hẳn 1 ẩn số 32-bit cho Z3
-                Expr lengthVar = ctx.mkIntConst(name);
+                Expr lengthVar = ctx.mkBVConst(name, 32);
 
                 Z3VariableWrapper wrapper = new Z3VariableWrapper(lengthVar);
                 int idx = getDuplicateVariableIndex(wrapper, vars);
@@ -115,7 +115,7 @@ public abstract class OperationExpressionNode extends ExpressionNode {
                     if (isLong) {
                         return ctx.mkBV(val, 64);
                     } else {
-                        return ctx.mkBV((int) val,32);
+                        return ctx.mkBV((int) val, 32);
                     }
                 } else {
                     double val = Double.parseDouble(tokenVal.replace("_", ""));

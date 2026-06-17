@@ -11,9 +11,11 @@ import core.ast.Expression.Array.ArrayAccessNode;
 import core.ast.Expression.Array.ArrayNode;
 import core.ast.Expression.Literal.LiteralNode;
 import core.ast.Expression.Name.NameNode;
+import core.ast.Expression.ObjectCreation.ClassInstanceCreationNode;
 import core.ast.Expression.OperationExpression.InfixExpressionNode;
 import core.ast.Expression.OperationExpression.OperationExpressionNode;
 import core.symbolicExecution.MemoryModel;
+import core.symbolicExecution.SymbolicExecutionRewrite;
 import org.eclipse.jdt.core.dom.*;
 
 import java.util.List;
@@ -38,6 +40,16 @@ public class AssignmentNode extends ExpressionNode {
         if (leftHandSide instanceof Name) {
             String key = NameNode.getStringName((Name) leftHandSide);
             memoryModel.assignVariable(key, assignValue);
+            if (assignmentNode.rightHandSide instanceof ClassInstanceCreationNode) {
+                ClassInstanceCreationNode classInstanceNode = (ClassInstanceCreationNode) assignmentNode.rightHandSide;
+                String typeStr = classInstanceNode.getType().toString();
+                if (typeStr != null && (typeStr.startsWith("ArrayList"))) {
+                    Expr emptyZ3List = classInstanceNode.getZ3Expression();
+                    if (emptyZ3List != null) {
+                       SymbolicExecutionRewrite.z3ArrayStateMap.get().put(key, emptyZ3List);
+                    }
+                }
+            }
         } else if (leftHandSide instanceof ArrayAccess) {
             ArrayAccess arrayAccess = (ArrayAccess) leftHandSide;
 

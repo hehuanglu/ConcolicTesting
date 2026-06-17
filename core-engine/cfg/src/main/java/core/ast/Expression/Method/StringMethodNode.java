@@ -22,38 +22,49 @@ public class StringMethodNode extends MethodInvocationNode {
 
     public static Expr createZ3Expression(StringMethodNode node, MemoryModel memoryModel,
                                           Context ctx, List<Z3VariableWrapper> vars) {
-        Expr targetExpr = getTargetExpr(node.target, memoryModel, ctx, vars);
-        SeqExpr targetStr = (SeqExpr) targetExpr;
 
-        switch (node.methodName) {
-            case "concat":
-                return handleConcat(node, targetStr, memoryModel, ctx, vars);
-            case "replace":
-                return handleReplace(node, targetStr, memoryModel, ctx, vars);
-            case "replaceAll":
-                return handleReplaceAll(node, targetStr, memoryModel, ctx, vars);
-            case "substring":
-                return handleSubstring(node, targetStr, memoryModel, ctx, vars);
-            case "length":
-                return ctx.mkLength(targetStr);
-            case "charAt":
-                return handleCharAt(node, targetStr, memoryModel, ctx, vars);
-            case "isBlank":
-            case "isEmpty":
-                return handleIsBlank(targetStr, ctx);
-            case "equals":
-                return handleEquals(node,targetStr, memoryModel, ctx, vars);
-            case "startsWith":
-                return handleStartsWith(node,targetStr, memoryModel, ctx, vars);
-            case "endsWith":
-                return handleEndsWith(node,targetStr, memoryModel, ctx, vars);
-            case "indexOf":
-                return handleIndexOf(node,targetStr, memoryModel, ctx, vars);
-            case "contains":
-                return handleContains(node,targetStr, memoryModel, ctx, vars);
-            default:
-                throw new RuntimeException("Unsupported String method: " + node.methodName);
+        if (node.target != null) {
+            Expr targetExpr = getTargetExpr(node.target, memoryModel, ctx, vars);
+            SeqExpr targetStr = (SeqExpr) targetExpr;
+
+            switch (node.methodName) {
+                case "concat":
+                    return handleConcat(node, targetStr, memoryModel, ctx, vars);
+                case "replace":
+                    return handleReplace(node, targetStr, memoryModel, ctx, vars);
+                case "replaceAll":
+                    return handleReplaceAll(node, targetStr, memoryModel, ctx, vars);
+                case "substring":
+                    return handleSubstring(node, targetStr, memoryModel, ctx, vars);
+                case "length":
+                    return ctx.mkLength(targetStr);
+                case "charAt":
+                    return handleCharAt(node, targetStr, memoryModel, ctx, vars);
+                case "isBlank":
+                case "isEmpty":
+                    return handleIsBlank(targetStr, ctx);
+                case "equals":
+                    return handleEquals(node,targetStr, memoryModel, ctx, vars);
+                case "startsWith":
+                    return handleStartsWith(node,targetStr, memoryModel, ctx, vars);
+                case "endsWith":
+                    return handleEndsWith(node,targetStr, memoryModel, ctx, vars);
+                case "indexOf":
+                    return handleIndexOf(node,targetStr, memoryModel, ctx, vars);
+                case "contains":
+                    return handleContains(node,targetStr, memoryModel, ctx, vars);
+                default:
+                    throw new RuntimeException("Unsupported String method: " + node.methodName);
+            }
+        } else {
+            switch (node.methodName) {
+                case "valueOf":
+                    return handleValueOf(node, memoryModel, ctx, vars);
+                default:
+                    throw new RuntimeException("Unsupported Static String method: " + node.methodName);
+            }
         }
+
     }
     private static Expr handleContains(StringMethodNode node, SeqExpr<CharSort> target, MemoryModel memoryModel,
                                       Context ctx, List<Z3VariableWrapper> vars){
@@ -137,6 +148,9 @@ public class StringMethodNode extends MethodInvocationNode {
             return SimpleTypeNode.createZ3Expression((SimpleTypeNode) target, memoryModel, ctx, vars);
         if (target instanceof StringMethodNode)
             return createZ3Expression((StringMethodNode) target, memoryModel, ctx, vars);
+        if (target instanceof MethodInvocationNode) {
+            return MethodInvocationNode.createZ3Expression((MethodInvocationNode) target, memoryModel, ctx, vars);
+        }
         throw new RuntimeException("Invalid target type");
     }
 
@@ -268,5 +282,29 @@ public class StringMethodNode extends MethodInvocationNode {
         );
 
         return ctx.mkApp(replaceAllFunc, targetStr, oldExpr, newExpr);
+    }
+
+    private static Expr handleValueOf(StringMethodNode node, MemoryModel memoryModel, Context ctx, List<Z3VariableWrapper> vars) {
+        List<AstNode> args = node.arguments;
+        if (args == null || args.isEmpty()) {
+            throw new RuntimeException("String.valueOf requires exactly one argument");
+        }
+
+        ExpressionNode argNode = (ExpressionNode) args.get(0);
+        Expr argZ3 = OperationExpressionNode.createZ3Expression(argNode, ctx, vars, memoryModel);
+        if (argZ3 == null) {
+            throw new RuntimeException("Cannot resolve Z3 expression for String.valueOf argument");
+        }
+
+        if (argZ3 instanceof BitVecExpr) {
+            IntExpr intExpr = (IntExpr) ctx.mkBV2Int((BitVecExpr) argZ3, true);
+            FuncDecl intToStrFunc = ctx.mkFuncDecl("int.to.str", new Sort[]{ctx.getIntSort()}, ctx.getStringSort());
+            return ctx.mkApp(intToStrFunc, intExpr);
+        }
+        else if (argZ3 instanceof IntExpr) {
+            FuncDecl intToStrFunc = ctx.mkFuncDecl("int.to.str", new Sort[]{ctx.getIntSort()}, ctx.getStringSort());
+            return ctx.mkApp(intToStrFunc, (IntExpr) argZ3);
+        }
+        throw new RuntimeException("Unsupported argument type in Z3 for String.valueOf: " + argZ3.getClass().getSimpleName());
     }
 }
