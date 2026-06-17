@@ -3,11 +3,14 @@ package core.ast.Expression.Name;
 import core.ast.Expression.ExpressionNode;
 import core.ast.Type.AnnotatableType.SimpleTypeNode;
 import core.symbolicExecution.MemoryModel;
+import core.variable.Variable;
 import org.eclipse.jdt.core.dom.SimpleName;
 
 public class SimpleNameNode extends NameNode {
     private String identifier = "MISSING";
     private SimpleTypeNode target = null;
+
+
     public SimpleNameNode() {
     }
 
@@ -30,12 +33,19 @@ public class SimpleNameNode extends NameNode {
     public static ExpressionNode executeSimpleName(SimpleName simpleName, MemoryModel memoryModel) {
         SimpleNameNode simpleNameNode = new SimpleNameNode();
         simpleNameNode.identifier = simpleName.getIdentifier();
+        Variable var = memoryModel.getVariable(simpleName.getIdentifier());
+        // nếu đã lưu biểu thức expr trong cache thì không thực thi tượng trưng nữa
+        if( var.getCacheExpr() != null) {
+            simpleNameNode.setCacheExpr(var.getCacheExpr());
+            return simpleNameNode;
+        }
         return NameNode.executeNameNode(simpleNameNode, memoryModel);
         //return simpleNameNode;
     }
 
     public static ExpressionNode executeSimpleNameNode(SimpleNameNode simpleNameNode, MemoryModel memoryModel) {
-        if (simpleNameNode.isFake()) return simpleNameNode;
+        if (simpleNameNode.isFake() || simpleNameNode.getCacheExpr() != null) return simpleNameNode;
+
         return (ExpressionNode) memoryModel.getValue(simpleNameNode);
     }
 

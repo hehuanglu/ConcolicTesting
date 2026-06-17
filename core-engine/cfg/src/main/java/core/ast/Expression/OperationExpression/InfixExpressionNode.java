@@ -51,6 +51,10 @@ public class InfixExpressionNode extends OperationExpressionNode {
 
             for(Z3VariableWrapper wrapper : vars){
                 if (Z3LeftOperand == wrapper.getPrimitiveVar()){
+                    // nếu wrapper của Object chưa được khởi tạo biến cờ is_null thì phải khởi tạo ở bước này
+                    if(wrapper.getIs_null() == null){
+                        wrapper.setIs_null(ctx.mkTrue());
+                    }
                     return ctx.mkNot(ctx.mkEq(wrapper.getIs_null(), ctx.mkTrue()));
                 }
             }
@@ -60,11 +64,16 @@ public class InfixExpressionNode extends OperationExpressionNode {
 
             for(Z3VariableWrapper wrapper : vars){
                 if (Z3LeftOperand == wrapper.getPrimitiveVar()){
+                    // nếu wrapper của Object chưa được khởi tạo biến cờ is_null thì phải khởi tạo ở bước này
+                    if(wrapper.getIs_null() == null){
+                        wrapper.setIs_null(ctx.mkTrue());
+                    }
                     return ctx.mkEq(wrapper.getIs_null(), ctx.mkTrue());
                 }
             }
             return null;
         }
+
         Expr Z3LeftOperand = OperationExpressionNode.createZ3Expression(leftOperand, ctx, vars, memoryModel);
         Expr Z3RightOperand = OperationExpressionNode.createZ3Expression(rightOperand, ctx, vars, memoryModel);
 

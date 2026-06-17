@@ -2,6 +2,7 @@ package core.symbolicExecution;
 
 import com.microsoft.z3.Expr;
 import core.ast.AstNode;
+import core.ast.Expression.Method.MethodInvocationNode;
 import core.ast.Expression.Name.NameNode;
 import core.ast.Expression.Name.SimpleNameNode;
 import core.variable.ArrayTypeVariable;
@@ -17,9 +18,11 @@ import org.eclipse.jdt.core.dom.SimpleType;
 import java.util.HashMap;
 import java.util.Map;
 
+import static core.symbolicExecution.SymbolicExecutionRewrite.CollectionKeys;
+
 public class MemoryModel { // ONLY FOR PRIMITIVE TYPES!!!!
     private HashMap<Variable, AstNode> S = new HashMap<>();
-
+    // map astNode --> z3expr ?
     public MemoryModel() {
     }
 
@@ -33,7 +36,14 @@ public class MemoryModel { // ONLY FOR PRIMITIVE TYPES!!!!
     }
 
     public void declarePrimitiveTypeVariable(PrimitiveType primitiveType, String name, AstNode element) {
-        S.put(new PrimitiveTypeVariable(primitiveType, name), element);
+        PrimitiveTypeVariable newPrimitiveVar = new PrimitiveTypeVariable(primitiveType, name);
+        S.put(newPrimitiveVar, element);
+    }
+
+    public void declarePrimitiveTypeVariableWithCachExpr(PrimitiveType primitiveType, String name, AstNode element,Expr cacheExpr) {
+        PrimitiveTypeVariable newPrimitiveVar = new PrimitiveTypeVariable(primitiveType, name);
+        newPrimitiveVar.setCacheExpr(cacheExpr);
+        S.put(newPrimitiveVar, element);
     }
 
     public void declareArrayTypeVariable(ArrayType type, String name, int numberOfDimensions, AstNode element) {
@@ -44,10 +54,13 @@ public class MemoryModel { // ONLY FOR PRIMITIVE TYPES!!!!
         S.put(new ParameterizedTypeVariable(type, name, SymbolicExecutionRewrite.globalCtx.get().mkBVConst(name + ".size", 32)), element);
     }
 
-    public void declareSimpleTypeVariable(SimpleType simpleType, String name, AstNode element) {
+    public void declareSimpleTypeVariable(SimpleType simpleType, String name, AstNode element,Expr cacheExpr) {
         SimpleTypeVariable simpleTypeVariable = new SimpleTypeVariable(simpleType, name);
+        simpleTypeVariable.setCacheExpr(cacheExpr);
         S.put(simpleTypeVariable, element);
     }
+
+
 
     public AstNode getValue(String name) {
         for (Map.Entry<Variable, AstNode> set : S.entrySet()) {

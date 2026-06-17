@@ -22,11 +22,14 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 
+import static core.symbolicExecution.SymbolicExecutionRewrite.CollectionKeys;
+
 public class MethodInvocationNode extends ExpressionNode {
     private static int numberOfFunctionsCall = 1;
     private static AST ast;
     private String className;
     private String methodName;
+    private String targetName;
     private List<AstNode> arguments = new ArrayList<>();
 
     public MethodInvocationNode(String className, String methodName, List<AstNode> arguments) {
@@ -35,7 +38,17 @@ public class MethodInvocationNode extends ExpressionNode {
         this.arguments = arguments;
     }
 
+    public MethodInvocationNode(String className, String methodName, List<AstNode> arguments,String targetName){
+        this.className = className;
+        this.methodName = methodName;
+        this.arguments = arguments;
+        this.targetName = targetName;
+    }
     public MethodInvocationNode() {
+    }
+
+    public String getTargetName() {
+        return targetName;
     }
 
     public String getClassName() {
@@ -54,8 +67,7 @@ public class MethodInvocationNode extends ExpressionNode {
         ast = methodInvocation.getAST();
 
         String methodName = methodInvocation.getName().toString();
-
-
+        String targetName = methodInvocation.getExpression().toString();
         if (methodInvocation.getExpression() != null) { // method invocation in the same class
             String className = methodInvocation.getExpression().toString();
 
@@ -92,7 +104,7 @@ public class MethodInvocationNode extends ExpressionNode {
                     arguments.add(ExpressionNode.executeExpression((Expression) arg, memoryModel));
                 }
                 // Trả về MethodInvocationNode chứa tên List (expressionStr) và index (arguments)
-                return new MethodInvocationNode(className, methodName, arguments);
+                return new MethodInvocationNode(className, methodName, arguments,targetName);
             }
 
 
@@ -105,19 +117,34 @@ public class MethodInvocationNode extends ExpressionNode {
                 return new MethodInvocationNode(className, methodName, arguments);
             }
 
-            if (className.contains("java.util.List")) {
+            if (className.contains("java.util.List") || className.contains("java.util.Map")) {
                 String expressionStr = methodInvocation.getExpression().toString();
-                if (methodName.equals("get")) {
-                    List<AstNode> arguments = new ArrayList<>();
-                    for (Object arg : methodInvocation.arguments()) {
-                        arguments.add(ExpressionNode.executeExpression((Expression) arg, memoryModel));
+
+                // Đặt cờ kiểm tra xem đối tượng hiện tại có phải là Map hay không
+                boolean isMap = className.contains("java.util.Map");
+
+                // Xử lý riêng cho phương thức không có tham số (ví dụ: size)
+                if (methodName.equals("size")) {
+                    if (isMap) {
+                        return new MapMethodNode(expressionStr, methodName, new ArrayList<>(), targetName);
+                    } else {
+                        return new MethodInvocationNode(expressionStr, methodName, new ArrayList<>(), targetName);
                     }
-                    // Trả về MethodInvocationNode chứa tên List (expressionStr) và index (arguments)
-                    return new MethodInvocationNode(expressionStr, methodName, arguments);
                 }
 
-                if (methodName.equals("size")) {
-                    return new MethodInvocationNode(expressionStr, methodName, new ArrayList<>());
+                // Xử lý cho các phương thức có tham số (get, put, add, set, v.v.)
+                List<AstNode> arguments = new ArrayList<>();
+                for (Object arg : methodInvocation.arguments()) {
+                    arguments.add(ExpressionNode.executeExpression((Expression) arg, memoryModel));
+                }
+
+                // Rẽ nhánh trả về loại Node tương ứng
+                if (isMap) {
+                    // Trả về MapMethodNode nếu className chứa java.util.Map
+                    return new MapMethodNode(expressionStr, methodName, arguments, targetName);
+                } else {
+                    // Trả về MethodInvocationNode cho phần còn lại (java.util.List)
+                    return new MethodInvocationNode(expressionStr, methodName, arguments, targetName);
                 }
             }
 
@@ -220,7 +247,10 @@ public class MethodInvocationNode extends ExpressionNode {
         String methodName = methodInvocationNode.getMethodName();
         String className = methodInvocationNode.getClassName();
         List<AstNode> args = methodInvocationNode.getArgument();
-
+        String targetName = className;
+        if (methodInvocationNode.getTargetName() != null){
+            targetName = methodInvocationNode.getTargetName();
+        }
         if (isSimpleTypeNode(operand)) {
             if (operand instanceof StringMethodNode)
                 return StringMethodNode.createZ3Expression((StringMethodNode) operand, memoryModel, ctx, vars);
@@ -317,28 +347,11 @@ public class MethodInvocationNode extends ExpressionNode {
                     return null;
                 }
             }
-        } else if (SymbolicExecutionRewrite.variableGenericTypeMap.containsKey(className)) {
-            Variable var = memoryModel.getVariable(className);
-            if ("get".equals(methodName)) {
-                Expr z3ListBase = SymbolicExecutionRewrite.z3ArrayStateMap.get().get(className);
-
-                if (z3ListBase == null) {
-                    throw new RuntimeException("Không tìm thấy trạng thái Z3 cho List: " + className);
-                }
-
-                ExpressionNode indexNode = (ExpressionNode) args.get(0);
-                Expr z3IndexExpr = OperationExpressionNode.createZ3Expression(indexNode, ctx, vars, memoryModel);
-                return ctx.mkSelect((ArrayExpr) z3ListBase, z3IndexExpr);
-            } else if ("size".equals(methodName)) {
-
-                ParameterizedTypeVariable listVar = (ParameterizedTypeVariable) var;
-                Expr sizeVar = listVar.getSize();
-                Z3VariableWrapper wrapper = new Z3VariableWrapper(sizeVar);
-
-                if (!SymbolicExecutionRewrite.haveDuplicateVariable(wrapper, vars)) {
-                    vars.add(wrapper);
-                }
-                return sizeVar;
+        } else if (SymbolicExecutionRewrite.variableGenericTypeMap.containsKey(targetName)) {
+            if(operand instanceof MapMethodNode){
+                return MapMethodNode.createZ3Expression(operand,memoryModel,ctx,vars);
+            }else{
+                return ParameterizedNode.createZ3Expression(operand,memoryModel,ctx,vars);
             }
         }
         throw new RuntimeException("Invalid type");

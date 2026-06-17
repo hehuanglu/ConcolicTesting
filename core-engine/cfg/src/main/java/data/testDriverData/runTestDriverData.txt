@@ -1,2 +1,0 @@
-char suitCard='-';
-===false===false===1---end---int i=0===false===false===2---end---46.4796===null

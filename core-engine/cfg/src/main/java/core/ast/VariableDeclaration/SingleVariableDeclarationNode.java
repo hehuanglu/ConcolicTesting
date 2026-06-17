@@ -36,7 +36,7 @@ public class SingleVariableDeclarationNode extends VariableDeclarationNode {
         else if(type instanceof SimpleType){
             SimpleTypeNode node = new SimpleTypeNode((SimpleType) type, key);
             simpleNameNode.setTarget(node);
-            memoryModel.declareSimpleTypeVariable((SimpleType) type, key, simpleNameNode);
+            memoryModel.declareSimpleTypeVariable((SimpleType) type, key, simpleNameNode,null);
         } else { // OTHER TYPES
             throw new RuntimeException("Invalid type");
         }

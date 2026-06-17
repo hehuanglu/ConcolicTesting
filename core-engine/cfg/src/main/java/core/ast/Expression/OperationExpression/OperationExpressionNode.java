@@ -44,6 +44,9 @@ public abstract class OperationExpressionNode extends ExpressionNode {
         } else if (operand instanceof ParenthesizedExpressionNode) {
             return ParenthesizedExpressionNode.createZ3Expression((ParenthesizedExpressionNode) operand, ctx, vars, memoryModel);
         } else if (operand instanceof NameNode) {
+            if(((NameNode) operand).getCacheExpr() != null) {
+                return ((NameNode) operand).getCacheExpr();
+            }
             NameNode n = (NameNode) operand;
             String name = NameNode.getStringNameNode(n);
 

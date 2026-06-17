@@ -21,6 +21,7 @@ import core.ast.additionalNodes.Node;
 import core.cfg.CfgBoolExprNode;
 import core.cfg.CfgNode;
 import core.path.Path;
+import core.testDriver.TestDriverUtils;
 import core.testGeneration.TestGeneration;
 import core.variable.*;
 import lombok.extern.slf4j.Slf4j;
@@ -31,6 +32,7 @@ import org.springframework.beans.BeanUtils;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.lang.reflect.Array;
+import java.lang.reflect.GenericArrayType;
 import java.math.BigInteger;
 import java.util.*;
 
@@ -58,10 +60,13 @@ public class SymbolicExecutionRewrite {
     public static List<MockInfo> currentMockInfos = new ArrayList<>();
     //  Sổ tay lưu trạng thái hiện tại của các Mảng Z3
     public static ThreadLocal<Map<String, Expr>> z3ArrayStateMap = ThreadLocal.withInitial(java.util.HashMap::new);
+    // BIẾN THEO DÕI SIZE CỦA MAP/COLLECTION: Lưu trữ biến symbolic đại diện cho size của Map
+    public static ThreadLocal<Map<String, Expr>> symbolicMapSizeMap = ThreadLocal.withInitial(java.util.HashMap::new);
     public static ThreadLocal<Context> globalCtx = new ThreadLocal<>();
     public static ThreadLocal<List<Z3VariableWrapper>> globalZ3Vars = new ThreadLocal<>();
-    public static Map<String, Class<?>> variableGenericTypeMap = new HashMap<>();
-
+    public static Map<String, TestDriverUtils.GenericTypeNode> variableGenericTypeMap = new HashMap<>();
+    // lưu các key của collections vd : a.get(i) thì lưu i
+    public  static List<Expr> CollectionKeys = new ArrayList<>();
     public SymbolicExecutionRewrite(Path testPath, List<ASTNode> parameters) {
         this.testPath = testPath;
         this.parameters = parameters;
@@ -73,8 +78,10 @@ public class SymbolicExecutionRewrite {
         currentCfgNode = null;
         parameterArrayLengths.clear();
         symbolicArrayIndexExpressions.clear();
-
-
+        // Làm mới danh sách các symbolic key (index) của Collection trước mỗi lần thực thi giải nghiệm
+        CollectionKeys.clear();
+        // XÓA DỮ LIỆU THEO DÕI SIZE: Đảm bảo không bị lẫn dữ liệu từ lần chạy trước
+        symbolicMapSizeMap.get().clear();
 
         HashMap<String, String> cfg = new HashMap();
         cfg.put("model", "true");
@@ -287,7 +294,7 @@ public class SymbolicExecutionRewrite {
                         return super.visit(methodInvocation);
                     }
                 });
-
+                // chuyển sang ast nội bộ
                 AstNode executedAstNode = Rewrite.reStm(astNode, symbolicMap);
 
                 if (currentNode.getData() instanceof CfgBoolExprNode) { // Condition
@@ -316,7 +323,7 @@ public class SymbolicExecutionRewrite {
                         currentNode = currentNode.getNext();
                         continue;
                     }
-
+                    // chuyển ast nội bộ sang z3 expr
                     Expr expr = OperationExpressionNode.createZ3Expression(
                             (ExpressionNode) executedAstNode, ctx, Z3Vars, symbolicMap);
                     BoolExpr constraint = null;
@@ -339,6 +346,7 @@ public class SymbolicExecutionRewrite {
 
                 } else if (astNode instanceof VariableDeclarationStatement) {
                     VariableDeclarationStatement stm = (VariableDeclarationStatement) astNode;
+
                     List<VariableDeclarationFragment> fragments = stm.fragments();
                     for (VariableDeclarationFragment fragment : fragments) {
                         String name = fragment.getName().getIdentifier();
@@ -346,14 +354,20 @@ public class SymbolicExecutionRewrite {
                         if (initializer != null) { //Declaration with initialization
                             if (stm.getType() instanceof PrimitiveType) {
                                 PrimitiveType type = (PrimitiveType) stm.getType();
-
-                                symbolicMap.declarePrimitiveTypeVariable(type, name,
-                                        ExpressionNode.executeExpression(initializer, symbolicMap));
+                                AstNode rightOperationNode = ExpressionNode.executeExpression(initializer, symbolicMap);
+                                // gọi hàm createZ3Expression để khi gặp khai báo kiểu x = y.get(i) - y là kiểu map
+                                // CollectionKeys cần phải lưu được key là i để phục vụ sinh nghiệm về sau
+                                Expr cacheExpr = OperationExpressionNode.createZ3Expression(
+                                        (ExpressionNode) rightOperationNode, ctx, Z3Vars, symbolicMap);
+                                symbolicMap.declarePrimitiveTypeVariableWithCachExpr(type, name,
+                                        rightOperationNode,cacheExpr);
                             } else if (stm.getType() instanceof SimpleType) {
                                 SimpleType simpleType = (SimpleType) stm.getType();
-
+                                AstNode rightOperationNode = ExpressionNode.executeExpression(initializer, symbolicMap);
+                                Expr cacheExpr = OperationExpressionNode.createZ3Expression(
+                                        (ExpressionNode) rightOperationNode, ctx, Z3Vars, symbolicMap);
                                 symbolicMap.declareSimpleTypeVariable(simpleType, name,
-                                        ExpressionNode.executeExpression(initializer, symbolicMap));
+                                        ExpressionNode.executeExpression(initializer, symbolicMap), cacheExpr);
                             } else if (stm.getType() instanceof ArrayType) {
                                 ArrayType type = (ArrayType) stm.getType();
                                 ArrayCreation arrayCreation = (ArrayCreation) initializer;
@@ -382,7 +396,11 @@ public class SymbolicExecutionRewrite {
                                     }
                                 }
                                 symbolicMap.declareArrayTypeVariable(type, name, type.getDimensions(), element);
-                            } else {
+                            }else if(stm.getType().isParameterizedType()){
+
+                            }
+                            else {
+
                                 throw new RuntimeException(stm.getType().getClass() + " is invalid!!");
                             }
                         } else { // Declaration without initialization
@@ -534,16 +552,16 @@ public class SymbolicExecutionRewrite {
             } else if (variable instanceof ArrayTypeVariable) {
                 // Khai báo mảng mới
                 // Chỉ số mảng luôn là int 32-bit
-                Sort domain = ctx.mkIntSort();
+                Sort domain = ctx.mkBitVecSort(32);
 
                 // lấy đúng kích thước sort
-                Sort range = ctx.mkIntSort();
+                Sort range = ctx.mkBitVecSort(32);
                 if (declaration.getType().isArrayType()) {
                     ArrayType arrType = (ArrayType) declaration.getType();
                     String elementTypeName = arrType.getElementType().toString();
 
                     if (elementTypeName.equals("long")) {
-                        range = ctx.mkIntSort();
+                        range = ctx.mkBitVecSort(64);
                     } else if (elementTypeName.equals("double")) {
                         range = ctx.mkFPSortDouble();
                     } else if (elementTypeName.equals("float")) {
@@ -566,19 +584,15 @@ public class SymbolicExecutionRewrite {
 
                 SymbolicExecutionRewrite.z3ArrayStateMap.get().put(name, z3ArrayBase);
             } else if (variable instanceof ParameterizedTypeVariable) {
-
-                Sort domain = ctx.mkBitVecSort(32);
-                Class<?> genericClass = variableGenericTypeMap.get(name);
-                Sort range = getZ3Sort(genericClass, ctx);
-
-                ArraySort z3ArraySort = ctx.mkArraySort(domain, range);
-                Expr z3ParameterizedBase = ctx.mkConst(name, z3ArraySort);
-                Z3VariableWrapper z3VariableWrapper = new Z3VariableWrapper(z3ParameterizedBase);
-                z3VariableWrapper.setIs_null(isNullVar);
-                if (!haveDuplicateVariable(z3VariableWrapper, z3Vars)) {
+                  TestDriverUtils.GenericTypeNode rootClass = variableGenericTypeMap.get(name);
+                  Sort z3ParameterizedTypeSort = createZ3SortRecursive(rootClass,ctx);
+                  Expr z3ParameterizedBase = ctx.mkConst(name, z3ParameterizedTypeSort);
+                  Z3VariableWrapper z3VariableWrapper = new Z3VariableWrapper(z3ParameterizedBase);
+                  z3VariableWrapper.setIs_null(isNullVar);
+                  if (!haveDuplicateVariable(z3VariableWrapper, z3Vars)) {
                     z3Vars.add(z3VariableWrapper);
-                }
-                SymbolicExecutionRewrite.z3ArrayStateMap.get().put(name, z3ParameterizedBase);
+                  }
+                  SymbolicExecutionRewrite.z3ArrayStateMap.get().put(name, z3ParameterizedBase);
             } else {
                 throw new RuntimeException("Invalid type variable");
             }
@@ -586,7 +600,21 @@ public class SymbolicExecutionRewrite {
             throw new RuntimeException("Invalid parameter");
         }
     }
-
+    private Sort createZ3SortRecursive(TestDriverUtils.GenericTypeNode typeNode, Context ctx) {
+        Class<?> clazz = typeNode.baseClass;
+        if(typeNode.typeArguments.isEmpty()){
+            return getZ3Sort(clazz,ctx);
+        }else if(typeNode.typeArguments.size() == 1){
+            Sort domain =  ctx.mkBitVecSort(32);
+            Sort range = createZ3SortRecursive(typeNode.typeArguments.get(0),ctx);
+            return ctx.mkArraySort(domain,range);
+        }else if(typeNode.typeArguments.size() == 2){
+            Sort domain = createZ3SortRecursive(typeNode.typeArguments.get(0),ctx);
+            Sort range = createZ3SortRecursive(typeNode.typeArguments.get(1),ctx);
+            return ctx.mkArraySort(domain,range);
+        }
+        throw new RuntimeException("Unsupported parameterized type: " + clazz);
+    }
     private boolean haveDuplicateVariable(Z3VariableWrapper z3Variable) {
         return haveDuplicateVariable(z3Variable, Z3Vars);
     }
@@ -603,6 +631,11 @@ public class SymbolicExecutionRewrite {
     }
 
     private Model createModel(Context ctx, BoolExpr f) {
+        List<BitVecExpr> collectionSizeObjectives = collectCollectionSizeObjectives();
+        if (!collectionSizeObjectives.isEmpty()) {
+            return createOptimizedModel(ctx, f, collectionSizeObjectives);
+        }
+
         Solver s = ctx.mkSolver();
         if (f != null) {
             s.add(f);
@@ -614,10 +647,57 @@ public class SymbolicExecutionRewrite {
         if (satisfaction != Status.SATISFIABLE) {
             log.warn("Biểu thức hiện tại là UNSATISFIABLE. Không thể tìm ra nghiệm Z3.");
             throw new RuntimeException("Expression is UNSATISFIABLE");
+
         } else {
             log.info("Z3 đã giải thành công (SATISFIABLE)!");
             return s.getModel();
         }
+    }
+
+    private List<BitVecExpr> collectCollectionSizeObjectives() {
+        List<BitVecExpr> objectives = new ArrayList<>();
+        Set<String> seenNames = new HashSet<>();
+
+        for (Z3VariableWrapper var : Z3Vars) {
+            Expr expr = var.getPrimitiveVar();
+            if (!(expr instanceof BitVecExpr)) {
+                continue;
+            }
+
+            String exprName = expr.toString();
+            if (!exprName.endsWith(".size")) {
+                continue;
+            }
+
+            String collectionName = exprName.substring(0, exprName.lastIndexOf(".size"));
+            if (variableGenericTypeMap.containsKey(collectionName) && seenNames.add(exprName)) {
+                objectives.add((BitVecExpr) expr);
+            }
+        }
+
+        return objectives;
+    }
+
+    private Model createOptimizedModel(Context ctx, BoolExpr f, List<BitVecExpr> collectionSizeObjectives) {
+        Optimize optimizer = ctx.mkOptimize();
+        if (f != null) {
+            optimizer.Add(f);
+        }
+
+        for (BitVecExpr sizeExpr : collectionSizeObjectives) {
+            optimizer.MkMinimize(sizeExpr);
+        }
+
+        log.debug("Trang thai Optimize Z3 truoc khi Check: \n{}", optimizer.toString());
+
+        Status satisfaction = optimizer.Check();
+        if (satisfaction != Status.SATISFIABLE) {
+            log.warn("Bieu thuc hien tai la UNSATISFIABLE. Khong the tim ra nghiem Z3.");
+            throw new RuntimeException("Expression is UNSATISFIABLE");
+        }
+
+        log.info("Z3 da giai thanh cong voi chien luoc toi uu size Collection (SATISFIABLE)!");
+        return optimizer.getModel();
     }
 
     private void evaluateAndSaveTestDataCreated(Context ctx) {
@@ -684,7 +764,10 @@ public class SymbolicExecutionRewrite {
                     } else {
                         stringValue = evaluateResult.toString();
                     }
-                    Expr is_null = model.evaluate(z3VariableWrapper.getIs_null(),true);
+                    Expr is_null = ctx.mkTrue();
+                    if(z3VariableWrapper.getIs_null() != null){
+                        is_null = model.evaluate(z3VariableWrapper.getIs_null(),true);
+                    }
                     if(!is_null.isTrue()){
                         stringValue = null;
                     }
@@ -734,83 +817,150 @@ public class SymbolicExecutionRewrite {
 //                            ArrayType arrayType = (ArrayType) decl.getType();
 //                            String elementTypeName = arrayType.getElementType().toString();
                             String elementTypeName = "";
+                            Class<?> genericClass = null;
                             if (decl.getType().isArrayType()) {
                                 // Nếu là mảng (int[], String[]...)
                                 ArrayType arrayType = (ArrayType) decl.getType();
                                 elementTypeName = arrayType.getElementType().toString();
                             } else {
                                 // Nếu là List<Integer>, List<String>...
-                                Class<?> genericClass = variableGenericTypeMap.get(paramName);
+                                // Đối với generic phức tạp vd Map<Long,List<Long>> thì baseClass là Map trong trường hợp này
+                                genericClass = variableGenericTypeMap.get(paramName).baseClass;
                                 elementTypeName = genericClass.getSimpleName();
                             }
 
-                            try {
-                                // Chọn kích thước sort theo kiểu dữ liệu
-                                Sort domainSort = ctx.mkIntSort();
-                                Sort rangeSort;
-
-                                if (elementTypeName.equals("long")) {
-                                    rangeSort = ctx.mkIntSort();
-                                } else if (elementTypeName.equals("double")) {
-                                    rangeSort = ctx.mkFPSortDouble();
-                                } else if (elementTypeName.equals("float")) {
-                                    rangeSort = ctx.mkFPSortSingle();
-                                } else {
-                                    rangeSort = ctx.mkBitVecSort(32);
-                                }
-
-                                // dựng lại tham chiếu đến mảng gốc ban đầu với đúng sort
-                                Expr z3ArrayBase = SymbolicExecutionRewrite.z3ArrayStateMap.get().get(paramName);
-                                if (z3ArrayBase == null) {
-                                    z3ArrayBase = ctx.mkConst(paramName, ctx.mkArraySort(domainSort, rangeSort));
-                                }
-                                for (int k = 0; k < arrayLength; k++) {
-                                    Expr kExpr = ctx.mkInt(k);
-                                    Expr selectExpr = ctx.mkSelect((ArrayExpr) z3ArrayBase, kExpr);
-
-                                    Expr evaluatedElement = model.evaluate(selectExpr, true).simplify();
-
-                                    String valStr = "0";
-
-                                    if (evaluatedElement instanceof IntNum) {
-                                        IntNum intNum = (IntNum) evaluatedElement;
-                                        if (elementTypeName.equals("long") || elementTypeName.equals("Long")) {
-                                            valStr = String.valueOf(intNum.getBigInteger().longValue()) + "L";
-                                        } else {
-                                            valStr = String.valueOf(intNum.getInt());
+                            // NHÁNH XỬ LÝ RIÊNG CHO MAP:
+                            // Nếu tham số là một Map, ta không dùng index chạy từ 0 đến length như mảng
+                            // mà sử dụng các key symbolic đã thu thập được trong quá trình chạy (CollectionKeys)
+                            if (genericClass != null && java.util.Map.class.isAssignableFrom(genericClass)) {
+                                StringBuilder mapStr = new StringBuilder();
+                                try {
+                                    // CẬP NHẬT SIZE CHO MAP: Ưu tiên lấy biến size symbolic đã được theo dõi
+                                    Expr symbolicSizeVar = symbolicMapSizeMap.get().get(paramName);
+                                    if (symbolicSizeVar != null) {
+                                        Expr evaluatedSize = model.evaluate(symbolicSizeVar, true);
+                                        if (evaluatedSize instanceof BitVecNum) {
+                                            arrayLength = ((BitVecNum) evaluatedSize).getInt();
+                                            log.info("Map '{}': Z3 giải ra size = {}", paramName, arrayLength);
                                         }
-                                    } else if (evaluatedElement instanceof FPNum) {
-                                        FPNum fpNum = (FPNum) evaluatedElement;
-                                        if (fpNum.isNaN()) {
-                                            valStr = "Double.NaN";
-                                        } else if (fpNum.isInf()) {
-                                            valStr = fpNum.isNegative() ? "Double.NEGATIVE_INFINITY" : "Double.POSITIVE_INFINITY";
-                                        } else {
-                                            Expr bvExpr = ctx.mkFPToIEEEBV(fpNum).simplify();
-                                            if (bvExpr instanceof BitVecNum) {
-                                                BigInteger bits = ((BitVecNum) bvExpr).getBigInteger();
-                                                if (elementTypeName.equals("float")) {
-                                                    valStr = String.valueOf(Float.intBitsToFloat(bits.intValue()));
-                                                } else {
-                                                    valStr = String.valueOf(Double.longBitsToDouble(bits.longValue()));
-                                                }
-                                            } else {
-                                                valStr = fpNum.toString();
-                                            }
-                                        }
-                                    } else {
-                                        valStr = evaluatedElement.toString();
                                     }
 
-                                    arrStr.append(valStr);
-                                    if (k < arrayLength - 1) arrStr.append(",");
-                                }
-                                log.debug("Đã dịch xong Mảng [{}]: [{}]", paramName, arrStr.toString());
-                            } catch (Exception e) {
-                                System.out.println("   ---> Lỗi lấy mảng Z3: " + e.getMessage());
-                            }
+                                    // Dựng lại tham chiếu đến mảng/map gốc ban đầu với đúng sort để lấy nghiệm đầu vào
+                                    // Thay vì lấy từ z3ArrayStateMap (vốn có thể đã bị update hoặc corrupt), ta dựng lại const ban đầu
+                                    TestDriverUtils.GenericTypeNode rootClassNode = variableGenericTypeMap.get(paramName);
+                                    Sort z3MapSort = createZ3SortRecursive(rootClassNode, ctx);
+                                    Expr z3MapBase = ctx.mkConst(paramName, z3MapSort);
 
-                            result.append(arrStr.toString());
+                                    // XỬ LÝ TRƯỜNG HỢP SIZE > 0: Nếu size = 0, mapStr sẽ giữ nguyên là rỗng
+
+                                        // Duyệt qua danh sách các key đã thu thập, giới hạn bởi size thực tế
+                                        int keyLimit = Math.min(CollectionKeys.size(), arrayLength);
+                                        for (int k = 0; k < keyLimit; k++) {
+                                            Expr keyExpr = CollectionKeys.get(k);
+                                            // Dùng lệnh mkSelect để lấy giá trị tại key tương ứng từ mảng Z3 đại diện cho Map
+                                            Expr selectExpr = ctx.mkSelect((ArrayExpr) z3MapBase, keyExpr);
+
+                                            // giải key của map từ Model chính
+                                            Expr evaluatedKey = model.evaluate(keyExpr, true).simplify();
+                                            // giải value của map từ Model chính
+                                            Expr evaluatedVal = model.evaluate(selectExpr, true).simplify();
+
+                                            // Lưu kết quả theo cặp xen kẽ vào chuỗi kết quả thô: [key1,val1,key2,val2...]
+                                            mapStr.append(evaluatedKey.toString()).append(",").append(evaluatedVal.toString());
+                                            if (k < keyLimit - 1) mapStr.append(",");
+
+
+                                        // BỔ SUNG LOGIC: LẤP ĐẦY NẾU THIẾU KEY
+                                        // Nếu size giải được (arrayLength) lớn hơn số lượng key thực tế thu thập được
+//                                        if (arrayLength > CollectionKeys.size()) {
+//                                            for (int missingIdx = CollectionKeys.size(); missingIdx < arrayLength; missingIdx++) {
+//                                                if (mapStr.length() > 0) {
+//                                                    mapStr.append(",");
+//                                                }
+//                                                // Điền giá trị mặc định 0 cho cặp key và value (0,0)
+//                                                mapStr.append(missingIdx).append(",0");
+//                                            }
+//                                        }
+//                                        else{
+//                                            for (int missingIdx = CollectionKeys.size(); missingIdx < arrayLength; missingIdx++) {
+//                                                if (mapStr.length() > 0) {
+//                                                    mapStr.append(",");
+//                                                }
+//                                                // Điền giá trị mặc định 0 cho cặp key và value (index,0)
+//                                                mapStr.append(missingIdx).append(",0");
+//                                            }
+//                                        }
+                                    }
+                                } catch (Exception e) {
+                                    log.error("Lỗi khi giải nghiệm Map [{}]: {}", paramName, e.getMessage());
+                                }
+                                result.append(mapStr.toString());
+                            } else {
+                                try {
+                                    // Chọn kích thước sort theo kiểu dữ liệu
+                                    Sort domainSort = ctx.mkBitVecSort(32);
+                                    Sort rangeSort;
+
+                                    if (elementTypeName.equals("long")) {
+                                        rangeSort = ctx.mkBitVecSort(64);
+                                    } else if (elementTypeName.equals("double")) {
+                                        rangeSort = ctx.mkFPSortDouble();
+                                    } else if (elementTypeName.equals("float")) {
+                                        rangeSort = ctx.mkFPSortSingle();
+                                    } else {
+                                        rangeSort = ctx.mkBitVecSort(32);
+                                    }
+
+                                    // dựng lại tham chiếu đến mảng gốc ban đầu với đúng sort để lấy nghiệm đầu vào
+                                    Expr z3ArrayBase = ctx.mkConst(paramName, ctx.mkArraySort(domainSort, rangeSort));
+                                    for (int k = 0; k < arrayLength; k++) {
+                                        Expr kExpr = ctx.mkBV(k, 32);
+                                        Expr selectExpr = ctx.mkSelect((ArrayExpr) z3ArrayBase, kExpr);
+
+                                        Expr evaluatedElement = model.evaluate(selectExpr, true).simplify();
+
+                                        String valStr = "0";
+
+                                        if (evaluatedElement instanceof IntNum) {
+                                            IntNum intNum = (IntNum) evaluatedElement;
+                                            if (elementTypeName.equals("long") || elementTypeName.equals("Long")) {
+                                                valStr = String.valueOf(intNum.getBigInteger().longValue()) + "L";
+                                            } else {
+                                                valStr = String.valueOf(intNum.getInt());
+                                            }
+                                        } else if (evaluatedElement instanceof FPNum) {
+                                            FPNum fpNum = (FPNum) evaluatedElement;
+                                            if (fpNum.isNaN()) {
+                                                valStr = "Double.NaN";
+                                            } else if (fpNum.isInf()) {
+                                                valStr = fpNum.isNegative() ? "Double.NEGATIVE_INFINITY" : "Double.POSITIVE_INFINITY";
+                                            } else {
+                                                Expr bvExpr = ctx.mkFPToIEEEBV(fpNum).simplify();
+                                                if (bvExpr instanceof BitVecNum) {
+                                                    BigInteger bits = ((BitVecNum) bvExpr).getBigInteger();
+                                                    if (elementTypeName.equals("float")) {
+                                                        valStr = String.valueOf(Float.intBitsToFloat(bits.intValue()));
+                                                    } else {
+                                                        valStr = String.valueOf(Double.longBitsToDouble(bits.longValue()));
+                                                    }
+                                                } else {
+                                                    valStr = fpNum.toString();
+                                                }
+                                            }
+                                        } else {
+                                            valStr = evaluatedElement.toString();
+                                        }
+
+                                        arrStr.append(valStr);
+                                        if (k < arrayLength - 1) arrStr.append(",");
+                                    }
+                                    log.debug("Đã dịch xong Mảng [{}]: [{}]", paramName, arrStr.toString());
+                                } catch (Exception e) {
+                                    System.out.println("   ---> Lỗi lấy mảng Z3: " + e.getMessage());
+                                }
+
+                                result.append(arrStr.toString());
+                            }
 
                         } else {
                             // Biến bình thường thì lấy từ map ta đã quét ở trên
@@ -880,6 +1030,20 @@ public class SymbolicExecutionRewrite {
                         listInstance.add(parsePrimitiveString(str.trim(), "int"));
                     }
                     result.add(listInstance);
+                } else if (java.util.Map.class.isAssignableFrom(parameterClass)) {
+                    // XỬ LÝ MAP TRONG KẾT QUẢ TRẢ VỀ:
+                    // Phân tách chuỗi thô (dạng key1,val1,key2,val2...) thành đối tượng Map Java
+                    String[] strElements = lineData.split(",");
+                    Map<Object, Object> mapInstance = new LinkedHashMap<>();
+                    for (int j = 0; j < strElements.length; j += 2) {
+                        if (j + 1 < strElements.length) {
+                            // Tạm thời ép kiểu về int cho cả key và value (có thể mở rộng sau)
+                            Object key = parsePrimitiveString(strElements[j].trim(), "int");
+                            Object val = parsePrimitiveString(strElements[j + 1].trim(), "int");
+                            mapInstance.put(key, val);
+                        }
+                    }
+                    result.add(mapInstance);
                 }
                 // kiểm tra xem có phải kiểu simple type không
                 else if (BeanUtils.isSimpleValueType(parameterClass)){
@@ -937,7 +1101,15 @@ public class SymbolicExecutionRewrite {
     private Object parsePrimitiveString(String valStr, String type) {
         valStr = valStr.trim();
 
-        if ("int".equals(type)) return Integer.parseInt(valStr);
+        if ("int".equals(type)) {
+            try {
+                // Ưu tiên 1: Bắt các số bình thường và số có dấu âm (VD: "-5", "100")
+                return Integer.parseInt(valStr);
+            } catch (NumberFormatException e) {
+                // Ưu tiên 2: Nếu tràn giới hạn int, dùng parse không dấu (VD: "2147483649")
+                return Integer.parseUnsignedInt(valStr);
+            }
+        }
         if ("boolean".equals(type)) return Boolean.parseBoolean(valStr);
         if ("byte".equals(type)) return Byte.parseByte(valStr);
         if ("short".equals(type)) return Short.parseShort(valStr);
@@ -1224,8 +1396,10 @@ public class SymbolicExecutionRewrite {
         virtualArray.setLengthOfDimensions(IntegerLiteralNode.executeIntegerLiteral(length));
 
         // 2. Xác định kiểu phần tử từ Map Generic (thay vì dùng getElementType như mảng)
-        Class<?> genericClass = variableGenericTypeMap.get(variableName);
-
+        Class<?> genericClass = variableGenericTypeMap.get(variableName).baseClass;
+        if(Map.class.isAssignableFrom(genericClass)){
+            return virtualArray;
+        }
         if (genericClass != null) {
             // 3. Chuyển đổi Class sang PrimitiveTypeNode (để Tool hiểu loại dữ liệu)
             PrimitiveType.Code primitiveCode = getPrimitiveTypeCode(genericClass);
@@ -1485,7 +1659,7 @@ public class SymbolicExecutionRewrite {
 
     private static Object createRandomCollectionVariableData(Class<?> parameterClass, String parameterName) {
         List<Object> listInstance = new ArrayList<>();
-        Class<?> targetType = variableGenericTypeMap.get(parameterName);
+        Class<?> targetType = variableGenericTypeMap.get(parameterName).baseClass;
         for (int i = 0; i < 10; i++) {
             Object randomData = createRandomPrimitiveVariableData(targetType);
             listInstance.add(randomData);
