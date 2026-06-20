@@ -17,6 +17,16 @@ public abstract class Variable {
 
     public abstract Type getType();
 
+    private Expr cacheExpr;
+
+    public void setCacheExpr(Expr cacheExpr) {
+        this.cacheExpr = cacheExpr;
+    }
+
+    public Expr getCacheExpr() {
+        return cacheExpr;
+    }
+
     public static Expr createZ3Variable(Variable variable, Context ctx){
         if(variable instanceof PrimitiveTypeVariable) {
             return PrimitiveTypeVariable.createZ3PrimitiveTypeVariable((PrimitiveTypeVariable) variable, ctx);
@@ -25,6 +35,8 @@ public abstract class Variable {
 //            throw new RuntimeException("Invalid type");
         } else if (variable instanceof SimpleTypeVariable) {
             return SimpleTypeVariable.createZ3SimpleTypeVariable((SimpleTypeVariable) variable, ctx);
+        } else if (variable instanceof ParameterizedTypeVariable) {
+            return ParameterizedTypeVariable.createZ3ParameterizedTypeVariable((ParameterizedTypeVariable) variable, ctx);
         }
         else {
             throw new RuntimeException("Invalid type");

@@ -12,6 +12,15 @@ import java.util.Map;
 public class SimpleTypeVariable extends Variable {
     private SimpleType simpleType;
     private static final Map<String, Sort> sortCache = new HashMap<>();
+    private int address;
+
+    public void setAddress(int address) {
+        this.address = address;
+    }
+
+    public int getAddress() {
+        return address;
+    }
 
     public SimpleTypeVariable(SimpleType simpleType, String name) {
         this.simpleType = simpleType;
@@ -29,14 +38,25 @@ public class SimpleTypeVariable extends Variable {
     public static Expr createZ3SimpleTypeVariable(SimpleTypeVariable simpleTypeVariable, Context ctx) {
         String name = simpleTypeVariable.getName();
         String typeName = simpleTypeVariable.getTypeName();
+
         SymbolicExecutionRewrite.variableTypeMap.put(name, typeName.toString());
         Sort sort; switch (typeName) {
             case "String":
                 sort = ctx.mkStringSort();
                 break;
-            default :
-                sort = ctx.mkStringSort();
+            case "Integer":
+                sort = ctx.mkIntSort();
+                break;
+            case "Double":
+                sort = ctx.mkRealSort();
+                break;
+            case "Long":
+                sort = ctx.mkBitVecSort(64);
+                break;
+            default:
+                sort = ctx.mkUninterpretedSort(typeName);
         }
+
         Expr res =  ctx.mkConst(name, sort);
         return res;
     }

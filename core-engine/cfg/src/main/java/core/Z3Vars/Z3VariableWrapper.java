@@ -1,12 +1,13 @@
 package core.Z3Vars;
 
+import com.microsoft.z3.BoolExpr;
 import com.microsoft.z3.Expr;
 import core.variable.ArrayTypeVariable;
-
+import com.microsoft.z3.*;
 public class Z3VariableWrapper {
     private Expr primitiveVar = null;
     private ArrayTypeVariable arrayVar = null;
-
+    private BoolExpr is_null;
     public Z3VariableWrapper(Expr primitiveVar) {
         this.primitiveVar = primitiveVar;
     }
@@ -15,6 +16,13 @@ public class Z3VariableWrapper {
         this.arrayVar = arrayVar;
     }
 
+    public BoolExpr getIs_null() {
+        return is_null;
+    }
+
+    public void setIs_null(BoolExpr is_null) {
+        this.is_null = is_null;
+    }
     public Expr getPrimitiveVar() {
         return primitiveVar;
     }

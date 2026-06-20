@@ -8,6 +8,7 @@ import core.ast.Expression.ExpressionNode;
 import core.ast.Expression.Literal.LiteralNode;
 import core.ast.Expression.Literal.StringLiteralNode;
 import core.symbolicExecution.MemoryModel;
+import core.variable.SimpleTypeVariable;
 import core.variable.Variable;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.SimpleType;
@@ -50,9 +51,10 @@ public class SimpleTypeNode extends ExpressionNode {
         Expr expr = Variable.createZ3Variable(variable, ctx);
 
         Z3VariableWrapper wrapper = new Z3VariableWrapper(expr);
+
         int idx = getDuplicateVariableIndex(wrapper, vars);
         if (idx != -1) {
-            vars.set(idx, wrapper);
+            return vars.get(idx).getPrimitiveVar();
         } else {
             vars.add(wrapper);
         }

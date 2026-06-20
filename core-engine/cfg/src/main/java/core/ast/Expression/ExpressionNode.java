@@ -5,8 +5,10 @@ import core.ast.Expression.Array.ArrayAccessNode;
 import core.ast.Expression.Literal.LiteralNode;
 import core.ast.Expression.Method.MethodInvocationNode;
 import core.ast.Expression.Name.NameNode;
+import core.ast.Expression.ObjectCreation.ClassInstanceCreationNode;
 import core.ast.Expression.OperationExpression.CastExpressionNode;
 import core.ast.Expression.OperationExpression.OperationExpressionNode;
+import core.ast.Type.AnnotatableType.SimpleTypeNode;
 import core.symbolicExecution.MemoryModel;
 import org.eclipse.jdt.core.dom.*;
 
@@ -37,7 +39,15 @@ public abstract class ExpressionNode extends AstNode {
             return CastExpressionNode.executeCastExpression((CastExpression) expression, memoryModel);
         } else if (expression instanceof MethodInvocation) {
             return MethodInvocationNode.executeMethodInvocation((MethodInvocation) expression, memoryModel);
-        } else {
+        } else if (expression instanceof ClassInstanceCreation) {
+            return ClassInstanceCreationNode.executeClassInstanceCreation((ClassInstanceCreation) expression, memoryModel);
+        } else if (expression instanceof FieldAccess) {
+            core.ast.Expression.Name.SimpleNameNode fieldNode =
+                    new core.ast.Expression.Name.SimpleNameNode(expression.toString());
+            fieldNode.markFake();
+            return fieldNode;
+        }
+        else {
 //            throw new RuntimeException(expression.getClass() + " is not an Expression!!!");
             return null;
         }

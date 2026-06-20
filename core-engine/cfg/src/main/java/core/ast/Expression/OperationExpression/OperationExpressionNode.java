@@ -6,9 +6,7 @@ import core.Z3Vars.Z3VariableWrapper;
 import core.ast.AstNode;
 import core.ast.Expression.Array.ArrayAccessNode;
 import core.ast.Expression.ExpressionNode;
-import core.ast.Expression.Literal.BooleanLiteralNode;
-import core.ast.Expression.Literal.CharacterLiteralNode;
-import core.ast.Expression.Literal.LiteralNode;
+import core.ast.Expression.Literal.*;
 import core.ast.Expression.Literal.NumberLiteral.IntegerLiteralNode;
 import core.ast.Expression.Literal.NumberLiteral.NumberLiteralNode;
 import core.ast.Expression.Literal.StringLiteralNode;
@@ -51,6 +49,9 @@ public abstract class OperationExpressionNode extends ExpressionNode {
         } else if (operand instanceof MethodInvocationNode) {
             return MethodInvocationNode.createZ3Expression((MethodInvocationNode) operand, memoryModel, ctx, vars);
         } else if (operand instanceof NameNode) {
+            if(((NameNode) operand).getCacheExpr() != null) {
+                return ((NameNode) operand).getCacheExpr();
+            }
             NameNode n = (NameNode) operand;
             String name = NameNode.getStringNameNode(n);
 
@@ -69,7 +70,10 @@ public abstract class OperationExpressionNode extends ExpressionNode {
                 Expr lengthVar = ctx.mkBVConst(name, 32);
 
                 Z3VariableWrapper wrapper = new Z3VariableWrapper(lengthVar);
-                if (getDuplicateVariableIndex(wrapper, vars) == -1) {
+                int idx = getDuplicateVariableIndex(wrapper, vars);
+                if (idx != -1) {
+                    return vars.get(idx).getPrimitiveVar();
+                } else {
                     vars.add(wrapper);
                 }
 
@@ -79,7 +83,23 @@ public abstract class OperationExpressionNode extends ExpressionNode {
         } else if (operand instanceof LiteralNode) {
             if (operand instanceof NumberLiteralNode) {
                 String tokenVal = ((NumberLiteralNode) operand).getTokenValue();
-
+//                if(operand instanceof LongLiteralNode){
+//                    String numStr = tokenVal.substring(0, tokenVal.length() - 1);
+//                    boolean isHex = numStr.toLowerCase().startsWith("0x");
+//                    boolean isBinary = numStr.toLowerCase().startsWith("0b");
+//                    boolean isOctal = numStr.startsWith("0") && !isHex && !isBinary && numStr.length() > 1;
+//                    long val;
+//                    if (isHex) {
+//                        val = Long.parseLong(numStr.substring(2), 16);
+//                    } else if (isBinary) {
+//                        val = Long.parseLong(numStr.substring(2), 2);
+//                    } else if (isOctal) {
+//                        val = Long.parseLong(numStr, 8);
+//                    } else {
+//                        val = Long.parseLong(numStr, 10);
+//                    }
+//                    return ctx.mkBV(val, 64);
+//                }
                 if (operand instanceof IntegerLiteralNode) {
                     boolean isLong = tokenVal.toUpperCase().endsWith("L");
                     String numStr = isLong ? tokenVal.substring(0, tokenVal.length() - 1) : tokenVal;
@@ -98,9 +118,9 @@ public abstract class OperationExpressionNode extends ExpressionNode {
                         val = Long.parseLong(numStr, 10);
                     }
                     if (isLong) {
-                        return ctx.mkInt(val);
+                        return ctx.mkBV(val, 64);
                     } else {
-                        return ctx.mkInt((int) val);
+                        return ctx.mkBV((int) val, 32);
                     }
                 } else {
                     double val = Double.parseDouble(tokenVal.replace("_", ""));
@@ -115,7 +135,7 @@ public abstract class OperationExpressionNode extends ExpressionNode {
                 return ctx.mkBool(((BooleanLiteralNode) operand).getValue());
             } else if (operand instanceof CharacterLiteralNode) {
                 return ctx.mkString(String.valueOf(((CharacterLiteralNode) operand).getCharacterValue()));
-            } else if (operand instanceof  NullLiteralNode){
+            } else if (operand instanceof NullLiteralNode) {
                 //đặt 0 tượng trưng cho null trong bộ giải z3
                 return ctx.mkInt(0);
             } else if (operand instanceof StringLiteralNode) {
@@ -129,12 +149,13 @@ public abstract class OperationExpressionNode extends ExpressionNode {
             return MethodInvocationNode.createZ3Expression((MethodInvocationNode) operand, memoryModel, ctx, vars);
         } else if (operand instanceof CastExpressionNode) {
             return CastExpressionNode.createZ3Expression((CastExpressionNode) operand, memoryModel, ctx, vars);
-        }  if (operand instanceof SimpleTypeNode) {
-            return SimpleTypeNode.createZ3Expression((SimpleTypeNode) operand, memoryModel, ctx, vars);
         }
-        else {
+        if (operand instanceof SimpleTypeNode) {
+            return SimpleTypeNode.createZ3Expression((SimpleTypeNode) operand, memoryModel, ctx, vars);
+        } else {
             throw new RuntimeException(operand.getClass() + " is not an Expression");
         }
+
     }
 
     private static Expr createZ3Variable(NameNode variableName, Context ctx, List<Z3VariableWrapper> vars, MemoryModel memoryModel) {
@@ -144,7 +165,7 @@ public abstract class OperationExpressionNode extends ExpressionNode {
         //Check duplicate and add to vars
         int variableIndex = getDuplicateVariableIndex(z3VariableWrapper, vars);
         if (variableIndex != -1) {
-            vars.set(variableIndex, z3VariableWrapper);
+            return vars.get(variableIndex).getPrimitiveVar();
         } else {
             vars.add(z3VariableWrapper);
         }
@@ -175,9 +196,6 @@ public abstract class OperationExpressionNode extends ExpressionNode {
         }
     }
 
-    // Character.toLowerCase(x);
-    // s.concat()
-
     public static ExpressionNode executeOperandNode(ExpressionNode operand, MemoryModel memoryModel) {
         if (operand instanceof InfixExpressionNode) {
             return InfixExpressionNode.executeInfixExpressionNode((InfixExpressionNode) operand, memoryModel);
@@ -195,10 +213,9 @@ public abstract class OperationExpressionNode extends ExpressionNode {
             return operand;
         } else if (operand instanceof ArrayAccessNode) {
             return operand;
-        }else if (operand instanceof SimpleTypeNode) {
+        } else if (operand instanceof SimpleTypeNode) {
             return operand;
-        }
-        else {
+        } else {
             throw new RuntimeException(operand.getClass() + " is Invalid expressionNode");
         }
     }

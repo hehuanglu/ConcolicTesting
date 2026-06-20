@@ -5,6 +5,7 @@ import core.Z3Vars.Z3VariableWrapper;
 import core.ast.AstNode;
 import core.ast.Expression.ExpressionNode;
 import core.ast.Expression.Literal.LiteralNode;
+import core.ast.Expression.Name.SimpleNameNode;
 import core.symbolicExecution.MemoryModel;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.Expression;
@@ -43,6 +44,35 @@ public class InfixExpressionNode extends OperationExpressionNode {
         ExpressionNode rightOperand = infixExpressionNode.rightOperand;
         InfixExpression.Operator operator = infixExpressionNode.operator;
         List<AstNode> extendedOperands = infixExpressionNode.extendedOperands;
+        BoolExpr isNullS;
+        // nếu vế phải của Object == null thì return ràng buộc is_null = true
+        if(rightOperand.toString().equals("null") && operator.toString().equals("==")){
+            Expr Z3LeftOperand = OperationExpressionNode.createZ3Expression(leftOperand, ctx, vars, memoryModel);
+
+            for(Z3VariableWrapper wrapper : vars){
+                if (Z3LeftOperand == wrapper.getPrimitiveVar()){
+                    // nếu wrapper của Object chưa được khởi tạo biến cờ is_null thì phải khởi tạo ở bước này
+                    if(wrapper.getIs_null() == null){
+                        wrapper.setIs_null(ctx.mkTrue());
+                    }
+                    return ctx.mkNot(ctx.mkEq(wrapper.getIs_null(), ctx.mkTrue()));
+                }
+            }
+            return null;
+        }else if(rightOperand.toString().equals("null") && operator.toString().equals("!=")){// nếu Object != null thì sẽ đổi thành biểu thức is_null = false
+            Expr Z3LeftOperand = OperationExpressionNode.createZ3Expression(leftOperand, ctx, vars, memoryModel);
+
+            for(Z3VariableWrapper wrapper : vars){
+                if (Z3LeftOperand == wrapper.getPrimitiveVar()){
+                    // nếu wrapper của Object chưa được khởi tạo biến cờ is_null thì phải khởi tạo ở bước này
+                    if(wrapper.getIs_null() == null){
+                        wrapper.setIs_null(ctx.mkTrue());
+                    }
+                    return ctx.mkEq(wrapper.getIs_null(), ctx.mkTrue());
+                }
+            }
+            return null;
+        }
 
         Expr Z3LeftOperand = OperationExpressionNode.createZ3Expression(leftOperand, ctx, vars, memoryModel);
         Expr Z3RightOperand = OperationExpressionNode.createZ3Expression(rightOperand, ctx, vars, memoryModel);
@@ -117,6 +147,17 @@ public class InfixExpressionNode extends OperationExpressionNode {
             } else {
                 throw new RuntimeException("Invalid operator for floating-point operands: " + operator);
             }
+        }
+
+        // Nếu Trái là Int, Phải là BitVec -> Ép Trái theo size của Phải
+        if (Z3LeftOperand instanceof IntExpr && Z3RightOperand instanceof BitVecExpr) {
+            int targetSize = ((BitVecExpr) Z3RightOperand).getSortSize();
+            Z3LeftOperand = ctx.mkInt2BV(targetSize, (IntExpr) Z3LeftOperand);
+        }
+// Nếu Trái là BitVec, Phải là Int -> Ép Phải theo size của Trái
+        else if (Z3LeftOperand instanceof BitVecExpr && Z3RightOperand instanceof IntExpr) {
+            int targetSize = ((BitVecExpr) Z3LeftOperand).getSortSize();
+            Z3RightOperand = ctx.mkInt2BV(targetSize, (IntExpr) Z3RightOperand);
         }
 
         if (Z3LeftOperand instanceof BitVecExpr && Z3RightOperand instanceof BitVecExpr) {
@@ -289,7 +330,7 @@ public class InfixExpressionNode extends OperationExpressionNode {
     }
 
     public static ExpressionNode executeInfixExpression(InfixExpression infixExpression, MemoryModel memoryModel) {
-        InfixExpressionNode infixExpressionNode = new InfixExpressionNode(); // i
+        InfixExpressionNode infixExpressionNode = new InfixExpressionNode();
         infixExpressionNode.leftOperand = (ExpressionNode) ExpressionNode.executeExpression(infixExpression.getLeftOperand(), memoryModel);
         infixExpressionNode.rightOperand = (ExpressionNode) ExpressionNode.executeExpression(infixExpression.getRightOperand(), memoryModel);
         infixExpressionNode.operator = infixExpression.getOperator();
@@ -305,6 +346,17 @@ public class InfixExpressionNode extends OperationExpressionNode {
         ExpressionNode expressionNode = executeInfixExpressionNode(infixExpressionNode, memoryModel);
 
         return expressionNode;
+    }
+
+    private static ExpressionNode executeInfixOperand(Expression operand, MemoryModel memoryModel) {
+        AstNode executed = ExpressionNode.executeExpression(operand, memoryModel);
+        if (executed instanceof ExpressionNode) {
+            return (ExpressionNode) executed;
+        }
+
+        SimpleNameNode fallback = new SimpleNameNode(operand.toString());
+        fallback.markFake();
+        return fallback;
     }
 
     public static ExpressionNode executeInfixExpressionNode(InfixExpressionNode infixExpressionNode,
@@ -364,7 +416,6 @@ public class InfixExpressionNode extends OperationExpressionNode {
 
             return newNode;
         }
-
 //        if (leftOperand.isLiteralNode() && rightOperand.isLiteralNode()) {
 //            LiteralNode literalResult = LiteralNode.analyzeTwoInfixLiteral((LiteralNode) leftOperand, operator, (LiteralNode) rightOperand);
 //

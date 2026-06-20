@@ -14,7 +14,44 @@ public final class TestDriverUtils {
     private TestDriverUtils() {
         throw new AssertionError("Utility class should not be instantiated.");
     }
+    // kiểu dữ liệu mới lưu các đối số generic của ParameterizedType
+    public static class GenericTypeNode{
+        public Class<?> baseClass;
+        public List<GenericTypeNode> typeArguments = new ArrayList<>();
+        public GenericTypeNode(Class<?> baseClass) {
+            this.baseClass = baseClass;
+        }
+    }
 
+    public static GenericTypeNode buildGenericTypeNode(Type type){
+        if(type instanceof PrimitiveType){
+            Class<?> clazz = getPrimitiveClass(((PrimitiveType) type).getPrimitiveTypeCode());
+            return new GenericTypeNode(clazz);
+        }else if(type instanceof SimpleType){
+           String typeName = ((SimpleType) type).getName().getFullyQualifiedName();
+           Class<?> clazz = getClassForName(typeName);
+           return new GenericTypeNode(clazz);
+        }else if (type instanceof ParameterizedType){
+            ParameterizedType parameterizedType = (ParameterizedType) type;
+            GenericTypeNode rootClass = buildGenericTypeNode(parameterizedType.getType());
+            for(Object arg : parameterizedType.typeArguments()){
+                if(arg instanceof Type){
+                    rootClass.typeArguments.add(buildGenericTypeNode((Type)arg));
+                }
+            }
+            return rootClass;
+        }
+        else if (type instanceof ArrayType) {
+            // Xử lý mảng (ví dụ: int[])
+            ArrayType arrayType = (ArrayType) type;
+            Class<?> componentClass = getTypeClass(arrayType.getElementType());
+            int dimension = arrayType.getDimensions();
+            Class<?> arrayClass = java.lang.reflect.Array.newInstance(componentClass, new int[dimension]).getClass();
+            return new GenericTypeNode(arrayClass);
+        }
+        return null;
+
+    }
     /**
      * Get parameter's classes list from AST Node List
      *
@@ -65,16 +102,12 @@ public final class TestDriverUtils {
             ASTNode param = parameters.get(i);
             if (param instanceof SingleVariableDeclaration) {
                 SingleVariableDeclaration declaration = (SingleVariableDeclaration) param;
-                names.add(declaration.getName().getIdentifier());
+                String paramName = declaration.getName().toString();
+                names.add(paramName);
 
                 Type type = declaration.getType();
-                if (type instanceof ParameterizedType) {
-                    ParameterizedType pType = (ParameterizedType) type;
-                    if (!pType.typeArguments().isEmpty()) {
-                        Type argType = (Type) pType.typeArguments().get(0);
-                        SymbolicExecutionRewrite.variableGenericTypeMap.put(declaration.getName().getIdentifier(), getTypeClass(argType));
-                    }
-                }
+                GenericTypeNode typeTree = buildGenericTypeNode(type);
+                SymbolicExecutionRewrite.variableGenericTypeMap.put(paramName,typeTree);
             } else if (param instanceof VariableDeclarationFragment) {
                 VariableDeclarationFragment declaration = (VariableDeclarationFragment) param;
                 names.add(declaration.getName().getIdentifier());
@@ -91,7 +124,7 @@ public final class TestDriverUtils {
      * @param type
      * @return the class of the type
      */
-    private static Class<?> getTypeClass(Type type) {
+    public static Class<?> getTypeClass(Type type) {
         if (type instanceof PrimitiveType) {
             PrimitiveType.Code primitiveTypeCode = (((PrimitiveType) type).getPrimitiveTypeCode());
             return getPrimitiveClass(primitiveTypeCode);
@@ -197,6 +230,15 @@ public final class TestDriverUtils {
             StringBuilder fullName = new StringBuilder();
             switch (className) {
                 case "List":
+                case "Map":
+                case "Set":
+                case "Collection":
+                case "ArrayList":
+                case "LinkedList":
+                case "HashMap":
+                case "HashSet":
+                case "Queue":
+                case "Stack":
                     fullName.append("java.util.");
                     break;
                 default:

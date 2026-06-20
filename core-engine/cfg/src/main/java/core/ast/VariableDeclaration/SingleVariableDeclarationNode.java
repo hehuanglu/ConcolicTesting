@@ -31,19 +31,13 @@ public class SingleVariableDeclarationNode extends VariableDeclarationNode {
             memoryModel.declareArrayTypeVariable(arrayType, key, arrayType.getDimensions(), createMultiDimensionsInitializationArray(key, 0, arrayType.getDimensions(), arrayType.getElementType(), memoryModel));
         } else if (type instanceof ParameterizedType) {
             ParameterizedType parameterizedType = (ParameterizedType) type;
-            memoryModel.declareParameterizedTypeVariable(parameterizedType, key, simpleNameNode);
+            memoryModel.declareParameterizedTypeVariable(parameterizedType, key, simpleNameNode, true);
         }
         else if(type instanceof SimpleType){
             SimpleTypeNode node = new SimpleTypeNode((SimpleType) type, key);
             simpleNameNode.setTarget(node);
-            memoryModel.declareSimpleTypeVariable((SimpleType) type, key, simpleNameNode);
-        }
-
-        else if (type instanceof ParameterizedType) {
-            ParameterizedType parameterizedType = (ParameterizedType) type;
-            memoryModel.declareParameterizedTypeVariable(parameterizedType, key, simpleNameNode);
-        }
-        else { // OTHER TYPES
+            memoryModel.declareSimpleTypeVariable((SimpleType) type, key, simpleNameNode,null);
+        } else { // OTHER TYPES
             throw new RuntimeException("Invalid type");
         }
 

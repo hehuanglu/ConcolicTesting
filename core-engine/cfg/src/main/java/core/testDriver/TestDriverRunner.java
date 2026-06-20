@@ -39,7 +39,12 @@ public final class TestDriverRunner {
         // CHẠY TRỰC TIẾP BẰNG PROCESS BUILDER
         try {
             // Lệnh Biên dịch (javac)
-            ProcessBuilder pbCompile = new ProcessBuilder("javac", "-cp", fullCp, path + "/TestDriver.java");
+            ProcessBuilder pbCompile = new ProcessBuilder(
+                    "javac",
+                    "-encoding", "UTF-8", // báo cho trình biên dịch sử dụng bảng mã UTF-8 vì trong testDriver có sử dụng tiếng việt
+                    "-cp", fullCp,
+                    path + "/TestDriver.java"
+            );
             pbCompile.redirectErrorStream(true);
             Process pCompile = pbCompile.start();
 

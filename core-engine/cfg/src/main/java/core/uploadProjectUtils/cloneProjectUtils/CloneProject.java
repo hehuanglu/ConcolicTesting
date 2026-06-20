@@ -21,6 +21,7 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static core.cfg.utils.ASTHelper.convertForEachToFor;
 import static core.cfg.utils.ASTHelper.convertTernaryToIf;
 
 public final class CloneProject {
@@ -108,13 +109,13 @@ public final class CloneProject {
 
     public static void cloneProject(String originalDirPath, String destinationDirPath, ASTHelper.Coverage coverage, String fileName) throws IOException, InterruptedException {
         command = new StringBuilder("javac -d " + FilePath.targetClassesFolderPath + " ");
-        iCloneProject(originalDirPath, destinationDirPath, coverage, fileName);
+        iCloneProject(originalDirPath, destinationDirPath, coverage, fileName, originalDirPath);
         System.out.println(command);
 
         CommandLine.executeCommand(command.toString());
     }
 
-    private static void iCloneProject(String originalDirPath, String destinationDirPath, ASTHelper.Coverage coverage, String fileToTestName) throws IOException {
+    private static void iCloneProject(String originalDirPath, String destinationDirPath, ASTHelper.Coverage coverage, String fileToTestName, String sourceRootPath) throws IOException {
         deleteFilesInDirectory(destinationDirPath);
         boolean existJavaFile = false;
 
@@ -124,7 +125,7 @@ public final class CloneProject {
             if (file.isDirectory()) {
                 String dirName = file.getName();
                 createCloneDirectory(destinationDirPath, dirName);
-                iCloneProject(originalDirPath + "/" + dirName, destinationDirPath + "/" + dirName, coverage, fileToTestName);
+                iCloneProject(originalDirPath + "/" + dirName, destinationDirPath + "/" + dirName, coverage, fileToTestName, sourceRootPath);
             } else if (file.isFile() && file.getName().endsWith(".java")) {
                 existJavaFile = true;
                 String fileName = file.getName();
@@ -133,7 +134,7 @@ public final class CloneProject {
                 if (fileName.equals(fileToTestName)) {
                     //File chính -> Parse AST và cấy mã theo dõi
                     totalClassStatement = 0;
-                    CompilationUnit compilationUnit = Parser.parseFileToCompilationUnit(sourcePath);
+                    CompilationUnit compilationUnit = Parser.parseFileToCompilationUnit(sourcePath, sourceRootPath);
                     classCompilationUnit = compilationUnit;
 
                     createCloneFile(destinationDirPath, fileName);
@@ -399,7 +400,8 @@ public final class CloneProject {
         } else if (statement instanceof DoStatement) {
             return generateCodeForDoStatement((DoStatement) statement, coverage);
         } else if (statement instanceof EnhancedForStatement) {
-            return generateCodeForForEachStatement((EnhancedForStatement) statement, coverage);
+            ForStatement forStatement = convertForEachToFor(statement.getAST(),(EnhancedForStatement) statement);
+            return generateCodeForForStatement(forStatement, coverage);
         }
 
         // Xử lý tách toán tử 3 ngôi (Ternary)
@@ -410,11 +412,28 @@ public final class CloneProject {
             ASTNode converted = convertTernaryToIf(statement);
             // Nếu có sự thay đổi (đã tách thành công), gọi đệ quy cho node mới
             if (converted != statement) {
+                // xử lý riêng trường hợp khai báo toán tử 3 ngôi
+                if (statement instanceof VariableDeclarationStatement) {
+                    // bỏ 2 dấu {} của block này
+                    return generateCodeForBlockBody((Block)converted, coverage);
+                }
                 return generateCodeForOneStatement(converted, markMethodSeparator, coverage);
             }
         }
 
         return generateCodeForNormalStatement(statement, markMethodSeparator);
+    }
+
+    private static String generateCodeForBlockBody(Block block, ASTHelper.Coverage coverage) {
+        StringBuilder result = new StringBuilder();
+        if (block != null) {
+            List<ASTNode> statements = block.statements();
+            for (int i = 0; i < statements.size(); i++) {
+                // Lấy mã nguồn của từng statement trong block
+                result.append(generateCodeForOneStatement(statements.get(i), ";", coverage));
+            }
+        }
+        return result.toString();
     }
 
     private static String generateCodeForBlock(Block block, ASTHelper.Coverage coverage) {

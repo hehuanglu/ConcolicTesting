@@ -11,6 +11,7 @@ import core.cfg.utils.ASTHelper;
 import core.cfg.utils.DataFlowHelper;
 import core.cfg.utils.ProjectParser;
 import core.cfg.utils.ProjectParserRewrite;
+import core.cfg.utils.ProjectParserRewrite;
 import core.path.FindPath;
 import core.path.MarkedPath;
 import core.path.MarkedStatement;
@@ -65,6 +66,7 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
         setup(path, className, methodName, coverage);
         setupCfgTree(coverage);
         setupParameters(methodName);
+        TestGeneration.isSetup = true;
 
         // data flow setup
         /*
@@ -225,6 +227,9 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
             int count = 0;
 
             for (CfgNode uncoveredNode = TestGeneration.findUncoverNode(TestGeneration.cfgBeginNode, coverage); uncoveredNode != null; uncoveredNode = TestGeneration.findUncoverNode(TestGeneration.cfgBeginNode, coverage)) {
+                log.info("Cố gắng phủ nhánh còn thiếu tại Node: {}", uncoveredNode);
+
+                Path newPath = (new FindPath(TestGeneration.cfgBeginNode, uncoveredNode, TestGeneration.cfgEndNode)).getPath();
 
                 boolean isGoingToTrueBranch = false;
                 CfgNode parent = uncoveredNode.getParent();
@@ -346,6 +351,7 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
             }
             report.append(String.format(" - Thời gian:    %s s\n", df.format((endTime - startTime) / 1000.0)));
             report.append("===================================================");
+
             log.info(report.toString());
             testResult.setMemoryUsage(averageMemory);
         }
@@ -794,7 +800,7 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
         return map;
     }
 
-    private static boolean solveAndRunTest(Path path, TestResult testResult, TestGeneration.Coverage coverage, int id)
+    private static boolean solveAndRunTest(Path path, TestResult testResult, TestGeneration.Coverage coverage)
             throws Exception {
 
         SymbolicExecutionRewrite solution = new SymbolicExecutionRewrite(path, TestGeneration.parameters);
