@@ -1,0 +1,70 @@
+Method: 3
+Criterion: BRANCH
+Lỗi viết sai biểu thức 
+----------------------------------------
+Method: 14
+Criterion: BRANCH
+Lỗi viết sai biểu thức 
+----------------------------------------
+Method: 14
+Criterion: BRANCH
+Lỗi viết sai biểu thức 
+----------------------------------------
+Method: 47
+Criterion: BRANCH
+Error: java.lang.ClassCastException
+Message: class com.microsoft.z3.Expr cannot be cast to class com.microsoft.z3.SeqExpr (com.microsoft.z3.Expr and com.microsoft.z3.SeqExpr are in unnamed module of loader 'app')
+----------------------------------------
+Method: 71
+Criterion: BRANCH
+Lỗi viết sai biểu thức 
+----------------------------------------
+Method: 89
+Criterion: BRANCH
+Lỗi viết sai biểu thức 
+----------------------------------------
+Method: 89
+Criterion: BRANCH
+Lỗi viết sai biểu thức 
+----------------------------------------
+Method: 89
+Criterion: BRANCH
+Lỗi viết sai biểu thức 
+----------------------------------------
+Method: 89
+Criterion: BRANCH
+Lỗi viết sai biểu thức 
+----------------------------------------
+Method: 89
+Criterion: BRANCH
+Lỗi viết sai biểu thức 
+----------------------------------------
+Method: 89
+Criterion: BRANCH
+Lỗi viết sai biểu thức 
+----------------------------------------
+Method: 91
+Criterion: BRANCH
+Error: java.lang.RuntimeException
+Message: Invalid infix concatenate operator!!!
+----------------------------------------
+Method: 91
+Criterion: BRANCH
+Error: java.lang.RuntimeException
+Message: Invalid infix concatenate operator!!!
+----------------------------------------
+Method: 91
+Criterion: BRANCH
+Error: java.lang.RuntimeException
+Message: Invalid infix concatenate operator!!!
+----------------------------------------
+Method: 91
+Criterion: BRANCH
+Error: java.lang.RuntimeException
+Message: Invalid infix concatenate operator!!!
+----------------------------------------
+Method: 91
+Criterion: BRANCH
+Error: java.lang.RuntimeException
+Message: Invalid infix concatenate operator!!!
+----------------------------------------

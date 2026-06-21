@@ -322,3 +322,115 @@ MyAtoi | branch | 38.89% | 13.06ms | 223.23MB | 8 cases
 TestData: [] ; [锖] ; [氛] ; [ꯟ] ; [] ; [坾] ; [웁] ; [] ; 
 ReturnSubsequence | branch | 58.33% | 33.63ms | 129.48MB | 1 cases
 TestData: [￮] ; 
+
+========================================
+Start Time             : 2026-06-22T02:24:27.462465
+========================================
+HorspoolSearch | branch | 100.00% | 11.87ms | 177.01MB | 8 cases
+TestData: [, ] ; [쏧, ] ; [ς, ] ; [\001, \000] ; [, ࢀ] ; [ӈĄ, ꔈӈ] ; [嶴￿, Ո] ; [셤, 셤] ; 
+reverseWords | branch | 91.67% | 97.13ms | 57.05MB | 3 cases
+TestData: [ ] ; [] ; [଄頠] ; 
+reverse | branch | 100.00% | 2.03ms | 183.50MB | 2 cases
+TestData: [, 0, 1] ; [, 0, 0] ; 
+queryString | branch | 100.00% | 3.73ms | 157.52MB | 4 cases
+TestData: [, 1512] ; [, 1511] ; [, 0] ; [1, 1] ; 
+removeOuterParentheses | branch | 75.00% | 2.66ms | 134.46MB | 2 cases
+TestData: [] ; [(] ; 
+isMatch | branch | 100.00% | 4.88ms | 134.74MB | 3 cases
+TestData: [씚, ] ; [⩩, ⩩] ; [W, ] ; 
+reverseStr | branch | 100.00% | 36.59ms | 90.85MB | 4 cases
+TestData: [, 0] ; [ꆓ, 2] ; [ꆓ, 1] ; [老Ｘ, 3] ; 
+isPalindrome | branch | 100.00% | 5.37ms | 215.52MB | 3 cases
+TestData: [\000愤] ; [9?] ; [7H] ; 
+isOneEditDistance | branch | 87.50% | 5.09ms | 192.03MB | 4 cases
+TestData: [ﯫ, ] ; [, ] ; [㈡଄, Ј] ; [Ȏʐ, Ȏ] ; 
+add | branch | 100.00% | 29.57ms | 165.81MB | 1 cases
+TestData: [iダ, 0] ; 
+reformatNumber | branch | 50.00% | 75.41ms | 147.10MB | 2 cases
+TestData: [] ; [吠] ; 
+CharactersSame | branch | 100.00% | 3.52ms | 132.59MB | 4 cases
+TestData: [] ; [鲮] ; [Ⲷϊ] ; [㊈㊈] ; 
+CheckVowels | branch | 100.00% | 7.60ms | 110.81MB | 7 cases
+TestData: [] ; [鲮] ; [A] ; [E] ; [i] ; [O] ; [U] ; 
+GreekToUpperCase | branch | 100.00% | 46.07ms | 215.74MB | 2 cases
+TestData: [] ; [ς] ; 
+GreekToLowerCase | branch | 75.00% | 136.86ms | 190.39MB | 5 cases
+TestData: [] ; [Σ] ; [ΣP] ; [Σ⤒] ; [Σ\r] ; 
+Anagrams | branch | 37.50% | 58.28ms | 173.06MB | 4 cases
+TestData: [씚, ] ; [, 龿] ; [, E] ; [s, ] ; 
+MoveHashToEnd | branch | 100.00% | 50.37ms | 160.40MB | 3 cases
+TestData: [] ; [鲮] ; [#] ; 
+RabinKarp | branch | 66.67% | 7.39ms | 154.25MB | 4 cases
+TestData: [, ] ; [, 节] ; [嗚, 䎴] ; [؂ĺ, 뻼ｱ] ; 
+Lower | branch | 100.00% | 55.23ms | 160.24MB | 3 cases
+TestData: [] ; [鲮] ; [H] ; 
+ZigZagPattern | branch | 81.25% | 29.91ms | 180.46MB | 4 cases
+TestData: [, 0] ; [鲮, 0] ; [￮, 2] ; [詅됁, 2] ; 
+Alphabetical | branch | 100.00% | 6.45ms | 191.30MB | 5 cases
+TestData: [] ; [奢] ; [\001] ; [H᠈] ; [tW] ; 
+RemoveStars | branch | 87.50% | 28.51ms | 137.58MB | 3 cases
+TestData: [] ; [鲮] ; [*] ; 
+compress | branch | 90.00% | 81.80ms | 158.04MB | 4 cases
+TestData: [] ; [锖] ; [羜ᰢ] ; [??] ; 
+LengthOfLastWord | branch | 100.00% | 2.00ms | 181.03MB | 2 cases
+TestData: [ ] ; [넾] ; 
+Manacher | branch | 75.00% | 30.10ms | 194.68MB | 1 cases
+TestData: [] ; 
+ReverseString | branch | 100.00% | 27.16ms | 201.94MB | 2 cases
+TestData: [] ; [鲮] ; 
+Rotation | branch | 100.00% | 24.41ms | 202.11MB | 2 cases
+TestData: [, 0] ; [鲮, 0] ; 
+removeDuplicate | branch | 83.33% | 26.70ms | 198.08MB | 2 cases
+TestData: [] ; [鲮] ; 
+Isogram | branch | 100.00% | 7.36ms | 191.47MB | 5 cases
+TestData: [] ; [鲮] ; [o] ; [NN] ; [W] ; 
+CountWords | branch | 87.50% | 3.80ms | 183.00MB | 3 cases
+TestData: [] ; [鲮] ; [\013] ; 
+Upper | branch | 100.00% | 53.11ms | 175.67MB | 3 cases
+TestData: [] ; [鲮] ; [n] ; 
+Pangram | branch | 91.67% | 4.00ms | 173.73MB | 3 cases
+TestData: [] ; [鲮] ; [A] ; 
+Isomorphic | branch | 70.00% | 2.11ms | 182.27MB | 3 cases
+TestData: [, 浯] ; [ς, ] ; [Ȣ,  \000] ; 
+GermanToUpperCase | branch | 100.00% | 50.88ms | 192.42MB | 2 cases
+TestData: [] ; [ß] ; 
+GermanToLowerCase | branch | 100.00% | 51.12ms | 205.80MB | 2 cases
+TestData: [] ; [ẞ] ; 
+LongestNonRepetitiveSubstring | branch | 60.00% | 2.87ms | 220.16MB | 2 cases
+TestData: [] ; [鲮] ; 
+LetterCombinationsOfPhoneNumber | branch | 69.57% | 295.12ms | 107.71MB | 12 cases
+TestData: [] ; [鲮] ; [0] ; [2] ; [3] ; [4] ; [5] ; [6] ; [7] ; [8] ; [9] ; [1] ; 
+TurkishToUpperCase | branch | 100.00% | 68.88ms | 175.12MB | 3 cases
+TestData: [] ; [i] ; [ı] ; 
+TurkishToLowerCase | branch | 100.00% | 73.47ms | 109.06MB | 3 cases
+TestData: [] ; [I] ; [İ] ; 
+testTriplet | branch | 83.33% | 3.31ms | 151.25MB | 3 cases
+TestData: [W, , ሄ] ; [, \001, 敚] ; [, A, \000] ; 
+toUpperToLowerOriginals | branch | 100.00% | 5.43ms | 185.57MB | 4 cases
+TestData: [⌇, ] ; [, ] ; [, ] ; [b, B] ; 
+indexOfNonWhitespace | branch | 100.00% | 5.04ms | 117.22MB | 3 cases
+TestData: [] ; [⅀] ; [ ] ; 
+newHaystack | branch | 100.00% | 102.24ms | 79.14MB | 4 cases
+TestData: [-1, , 0] ; [0, , 0] ; [1, , 1] ; [1, , 0] ; 
+newHaystackRepeat | branch | 100.00% | 96.41ms | 186.66MB | 5 cases
+TestData: [-1, , 0] ; [0, , 0] ; [1, , 1] ; [1, Ȋ, 0] ; [1, , 0] ; 
+escapeNonASCIIs | branch | 100.00% | 51.61ms | 116.48MB | 2 cases
+TestData: [] ; [] ; 
+verify | branch | 100.00% | 6.37ms | 156.80MB | 5 cases
+TestData: [쏧, , 0] ; [, 破, 1] ; [鷦, 鷦, 1] ; [䆔쳢, 쳢, 1] ; [, , 0] ; 
+Palindrome | branch | 100.00% | 2.89ms | 192.18MB | 3 cases
+TestData: [] ; [iダ] ; [ໞໞ] ; 
+HammingDistance | branch | 75.00% | 3.00ms | 123.62MB | 2 cases
+TestData: [, 浯] ; [ς, ] ; 
+ReverseWordsInString | branch | 92.86% | 30.17ms | 226.09MB | 3 cases
+TestData: [] ; [鲮] ; [\n] ; 
+AlternativeStringArrange | branch | 70.00% | 29.17ms | 120.15MB | 2 cases
+TestData: [썴, ] ; [ƀ, 砀] ; 
+CountChar | branch | 100.00% | 3.50ms | 228.65MB | 3 cases
+TestData: [] ; [鲮] ; [\013] ; 
+LongestRepeatedSubstring | branch | 59.09% | 5.71ms | 116.95MB | 3 cases
+TestData: [] ; [iダ] ; [] ; 
+MyAtoi | branch | 38.89% | 10.98ms | 180.28MB | 8 cases
+TestData: [] ; [锖] ; [氛] ; [ꯟ] ; [] ; [坾] ; [웁] ; [] ; 
+ReturnSubsequence | branch | 58.33% | 34.53ms | 168.31MB | 1 cases
+TestData: [￮] ; 
