@@ -225,59 +225,72 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
             //boolean isTestedSuccessfully = true;
             int count = 0;
 
-            for (CfgNode uncoveredNode = TestGeneration.findUncoverNode(TestGeneration.cfgBeginNode, coverage); uncoveredNode != null; uncoveredNode = TestGeneration.findUncoverNode(TestGeneration.cfgBeginNode, coverage)) {
+            for (CfgNode uncoveredNode = TestGeneration.findUncoverNode(TestGeneration.cfgBeginNode, coverage);
+                 uncoveredNode != null;
+                 uncoveredNode = TestGeneration.findUncoverNode(TestGeneration.cfgBeginNode, coverage)) {
 
-                boolean isGoingToTrueBranch = false;
-                CfgNode parent = uncoveredNode.getParent();
-                if (parent instanceof CfgBoolExprNode) {
-                    CfgBoolExprNode cfgBoolExprNode = (CfgBoolExprNode) parent;
-                    if (cfgBoolExprNode.getTrueNode() == uncoveredNode) {
+                boolean isGoingToTrueBranch = true;
+                if (uncoveredNode instanceof CfgBoolExprNode) {
+                    CfgBoolExprNode boolNode = (CfgBoolExprNode) uncoveredNode;
+                    if (!boolNode.isTrueMarked() && !boolNode.isFakeTrueMarked()) {
                         isGoingToTrueBranch = true;
+                    } else if (!boolNode.isFalseMarked() && !boolNode.isFakeFalseMarked()) {
+                        isGoingToTrueBranch = false;
                     }
                 }
-                log.info("Cố gắng phủ nhánh còn thiếu tại Node " + (++count) +" : {}" + " \n -> theo hướng " + isGoingToTrueBranch,
+
+                log.info("Cố gắng phủ nhánh còn thiếu tại Node " + (++count) + " : {}"
+                                + " \n -> theo hướng " + isGoingToTrueBranch,
                         uncoveredNode.getContent().isEmpty() ? uncoveredNode.getParent() : uncoveredNode
                 );
 
-                Path newPath = (new FindPath(TestGeneration.cfgBeginNode, uncoveredNode, TestGeneration.cfgEndNode)).getPath();
+                // Tìm path đến node cha, rồi gắn thêm node con tương ứng
+                CfgNode childNode = isGoingToTrueBranch
+                        ? ((CfgBoolExprNode) uncoveredNode).getTrueNode()
+                        : ((CfgBoolExprNode) uncoveredNode).getFalseNode();
+
+                Path newPath = (new FindPath(
+                        TestGeneration.cfgBeginNode,
+                        uncoveredNode
+                )).getPath();
+                newPath.addLast(childNode); // gắn thêm node con vào cuối path
 
                 boolean success = solveAndRunTest(newPath, testResult, coverage, id);
 
                 if (!success) {
-                    uncoveredNode.setFakeMarked(true);
-                    uncoveredNode.setFakeMarked(true);
+                    childNode.setFakeMarked(true);
                     if (isGoingToTrueBranch) {
-                        ((CfgBoolExprNode) parent).setFakeTrueMarked(true);
+                        ((CfgBoolExprNode) uncoveredNode).setFakeTrueMarked(true);
                     } else {
-                        ((CfgBoolExprNode) parent).setFakeFalseMarked(true);
+                        ((CfgBoolExprNode) uncoveredNode).setFakeFalseMarked(true);
                     }
-                    continue ;
-                } else if (parent instanceof CfgBoolExprNode) {
-                    if(isGoingToTrueBranch) {
-                        if (((CfgBoolExprNode) parent).isTrueMarked()) {
-                            continue;
-                        }
-                    } else {
-                        if (((CfgBoolExprNode) parent).isFalseMarked()) {
-                            continue;
-                        }
+                    continue;
+                } else if (uncoveredNode instanceof CfgBoolExprNode) {
+                    CfgBoolExprNode boolNode = (CfgBoolExprNode) uncoveredNode;
+                    if (isGoingToTrueBranch && boolNode.isTrueMarked()) {
+                        continue;
+                    }
+                    if (!isGoingToTrueBranch && boolNode.isFalseMarked()) {
+                        continue;
                     }
                 }
-                if (success == true && uncoveredNode.isMarked() == false) {
-                    System.out.println("this one " + parent.isFakeMarked());
-                    java.nio.file.Path errorPath = java.nio.file.Path.of("processing-service/unitTesting/data/error.txt");
-                    try {
-                        Files.createDirectories(errorPath.getParent());
-                        String content = "Method: " + id + System.lineSeparator() +
-                                "Criterion: " + coverage.toString() + System.lineSeparator() +
-                                "Lỗi viết sai biểu thức " + System.lineSeparator() +
-                                "----------------------------------------" + System.lineSeparator();
-                        System.out.println(content);
-                        Files.writeString(errorPath, content, StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-                    } catch (IOException ioException) {
-                        log.error("Không thể ghi lỗi vào file error.txt", ioException);
-                    }
+
+                System.out.println("this one " + uncoveredNode.isFakeMarked());
+                java.nio.file.Path errorPath = java.nio.file.Path.of(
+                        "processing-service/unitTesting/data/error.txt");
+                try {
+                    Files.createDirectories(errorPath.getParent());
+                    String content = "Method: " + id + System.lineSeparator()
+                            + "Criterion: " + coverage + System.lineSeparator()
+                            + "Lỗi viết sai biểu thức " + System.lineSeparator()
+                            + "----------------------------------------" + System.lineSeparator();
+                    System.out.println(content);
+                    Files.writeString(errorPath, content, StandardCharsets.UTF_8,
+                            StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                } catch (IOException ioException) {
+                    log.error("Không thể ghi lỗi vào file error.txt", ioException);
                 }
+
             }
 
             testResult.setFullCoverage(calculateFullTestSuiteCoverage(coverage));

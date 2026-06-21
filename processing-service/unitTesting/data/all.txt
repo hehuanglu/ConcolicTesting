@@ -433,4 +433,18 @@ TestData: [] ; [iダ] ; [] ;
 MyAtoi | branch | 38.89% | 10.98ms | 180.28MB | 8 cases
 TestData: [] ; [锖] ; [氛] ; [ꯟ] ; [] ; [坾] ; [웁] ; [] ; 
 ReturnSubsequence | branch | 58.33% | 34.53ms | 168.31MB | 1 cases
-TestData: [￮] ; 
+TestData: [￮] ;
+
+========================================
+Start Time             : 2026-06-22T04:31:19.701168
+========================================
+HorspoolSearch | branch | 100.00% | 9.94ms | 52.78MB | 7 cases
+TestData: [, ] ; [쏧, ] ; [ς, ] ; [\001, \000] ; [ӈĄ, ꔈӈ] ; [嶴￿, Ո] ; [셤, 셤] ; 
+reverseWords | branch | 91.67% | 98.33ms | 87.62MB | 3 cases
+TestData: [ ] ; [] ; [଄頠] ; 
+reverse | branch | 100.00% | 2.25ms | 78.20MB | 2 cases
+TestData: [, 0, 1] ; [, 0, 0] ; 
+queryString | branch | 100.00% | 3.73ms | 129.26MB | 4 cases
+TestData: [, 1512] ; [, 1511] ; [, 0] ; [1, 1] ; 
+removeOuterParentheses | branch | 75.00% | 2.80ms | 136.85MB | 2 cases
+TestData: [] ; [(] ; 
