@@ -3,10 +3,6 @@ package core.cfg.utils;
 import core.node.FolderNode;
 import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.dom.*;
-import org.eclipse.jdt.core.dom.rewrite.ASTRewrite;
-import org.eclipse.jface.text.Document;
-import org.eclipse.jface.text.IDocument;
-import org.eclipse.text.edits.TextEdit;
 
 
 import java.io.File;
@@ -52,9 +48,6 @@ public class ProjectParserRewrite {
         if (file.isFile() && file.getName().endsWith(".java")) {
             String fileToString = FileService.readFileToString(file.getPath());
             compilationUnit = parserToCompilationUnit(fileToString);
-            
-            // Apply desugaring and re-parse to ensure bindings for new nodes
-            compilationUnit = ASTHelper.applyDesugaringAndReparse(compilationUnit, fileToString);
         }
         return compilationUnit;
     }

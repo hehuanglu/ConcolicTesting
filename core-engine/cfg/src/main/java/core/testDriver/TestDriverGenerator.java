@@ -10,7 +10,6 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 
 public final class TestDriverGenerator {
 
@@ -125,24 +124,27 @@ public final class TestDriverGenerator {
         int tryBlockCount = 0;
 
         for (int i = 0; i < mocks.size(); i++) {
-            // ... (Giữ nguyên logic Mockito của bạn) ...
             SymbolicExecutionRewrite.MockInfo mock = mocks.get(i);
             String className = mock.className;
 
             if (className == null || className.isEmpty()) continue;
 
+            // Sử dụng HashSet để tránh khởi tạo trùng lặp MockedStatic cho cùng một lớp,
             if (!processedClasses.contains(className)) {
                 processedClasses.add(className);
                 String mockVarName = "mocked" + className;
 
                 result.append("try (org.mockito.MockedStatic<").append(className).append("> ").append(mockVarName)
                         .append(" = org.mockito.Mockito.mockStatic(").append(className).append(".class, org.mockito.Mockito.CALLS_REAL_METHODS)) {\n");
-                tryBlockCount++;
+                tryBlockCount++; // Bộ đếm theo dõi số lượng tài nguyên cần giải phóng
 
+                // Duyệt qua tất cả các hàm thuộc lớp hiện tại để thiết lập cấu hình trả về
                 for (int j = 0; j < mocks.size(); j++) {
                     SymbolicExecutionRewrite.MockInfo innerMock = mocks.get(j);
                     if (innerMock.className.equals(className)) {
-                        String valueAsString = "0";
+
+                        // Trích xuất giá trị cho biến Mock từ mảng nghiệm do bộ giải Z3 trả về
+                        String valueAsString = "0"; // Giá trị mặc định dự phòng
                         int z3Index = method.parameters().size() + j;
                         if (testData != null && z3Index < testData.length) {
                             Object value = testData[z3Index];
@@ -153,6 +155,7 @@ public final class TestDriverGenerator {
                             valueAsString = String.valueOf(innerMock.solveValue);
                         }
 
+                        // Cắm lệnh thenReturn cho từng hàm
                         result.append("    ").append(mockVarName).append(".when(() -> ")
                                 .append(className).append(".").append(innerMock.methodName)
                                 .append("(org.mockito.Mockito.anyInt())).thenReturn(").append(valueAsString).append(");\n");
@@ -160,12 +163,6 @@ public final class TestDriverGenerator {
                 }
             }
         }
-
-        // =========================================================================
-        // [THÊM LOGIC 1]: Lưu lại vị trí (index) của StringBuilder ngay trước khi
-        // bắt đầu nối chuỗi "output = ...". Vị trí này sẽ là nơi ta chèn Map.
-        // =========================================================================
-        int mapDeclarationInsertIndex = result.length();
 
         // Gọi phương thức mục tiêu với bộ tham số thực từ Z3.
         if (isStatic) {
@@ -180,24 +177,24 @@ public final class TestDriverGenerator {
             org.eclipse.jdt.core.dom.SingleVariableDeclaration param = (org.eclipse.jdt.core.dom.SingleVariableDeclaration) obj;
             String paramName = param.getName().getIdentifier();
 
+            //Nếu tên tham số không chứa chữ "_call_" thì Nó là tham số thật!
             if (!paramName.contains("_call_")) {
                 actualParamCount++;
             }
         }
-
         for (int i = 0; i < actualParamCount; i++) {
-            String valueAsString = "0";
+            String valueAsString = "0"; // Giá trị khởi tạo mặc định tránh lỗi NullReference
 
-            // Xử lý và ép kiểu dữ liệu từ Object của Z3
+            // Xử lý và ép kiểu dữ liệu từ Object của Z3 sang định dạng mã nguồn Java hợp lệ
             if (testData != null && i < testData.length) {
                 Object value = testData[i];
                 if (value == null) {
                     valueAsString = "null";
                 } else if (value.getClass().isArray()) {
-                    // ... (Giữ nguyên logic mảng của bạn) ...
                     if (value instanceof int[]) {
                         valueAsString = "new int[]" + java.util.Arrays.toString((int[]) value).replace('[', '{').replace(']', '}');
                     } else if (value instanceof long[]) {
+                        // tự duyệt mảng và thêm chữ 'L' cho từng phần tử
                         long[] arr = (long[]) value;
                         StringBuilder arrBuilder = new StringBuilder("new long[]{");
                         for (int k = 0; k < arr.length; k++) {
@@ -209,6 +206,7 @@ public final class TestDriverGenerator {
                     } else if (value instanceof double[]) {
                         valueAsString = "new double[]" + java.util.Arrays.toString((double[]) value).replace('[', '{').replace(']', '}');
                     } else if (value instanceof float[]) {
+                        // tự duyệt mảng và thêm chữ 'f' cho từng phần tử
                         float[] arr = (float[]) value;
                         StringBuilder arrBuilder = new StringBuilder("new float[]{");
                         for (int k = 0; k < arr.length; k++) {
@@ -220,10 +218,9 @@ public final class TestDriverGenerator {
                     } else if (value instanceof boolean[]) {
                         valueAsString = "new boolean[]" + java.util.Arrays.toString((boolean[]) value).replace('[', '{').replace(']', '}');
                     } else {
-                        valueAsString = "null";
+                        valueAsString = "null"; // Fallback an toàn
                     }
                 } else if (value instanceof List) {
-                    // ... (Giữ nguyên logic List của bạn) ...
                     List<?> list = (List<?>) value;
                     StringBuilder sb = new StringBuilder("new ArrayList<>(Arrays.asList(");
                     for (int j = 0; j < list.size(); j++) {
@@ -247,65 +244,6 @@ public final class TestDriverGenerator {
                     }
                     sb.append("))");
                     valueAsString = sb.toString();
-
-                } else if (value instanceof Map) {
-                    // =========================================================================
-                    // [THÊM LOGIC 2]: CẬP NHẬT PHẦN XỬ LÝ MAP
-                    // =========================================================================
-                    Map<?, ?> map = (Map<?, ?>) value;
-                    int mapSize = map.size();
-                    String mapOfExpr;
-
-                    if (mapSize == 0) {
-                        mapOfExpr = "Map.of()";
-                    } else {
-                        boolean useEntries = mapSize > 10;
-                        StringBuilder sb = new StringBuilder(useEntries ? "Map.ofEntries(" : "Map.of(");
-                        int count = 0;
-                        for (Map.Entry<?, ?> entry : map.entrySet()) {
-                            if (useEntries) sb.append("Map.entry(");
-
-                            Object[] pair = {entry.getKey(), entry.getValue()};
-                            for (int k = 0; k < 2; k++) {
-                                Object item = pair[k];
-                                if (item == null) {
-                                    sb.append("null");
-                                } else if (item instanceof String) {
-                                    sb.append("\"").append(item.toString().replace("\"", "\\\"")).append("\"");
-                                } else if (item instanceof Character) {
-                                    sb.append("'").append(item).append("'");
-                                } else if (item instanceof Long) {
-                                    sb.append(item).append("L");
-                                } else if (item instanceof Float) {
-                                    sb.append(item).append("f");
-                                } else {
-                                    sb.append(item);
-                                }
-                                if (k == 0) sb.append(", ");
-                            }
-                            if (useEntries) sb.append(")");
-                            if (++count < mapSize) sb.append(", ");
-                        }
-                        sb.append(")");
-                        mapOfExpr = sb.toString();
-                    }
-
-                    // Tên biến Map đánh số theo index tham số (vd: dataMap0, dataMap1)
-                    String mapVarName = "dataMap" + i;
-
-                    // Tạo chuỗi khai báo biến: Map<Long, Long> dataMap0 = new HashMap<>(Map.of(...));
-                    String mapDeclaration = "    Map<Integer, Integer> " + mapVarName + " = new HashMap<>(" + mapOfExpr + ");\n";
-
-                    // CHÈN CHUỖI NÀY VÀO VỊ TRÍ ĐÃ LƯU TRƯỚC ĐÓ (NGAY TRÊN DÒNG "output = ...")
-                    result.insert(mapDeclarationInsertIndex, mapDeclaration);
-
-                    // Tịnh tiến vị trí chèn để nếu có tham số Map thứ 2, nó sẽ được xếp nối tiếp bên dưới
-                    mapDeclarationInsertIndex += mapDeclaration.length();
-
-                    // Giá trị truyền vào trong ngoặc đơn của hàm lúc này chỉ là tên biến
-                    valueAsString = mapVarName;
-                    // =========================================================================
-
                 } else {
                     // Xử lý các kiểu dữ liệu nguyên thủy và chuỗi
                     valueAsString = String.valueOf(value);
@@ -321,8 +259,6 @@ public final class TestDriverGenerator {
                     }
                 }
             }
-
-            // Nối tham số vào bên trong dấu ngoặc của lời gọi hàm
             result.append(valueAsString);
 
             // Bổ sung dấu phân cách tham số
@@ -332,11 +268,12 @@ public final class TestDriverGenerator {
         }
         result.append(");\n");
 
-        // ... (Giữ nguyên toàn bộ phần đóng try-catch, ghi file, thay thế Regex phía dưới của bạn) ...
+        // Cần đóng toàn bộ các block try-with-resources của Mockito
         for (int i = 0; i < tryBlockCount; i++) {
             result.append("}\n");
         }
 
+        // Đóng khối try-catch tổng quản lý Runtime Exception trong quá trình test
         result.append("} catch (Throwable e) {\n");
         result.append("e.printStackTrace();\n");
         result.append("}\n");
@@ -344,8 +281,10 @@ public final class TestDriverGenerator {
         result.append("long endRunTestTime = System.nanoTime();\n");
         result.append("double runTestDuration = (endRunTestTime - startRunTestTime) / 1000000.0;\n");
 
+        // Ghi nhận kết quả thực thi thô ra tệp tin
         result.append("writeDataToFile(runTestDuration + \"===\" + output, \"" + FilePath.concreteExecuteResultPath + "\", true);\n");
 
+        // Sử dụng Regex để ánh xạ các lời gọi hàm gốc thành các biến Mock tương ứng.
         result.append("try {\n");
         result.append("    java.nio.file.Path tracePath = java.nio.file.Paths.get(\"")
                 .append(FilePath.concreteExecuteResultPath.replace("\\", "\\\\")).append("\");\n");
@@ -353,15 +292,19 @@ public final class TestDriverGenerator {
 
         for (SymbolicExecutionRewrite.MockInfo mock : mocks) {
             if (mock.className != null && !mock.className.isEmpty()) {
+                // Xây dựng biểu thức chính quy bắt chính xác cú pháp phương thức gốc
                 String originalCallRegex = mock.className + "\\\\." + mock.methodName + "\\\\([^)]*\\\\)";
+
+                // Thực hiện ghi đè dữ liệu vết, đánh lừa bộ phân tích CFG
                 result.append("    traceContent = traceContent.replaceAll(\"")
                         .append(originalCallRegex).append("\", \"").append(mock.mockVarName).append("\");\n");
             }
         }
+        // Lưu trữ lại tệp tin vết đã qua tiền xử lý
         result.append("    java.nio.file.Files.write(tracePath, traceContent.getBytes());\n");
         result.append("} catch (Exception ex) { ex.printStackTrace(); }\n");
 
-        result.append("}\n");
+        result.append("}\n"); // Kết thúc hàm main của TestDriver
         return result.toString();
     }
 

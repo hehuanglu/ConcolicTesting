@@ -28,6 +28,9 @@ public class CoveredStatement {
 
         for (MarkedStatement markedStatement : markedStatements) {
             CfgNode cfgNode = markedStatement.getCfgNode();
+            if (cfgNode == null) {
+                System.out.println("oi doi oi");
+            }
             CoveredStatement coveredStatement = new CoveredStatement(cfgNode.getContent(), cfgNode.getLineNumber());
 
             if (markedStatement.isTrueConditionalStatement()) {

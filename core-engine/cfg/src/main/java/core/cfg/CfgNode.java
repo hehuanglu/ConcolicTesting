@@ -159,8 +159,6 @@ public class CfgNode {
 
         ASTParser parser = createConfiguredParser(sourceCode);
         CompilationUnit cu = (CompilationUnit) parser.createAST(null);
-        cu = ASTHelper.applyDesugaringAndReparse(cu, sourceCode);
-
         ASTVisitor visitor = new ASTVisitor() {
             @Override
             public boolean visit(TypeDeclaration node) {
@@ -186,8 +184,6 @@ public class CfgNode {
         ArrayList<ASTNode> AstFuncList = new ArrayList<>();
         ASTParser parser = createConfiguredParser(sourceCodeFile);
         CompilationUnit cu = (CompilationUnit) parser.createAST(null);
-        cu = ASTHelper.applyDesugaringAndReparse(cu, sourceCodeFile);
-
         ASTVisitor visitor = new ASTVisitor() {
             @Override
             public boolean visit(TypeDeclaration node) {
@@ -206,8 +202,6 @@ public class CfgNode {
         List<MethodDeclaration> constructorList = new ArrayList<>();
         ASTParser parser = createConfiguredParser(sourceCode);
         CompilationUnit cu = (CompilationUnit) parser.createAST(null);
-        cu = ASTHelper.applyDesugaringAndReparse(cu, sourceCode);
-
         ASTVisitor visitor = new ASTVisitor() {
             @Override
             public boolean visit(TypeDeclaration node) {
@@ -224,8 +218,7 @@ public class CfgNode {
 
     public static CompilationUnit parserToCompilationUnit(String sourceCode) {
         ASTParser parser = createConfiguredParser(sourceCode);
-        CompilationUnit cu = (CompilationUnit) parser.createAST(null);
-        return ASTHelper.applyDesugaringAndReparse(cu, sourceCode);
+        return (CompilationUnit) parser.createAST(null);
     }
 
     public static ASTNode parserToAstFuncList0(String sourceCodeFile, String funcName) {

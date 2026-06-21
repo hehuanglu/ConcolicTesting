@@ -19,36 +19,31 @@ public final class TestDriverRunner {
     }
 
     public static List<MarkedStatement> newRunTestDriver(String testDriver, String fullyClonedClassName) throws IOException, InterruptedException {
-        fullyClonedClassName = fullyClonedClassName.contains(".") ? fullyClonedClassName.substring(0, fullyClonedClassName.lastIndexOf('.')) : fullyClonedClassName;
+        fullyClonedClassName = fullyClonedClassName.contains(".")
+                ? fullyClonedClassName.substring(0, fullyClonedClassName.lastIndexOf('.'))
+                : fullyClonedClassName;
+
         String path = FilePath.newTestDriverPath + "/" + fullyClonedClassName.replace(".", "/");
         writeDataToFile(testDriver, path + "/TestDriver.java");
-
-        // Lấy Mockito ghép với TestDriver path
         String currentCp = System.getProperty("java.class.path");
+
         try {
-            // Định vị chính xác file Mockito
-            String mockitoPath = new java.io.File(org.mockito.Mockito.class.getProtectionDomain().getCodeSource().getLocation().toURI()).getAbsolutePath();
+            String mockitoPath = new java.io.File(org.mockito.Mockito.class
+                                    .getProtectionDomain()
+                                    .getCodeSource()
+                                    .getLocation()
+                                    .toURI()).getAbsolutePath();
+
             currentCp = currentCp + java.io.File.pathSeparator + mockitoPath;
-        } catch (Exception e) {
-            // Bỏ qua nếu không tìm thấy
+        } catch (Exception ignored) {
         }
 
-        // Ghép toàn bộ vào chung 1 Classpath
         String fullCp = FilePath.newTestDriverPath + java.io.File.pathSeparator + currentCp;
-
-        // CHẠY TRỰC TIẾP BẰNG PROCESS BUILDER
         try {
-            // Lệnh Biên dịch (javac)
-            ProcessBuilder pbCompile = new ProcessBuilder(
-                    "javac",
-                    "-encoding", "UTF-8", // báo cho trình biên dịch sử dụng bảng mã UTF-8 vì trong testDriver có sử dụng tiếng việt
-                    "-cp", fullCp,
-                    path + "/TestDriver.java"
-            );
+            ProcessBuilder pbCompile = new ProcessBuilder("javac", "-cp", fullCp, path + "/TestDriver.java");
             pbCompile.redirectErrorStream(true);
             Process pCompile = pbCompile.start();
 
-            // Đọc log compile
             try (BufferedReader r = new BufferedReader(new java.io.InputStreamReader(pCompile.getInputStream()))) {
                 String line;
                 while ((line = r.readLine()) != null) {
@@ -56,24 +51,79 @@ public final class TestDriverRunner {
                 }
             }
 
-            pCompile.waitFor();
+            boolean compileFinished = pCompile.waitFor(1, java.util.concurrent.TimeUnit.MINUTES);
 
-            // Lệnh Chạy (java)
+            if (!compileFinished) {
+                pCompile.destroyForcibly();
+                throw new RuntimeException("Compile timeout after 1 minute");
+            }
+
+            if (pCompile.exitValue() != 0) {
+                throw new RuntimeException("Compilation failed");
+            }
+
+            //chatgpt
             ProcessBuilder pbRun = new ProcessBuilder("java", "-cp", fullCp, fullyClonedClassName + ".TestDriver");
             pbRun.redirectErrorStream(true);
             Process pRun = pbRun.start();
 
-            // Đọc log khi chạy test (
-            try (BufferedReader r = new BufferedReader(new java.io.InputStreamReader(pRun.getInputStream()))) {
-                String line;
-                while ((line = r.readLine()) != null) {
-                    System.out.println("[TEST DRIVER LOG] " + line);
-                }
+            StringBuilder runLog = new StringBuilder();
+            Thread outputThread =
+                    new Thread(() -> {
+                        try (BufferedReader r =
+                                     new BufferedReader(
+                                             new java.io.InputStreamReader(
+                                                     pRun.getInputStream()
+                                             ))) {
+
+                            String line;
+
+                            while ((line = r.readLine()) != null) {
+
+                                synchronized (runLog) {
+                                    runLog.append(line).append('\n');
+                                }
+
+                                System.out.println(
+                                        "[TEST DRIVER LOG] "
+                                                + line
+                                );
+                            }
+
+                        } catch (IOException ignored) {
+                        }
+                    });
+
+            outputThread.start();
+
+            //chatgpt
+            boolean runFinished = pRun.waitFor(5, java.util.concurrent.TimeUnit.SECONDS);
+
+            if (!runFinished) {
+
+                pRun.destroyForcibly();
+
+                outputThread.join(2000);
+
+                throw new RuntimeException(
+                        "Execution timeout after 1 minute"
+                );
             }
-            pRun.waitFor();
+
+            outputThread.join();
+
+            if (pRun.exitValue() != 0) {
+
+                throw new RuntimeException(
+                        "Execution failed"
+                );
+            }
 
         } catch (Exception e) {
+
             e.printStackTrace();
+
+            throw e;
         }
 
         return getMarkedStatement();

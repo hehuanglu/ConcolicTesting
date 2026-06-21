@@ -21,7 +21,16 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static core.cfg.utils.ASTHelper.convertForEachToFor;
+import org.eclipse.jdt.core.JavaCore;
+import org.eclipse.jdt.core.ToolFactory;
+import org.eclipse.jdt.core.formatter.CodeFormatter;
+import org.eclipse.jdt.core.formatter.DefaultCodeFormatterConstants;
+import org.eclipse.jface.text.Document;
+import org.eclipse.text.edits.TextEdit;
+
+import java.util.HashMap;
+import java.util.Map;
+
 import static core.cfg.utils.ASTHelper.convertTernaryToIf;
 
 public final class CloneProject {
@@ -107,15 +116,17 @@ public final class CloneProject {
         return root;
     }
 
+
+
     public static void cloneProject(String originalDirPath, String destinationDirPath, ASTHelper.Coverage coverage, String fileName) throws IOException, InterruptedException {
         command = new StringBuilder("javac -d " + FilePath.targetClassesFolderPath + " ");
-        iCloneProject(originalDirPath, destinationDirPath, coverage, fileName, originalDirPath);
+        iCloneProject(originalDirPath, destinationDirPath, coverage, fileName);
         System.out.println(command);
 
         CommandLine.executeCommand(command.toString());
     }
 
-    private static void iCloneProject(String originalDirPath, String destinationDirPath, ASTHelper.Coverage coverage, String fileToTestName, String sourceRootPath) throws IOException {
+    private static void iCloneProject(String originalDirPath, String destinationDirPath, ASTHelper.Coverage coverage, String fileToTestName) throws IOException {
         deleteFilesInDirectory(destinationDirPath);
         boolean existJavaFile = false;
 
@@ -125,7 +136,7 @@ public final class CloneProject {
             if (file.isDirectory()) {
                 String dirName = file.getName();
                 createCloneDirectory(destinationDirPath, dirName);
-                iCloneProject(originalDirPath + "/" + dirName, destinationDirPath + "/" + dirName, coverage, fileToTestName, sourceRootPath);
+                iCloneProject(originalDirPath + "/" + dirName, destinationDirPath + "/" + dirName, coverage, fileToTestName);
             } else if (file.isFile() && file.getName().endsWith(".java")) {
                 existJavaFile = true;
                 String fileName = file.getName();
@@ -134,7 +145,7 @@ public final class CloneProject {
                 if (fileName.equals(fileToTestName)) {
                     //File chính -> Parse AST và cấy mã theo dõi
                     totalClassStatement = 0;
-                    CompilationUnit compilationUnit = Parser.parseFileToCompilationUnit(sourcePath, sourceRootPath);
+                    CompilationUnit compilationUnit = Parser.parseFileToCompilationUnit(sourcePath);
                     classCompilationUnit = compilationUnit;
 
                     createCloneFile(destinationDirPath, fileName);
@@ -168,6 +179,42 @@ public final class CloneProject {
         }
     }
 
+    private static String formatJavaSource(String source) {
+        try {
+            Map<String, String> options = new HashMap<>(JavaCore.getOptions());
+
+            options.put(JavaCore.COMPILER_SOURCE, JavaCore.VERSION_17);
+            options.put(JavaCore.COMPILER_COMPLIANCE, JavaCore.VERSION_17);
+            options.put(JavaCore.COMPILER_CODEGEN_TARGET_PLATFORM, JavaCore.VERSION_17);
+
+            options.put(DefaultCodeFormatterConstants.FORMATTER_TAB_CHAR, JavaCore.SPACE);
+            options.put(DefaultCodeFormatterConstants.FORMATTER_TAB_SIZE, "4");
+            options.put(DefaultCodeFormatterConstants.FORMATTER_INDENTATION_SIZE, "4");
+
+            CodeFormatter formatter = ToolFactory.createCodeFormatter(options);
+
+            TextEdit edit = formatter.format(
+                    CodeFormatter.K_COMPILATION_UNIT,
+                    source,
+                    0,
+                    source.length(),
+                    0,
+                    System.lineSeparator()
+            );
+
+            if (edit == null) {
+                return source;
+            }
+
+            Document document = new Document(source);
+            edit.apply(document);
+
+            return document.get();
+        } catch (Exception e) {
+            e.printStackTrace();
+            return source;
+        }
+    }
 
     private static File[] getFilesInDirectory(String directoryPath) {
         File directory = new File(directoryPath);
@@ -319,10 +366,9 @@ public final class CloneProject {
         }
 
         result.append(createTotalClassStatementVariable(classData));
-
         result.append("}");
 
-        return result.toString();
+        return formatJavaSource(result.toString());
     }
 
     private static String createTotalFunctionCoverageVariable(MethodDeclaration methodDeclaration, int totalStatement, CoverageType coverageType) {
@@ -400,8 +446,7 @@ public final class CloneProject {
         } else if (statement instanceof DoStatement) {
             return generateCodeForDoStatement((DoStatement) statement, coverage);
         } else if (statement instanceof EnhancedForStatement) {
-            ForStatement forStatement = convertForEachToFor(statement.getAST(),(EnhancedForStatement) statement);
-            return generateCodeForForStatement(forStatement, coverage);
+            return generateCodeForForEachStatement((EnhancedForStatement) statement, coverage);
         }
 
         // Xử lý tách toán tử 3 ngôi (Ternary)
@@ -412,28 +457,11 @@ public final class CloneProject {
             ASTNode converted = convertTernaryToIf(statement);
             // Nếu có sự thay đổi (đã tách thành công), gọi đệ quy cho node mới
             if (converted != statement) {
-                // xử lý riêng trường hợp khai báo toán tử 3 ngôi
-                if (statement instanceof VariableDeclarationStatement) {
-                    // bỏ 2 dấu {} của block này
-                    return generateCodeForBlockBody((Block)converted, coverage);
-                }
                 return generateCodeForOneStatement(converted, markMethodSeparator, coverage);
             }
         }
 
         return generateCodeForNormalStatement(statement, markMethodSeparator);
-    }
-
-    private static String generateCodeForBlockBody(Block block, ASTHelper.Coverage coverage) {
-        StringBuilder result = new StringBuilder();
-        if (block != null) {
-            List<ASTNode> statements = block.statements();
-            for (int i = 0; i < statements.size(); i++) {
-                // Lấy mã nguồn của từng statement trong block
-                result.append(generateCodeForOneStatement(statements.get(i), ";", coverage));
-            }
-        }
-        return result.toString();
     }
 
     private static String generateCodeForBlock(Block block, ASTHelper.Coverage coverage) {

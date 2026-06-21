@@ -22,7 +22,7 @@ public class StringMethodNode extends MethodInvocationNode {
     private AstNode target; // phần trước method s
     private String methodName; // concat
     private List<AstNode> arguments; // "abc" / a / b
-    public final static int BOUND_LENGTH = 15;
+    public final static int BOUND_LENGTH = 4;
 
     public static AstNode executeStringMethod(MethodInvocation methodInvocation, MemoryModel memoryModel) {
         StringMethodNode stringMethodNode = new StringMethodNode();
@@ -60,6 +60,11 @@ public class StringMethodNode extends MethodInvocationNode {
                 case "isEmpty": {
                     BooleanLiteralNode result = new BooleanLiteralNode();
                     result.setValue(targetValue.isEmpty());
+                    return result;
+                }
+                case "isBlank": {
+                    BooleanLiteralNode result = new BooleanLiteralNode();
+                    result.setValue(targetValue.isBlank());
                     return result;
                 }
                 case "contains": {
@@ -113,13 +118,33 @@ public class StringMethodNode extends MethodInvocationNode {
                 case "indexOf": {
                     if (arguments.size() < 1 || !(arguments.get(0) instanceof StringLiteralNode))
                         return stringMethodNode;
+
                     String arg = ((StringLiteralNode) arguments.get(0)).getStringValue();
+
+                    if (arguments.size() >= 2) {
+                        if (!(arguments.get(1) instanceof NumberLiteralNode))
+                            return stringMethodNode;
+
+                        int fromIndex = Integer.parseInt(((NumberLiteralNode) arguments.get(1)).getTokenValue());
+                        return new IntegerLiteralNode(targetValue.indexOf(arg, fromIndex));
+                    }
+
                     return new IntegerLiteralNode(targetValue.indexOf(arg));
                 }
                 case "lastIndexOf": {
                     if (arguments.size() < 1 || !(arguments.get(0) instanceof StringLiteralNode))
                         return stringMethodNode;
+
                     String arg = ((StringLiteralNode) arguments.get(0)).getStringValue();
+
+                    if (arguments.size() >= 2) {
+                        if (!(arguments.get(1) instanceof NumberLiteralNode))
+                            return stringMethodNode;
+
+                        int fromIndex = Integer.parseInt(((NumberLiteralNode) arguments.get(1)).getTokenValue());
+                        return new IntegerLiteralNode(targetValue.lastIndexOf(arg, fromIndex));
+                    }
+
                     return new IntegerLiteralNode(targetValue.lastIndexOf(arg));
                 }
                 case "replace": {
@@ -162,9 +187,21 @@ public class StringMethodNode extends MethodInvocationNode {
                 case "startsWith": {
                     if (arguments.size() < 1 || !(arguments.get(0) instanceof StringLiteralNode))
                         return stringMethodNode;
-                    String arg = ((StringLiteralNode) arguments.get(0)).getStringValue();
+
+                    String prefix = ((StringLiteralNode) arguments.get(0)).getStringValue();
+
                     BooleanLiteralNode result = new BooleanLiteralNode();
-                    result.setValue(targetValue.startsWith(arg));
+
+                    if (arguments.size() >= 2) {
+                        if (!(arguments.get(1) instanceof NumberLiteralNode))
+                            return stringMethodNode;
+
+                        int offset = Integer.parseInt(((NumberLiteralNode) arguments.get(1)).getTokenValue());
+                        result.setValue(targetValue.startsWith(prefix, offset));
+                    } else {
+                        result.setValue(targetValue.startsWith(prefix));
+                    }
+
                     return result;
                 }
                 case "endsWith": {
@@ -180,15 +217,35 @@ public class StringMethodNode extends MethodInvocationNode {
                         return stringMethodNode;
                     int index = Integer.parseInt(((NumberLiteralNode) arguments.get(0)).getTokenValue());
                     StringLiteralNode result = new StringLiteralNode();
-                    System.out.println("index: " + index + " - " + targetValue);
+                    if (index < 0 || index >= targetValue.length()) {
+                        throw new UnsatPathException("index out of bounds");
+                    }
                     result.setStringValue(String.valueOf(targetValue.charAt(index)));
                     return result;
                 }
+                case "compareTo": {
+                    if (arguments.size() < 1 || !(arguments.get(0) instanceof StringLiteralNode))
+                        return stringMethodNode;
+
+                    String arg = ((StringLiteralNode) arguments.get(0)).getStringValue();
+
+                    return new IntegerLiteralNode(targetValue.compareTo(arg));
+                }
+
+                case "compareToIgnoreCase": {
+                    if (arguments.size() < 1 || !(arguments.get(0) instanceof StringLiteralNode))
+                        return stringMethodNode;
+
+                    String arg = ((StringLiteralNode) arguments.get(0)).getStringValue();
+
+                    return new IntegerLiteralNode(targetValue.compareToIgnoreCase(arg));
+                }
                 default:
-                    return stringMethodNode;
+                    throw new RuntimeException("Unsupported String method: " + methodName);
             }
         } catch (Exception e) {
-            throw new UnsatPathException("Expression is UNSATISFIABLE");
+            //throw new UnsatPathException("Expression is UNSATISFIABLE");
+            throw new ExceptionInInitializerError(e);
         }
     }
 
@@ -234,6 +291,8 @@ public class StringMethodNode extends MethodInvocationNode {
                 return handleTrim(targetExpr, ctx);
             case "compareTo":
                 return handleCompareTo(node, targetExpr, memoryModel, ctx, vars);
+            case "compareToIgnoreCase":
+                return handleCompareToIgnoreCase(node, targetExpr, memoryModel, ctx, vars);
             default:
                 throw new RuntimeException("Unsupported String method: " + node.methodName);
         }
@@ -546,5 +605,18 @@ public class StringMethodNode extends MethodInvocationNode {
                 (SeqExpr<CharSort>) OperationExpressionNode.createZ3Expression(argNode, ctx, vars, memoryModel);
 
         return compareToSign(target, argExpr, ctx);
+    }
+
+    private static Expr handleCompareToIgnoreCase(StringMethodNode node, SeqExpr<CharSort> target,
+                                                  MemoryModel memoryModel, Context ctx, List<Z3VariableWrapper> vars) {
+        ExpressionNode argNode = (ExpressionNode) node.arguments.get(0);
+
+        SeqExpr<CharSort> argExpr =
+                (SeqExpr<CharSort>) OperationExpressionNode.createZ3Expression(argNode, ctx, vars, memoryModel);
+
+        SeqExpr<CharSort> lowerTarget = handleLowerCase(target, ctx);
+        SeqExpr<CharSort> lowerArg = handleLowerCase(argExpr, ctx);
+
+        return compareToSign(lowerTarget, lowerArg, ctx);
     }
 }

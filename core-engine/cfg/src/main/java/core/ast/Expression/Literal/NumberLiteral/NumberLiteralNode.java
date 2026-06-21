@@ -15,8 +15,7 @@ public abstract class NumberLiteralNode extends LiteralNode {
             IntegerLiteralNode integerLiteralNode = new IntegerLiteralNode();
             integerLiteralNode.setTokenValue(tokenValue);
             return integerLiteralNode;
-        }
-        else { /*isDoubleValue(tokenValue)*/
+        } else { /*isDoubleValue(tokenValue)*/
             DoubleLiteralNode doubleLiteralNode = new DoubleLiteralNode();
             doubleLiteralNode.setTokenValue(tokenValue);
             return doubleLiteralNode;

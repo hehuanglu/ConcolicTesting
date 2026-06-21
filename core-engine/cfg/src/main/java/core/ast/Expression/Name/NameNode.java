@@ -1,6 +1,5 @@
 package core.ast.Expression.Name;
 
-import com.microsoft.z3.Expr;
 import core.ast.Expression.ExpressionNode;
 import core.symbolicExecution.MemoryModel;
 import org.eclipse.jdt.core.dom.Name;
@@ -8,15 +7,6 @@ import org.eclipse.jdt.core.dom.QualifiedName;
 import org.eclipse.jdt.core.dom.SimpleName;
 
 public abstract class NameNode extends ExpressionNode {
-    private Expr cacheExpr;
-
-    public void setCacheExpr(Expr cacheExpr) {
-        this.cacheExpr = cacheExpr;
-    }
-
-    public Expr getCacheExpr() {
-        return cacheExpr;
-    }
 
     public static ExpressionNode executeName(Name name, MemoryModel memoryModel) {
         if(name instanceof SimpleName) {

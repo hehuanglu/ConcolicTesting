@@ -11,11 +11,11 @@ import core.cfg.utils.ASTHelper;
 import core.cfg.utils.DataFlowHelper;
 import core.cfg.utils.ProjectParser;
 import core.cfg.utils.ProjectParserRewrite;
-import core.cfg.utils.ProjectParserRewrite;
 import core.path.FindPath;
 import core.path.MarkedPath;
 import core.path.MarkedStatement;
 import core.path.Path;
+import core.symbolicExecution.PathExecutionException;
 import core.symbolicExecution.SymbolicExecutionRewrite;
 import core.symbolicExecution.UnsatPathException;
 import core.testDriver.LoopPathGenerator;
@@ -66,7 +66,6 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
         setup(path, className, methodName, coverage);
         setupCfgTree(coverage);
         setupParameters(methodName);
-        TestGeneration.isSetup = true;
 
         // data flow setup
         /*
@@ -227,9 +226,6 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
             int count = 0;
 
             for (CfgNode uncoveredNode = TestGeneration.findUncoverNode(TestGeneration.cfgBeginNode, coverage); uncoveredNode != null; uncoveredNode = TestGeneration.findUncoverNode(TestGeneration.cfgBeginNode, coverage)) {
-                log.info("Cố gắng phủ nhánh còn thiếu tại Node: {}", uncoveredNode);
-
-                Path newPath = (new FindPath(TestGeneration.cfgBeginNode, uncoveredNode, TestGeneration.cfgEndNode)).getPath();
 
                 boolean isGoingToTrueBranch = false;
                 CfgNode parent = uncoveredNode.getParent();
@@ -238,30 +234,37 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
                     if (cfgBoolExprNode.getTrueNode() == uncoveredNode) {
                         isGoingToTrueBranch = true;
                     }
-                } else {
-                    System.out.println("Deo oonr rooif");
                 }
-
-                log.info("Cố gắng phủ nhánh còn thiếu tại Node " + (++count) +" : {}" + " - line: " + uncoveredNode.getLineNumber() + " \n -> theo hướng " + isGoingToTrueBranch,
+                log.info("Cố gắng phủ nhánh còn thiếu tại Node " + (++count) +" : {}" + " \n -> theo hướng " + isGoingToTrueBranch,
                         uncoveredNode.getContent().isEmpty() ? uncoveredNode.getParent() : uncoveredNode
                 );
 
                 Path newPath = (new FindPath(TestGeneration.cfgBeginNode, uncoveredNode, TestGeneration.cfgEndNode)).getPath();
 
-                if (newPath.getCurrentLast().getData() == uncoveredNode) {
-                    System.out.println("Bor mẹ rồi");
-                }
                 boolean success = solveAndRunTest(newPath, testResult, coverage, id);
 
                 if (!success) {
                     uncoveredNode.setFakeMarked(true);
                     uncoveredNode.setFakeMarked(true);
-                    if(isGoingToTrueBranch) {
+                    if (isGoingToTrueBranch) {
                         ((CfgBoolExprNode) parent).setFakeTrueMarked(true);
                     } else {
                         ((CfgBoolExprNode) parent).setFakeFalseMarked(true);
                     }
-                } else if (uncoveredNode.isMarked() == false) {
+                    continue ;
+                } else if (parent instanceof CfgBoolExprNode) {
+                    if(isGoingToTrueBranch) {
+                        if (((CfgBoolExprNode) parent).isTrueMarked()) {
+                            continue;
+                        }
+                    } else {
+                        if (((CfgBoolExprNode) parent).isFalseMarked()) {
+                            continue;
+                        }
+                    }
+                }
+                if (success == true && uncoveredNode.isMarked() == false) {
+                    System.out.println("this one " + parent.isFakeMarked());
                     java.nio.file.Path errorPath = java.nio.file.Path.of("processing-service/unitTesting/data/error.txt");
                     try {
                         Files.createDirectories(errorPath.getParent());
@@ -351,7 +354,6 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
             }
             report.append(String.format(" - Thời gian:    %s s\n", df.format((endTime - startTime) / 1000.0)));
             report.append("===================================================");
-
             log.info(report.toString());
             testResult.setMemoryUsage(averageMemory);
         }
@@ -800,16 +802,20 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
         return map;
     }
 
-    private static boolean solveAndRunTest(Path path, TestResult testResult, TestGeneration.Coverage coverage)
-            throws Exception {
+    private static boolean solveAndRunTest(Path path, TestResult testResult, TestGeneration.Coverage coverage, int id) throws Exception {
 
         SymbolicExecutionRewrite solution = new SymbolicExecutionRewrite(path, TestGeneration.parameters);
 
         try {
             solution.execute();
         } catch (UnsatPathException e) {
-            log.warn("Path hiện tại UNSATISFIABLE. Bỏ qua path này. Lý do: {}", e.getMessage());
             return false;
+        } catch (ExceptionInInitializerError e) {
+            if (hasCause(e, UnsatPathException.class)) {
+                return false; // coi là unsat path, bỏ path này, chạy tiếp
+            }
+
+            throw e; // lỗi static init thật sự thì không nuốt
 
         } catch (RuntimeException e) {
             log.error("HỆ THỐNG CRASH SAU KHI GIẢI PATH: {}", e.getMessage(), e);
@@ -826,9 +832,9 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
             } catch (IOException ioException) {
                 log.error("Không thể ghi lỗi vào file error.txt", ioException);
             }
-
-            throw e;
+            return false;
         }
+
 
 
         TestGeneration.parameterNames = TestDriverUtils.getParameterNames(TestGeneration.parameters);
@@ -903,7 +909,16 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
                     simpleClassName
             );
 
-            List<MarkedStatement> markedStatements = TestDriverRunner.newRunTestDriver(testDriver, originalFileLocation);
+            List<MarkedStatement> markedStatements;
+            try {
+                markedStatements = TestDriverRunner.newRunTestDriver(testDriver, originalFileLocation);
+            } catch (RuntimeException e) {
+                if (e.getMessage() != null && e.getMessage().contains("timeout")) {
+                    System.out.println("Infinite loop detected");
+                    return false;
+                }
+                throw e;
+            }
 
             MarkedPath.markPathToCFGV2(TestGeneration.cfgBeginNode, markedStatements);
             MarkedPath.printCoverageReport(coverage); // new
@@ -924,6 +939,16 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
         }
 
         return true;
+    }
+
+    private static boolean hasCause(Throwable throwable, Class<?> targetClass) {
+        while (throwable != null) {
+            if (targetClass.isInstance(throwable)) {
+                return true;
+            }
+            throwable = throwable.getCause();
+        }
+        return false;
     }
 
     private static String getTotalClassCoverageVariableName() {

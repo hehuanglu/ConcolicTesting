@@ -7,6 +7,11 @@ public class CharacterLiteralNode extends LiteralNode {
 
     private char characterValue = 'X';
 
+    public CharacterLiteralNode() {}
+    public CharacterLiteralNode(Character targetValue) {
+        characterValue = targetValue;
+    }
+
     public static CharacterLiteralNode executeCharacterLiteral(CharacterLiteral characterLiteral) {
         CharacterLiteralNode characterLiteralNode = new CharacterLiteralNode();
         characterLiteralNode.setCharacterValue(characterLiteral.charValue());

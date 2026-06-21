@@ -14,8 +14,7 @@ public abstract class VariableDeclarationNode extends AstNode {
 
     public static void executeVariableDeclaration(VariableDeclaration variableDeclaration, MemoryModel memoryModel) {
         if (variableDeclaration instanceof SingleVariableDeclaration) {
-            SingleVariableDeclarationNode.executeSingleVariableDeclaration((SingleVariableDeclaration) variableDeclaration,
-                    memoryModel);
+            SingleVariableDeclarationNode.executeSingleVariableDeclaration((SingleVariableDeclaration) variableDeclaration, memoryModel);
         } else if (variableDeclaration instanceof VariableDeclarationFragment) {
 //           /*????*/
         } else {
