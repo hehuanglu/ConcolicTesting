@@ -1,0 +1,4 @@
+Method: 11
+Criterion: MCDC
+Lỗi viết sai biểu thức 
+----------------------------------------

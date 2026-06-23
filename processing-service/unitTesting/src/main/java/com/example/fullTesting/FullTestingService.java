@@ -117,7 +117,7 @@ public class FullTestingService {
                     }
                 }
 
-                unitTesting(nameProject, "branch", id);
+                unitTesting(nameProject, "mcdc", id);
 
                 try {
                     Thread.sleep(500);
