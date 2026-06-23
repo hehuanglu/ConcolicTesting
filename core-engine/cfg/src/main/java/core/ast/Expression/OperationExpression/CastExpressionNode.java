@@ -1,6 +1,8 @@
 package core.ast.Expression.OperationExpression;
 
-import com.microsoft.z3.*;
+import com.microsoft.z3.BitVecExpr;
+import com.microsoft.z3.Context;
+import com.microsoft.z3.Expr;
 import core.Z3Vars.Z3VariableWrapper;
 import core.ast.AstNode;
 import core.ast.Expression.ExpressionNode;
@@ -16,6 +18,7 @@ public class CastExpressionNode extends ExpressionNode {
     private static final int Z3_CHAR_SIZE = 18;
 
     private Type targetNode;
+    // Lưu biểu thức bị ép kiểu
     private ExpressionNode innerExpression;
 
     public CastExpressionNode(Type targetNode, ExpressionNode innerExpression) {
@@ -42,21 +45,24 @@ public class CastExpressionNode extends ExpressionNode {
         this.innerExpression = innerExpression;
     }
 
+    // Hàm thực thi: Bóc tách AST của Eclipse JDT
     public static AstNode executeCastExpression(CastExpression castExpression, MemoryModel memoryModel) {
         Type type = castExpression.getType();
         Expression expression = castExpression.getExpression();
+
+        // Gọi đệ quy để xử lý cái ruột bên trong (ví dụ nó sẽ trả về NameNode của biến y)
         ExpressionNode innerNode = (ExpressionNode) ExpressionNode.executeExpression(expression, memoryModel);
+
         return new CastExpressionNode(type, innerNode);
     }
 
-    @SuppressWarnings("unchecked")
-    public static Expr createZ3Expression(CastExpressionNode castNode,
-                                          MemoryModel memoryModel,
-                                          Context ctx,
-                                          List<Z3VariableWrapper> vars) {
-        String targetType = normalizeType(castNode.getTargetNode().toString());
+    public static Expr createZ3Expression(CastExpressionNode castNode, MemoryModel memoryModel,
+                                          Context ctx, List<Z3VariableWrapper> vars) {
+
+        String targetType = castNode.getTargetNode().toString();
 
         ExpressionNode innerExpr = castNode.getInnerExpression();
+
         Expr z3Inner = OperationExpressionNode.createZ3Expression(innerExpr, ctx, vars, memoryModel);
 
         if (z3Inner instanceof FPExpr) {
@@ -160,121 +166,25 @@ public class CastExpressionNode extends ExpressionNode {
         if (z3Inner instanceof BitVecExpr) {
             BitVecExpr arg = (BitVecExpr) z3Inner;
 
-            switch (targetType) {
-                case "long":
-                    return resizeSignedBV(ctx, arg, 64);
+            int currentSize = arg.getSortSize();
 
-                case "int":
-                    return resizeSignedBV(ctx, arg, 32);
-
-                case "short":
-                    return resizeSignedBV(ctx, arg, 16);
-
-                case "byte":
-                    return resizeSignedBV(ctx, arg, 8);
-
-                case "char":
-                    return bvToCharSeq(ctx, arg);
-
-                case "float":
-                    return ctx.mkFPToFP(ctx.mkFPRoundNearestTiesToEven(), arg, ctx.mkFPSort32(), true);
-
-                case "double":
-                    return ctx.mkFPToFP(ctx.mkFPRoundNearestTiesToEven(), arg, ctx.mkFPSort64(), true);
-
-                default:
-                    return z3Inner;
-            }
-        }
-
-        if (z3Inner instanceof SeqExpr) {
-            SeqExpr<CharSort> arg = (SeqExpr<CharSort>) z3Inner;
-
-            switch (targetType) {
-                case "char":
-                    return arg;
-
-                case "int":
-                    return charSeqToUnsignedBV(ctx, arg, 32);
-
-                case "long":
-                    return charSeqToUnsignedBV(ctx, arg, 64);
-
-                case "short":
-                    return charSeqToUnsignedBV(ctx, arg, 16);
-
-                case "byte":
-                    return charSeqToUnsignedBV(ctx, arg, 8);
-
-                case "float": {
-                    BitVecExpr bv16 = charSeqToUnsignedBV(ctx, arg, 16);
-                    return ctx.mkFPToFP(ctx.mkFPRoundNearestTiesToEven(), bv16, ctx.mkFPSort32(), false);
-                }
-
-                case "double": {
-                    BitVecExpr bv16 = charSeqToUnsignedBV(ctx, arg, 16);
-                    return ctx.mkFPToFP(ctx.mkFPRoundNearestTiesToEven(), bv16, ctx.mkFPSort64(), false);
-                }
-
-                default:
-                    return z3Inner;
+            if ("long".equals(targetType) && currentSize == 32) {
+                System.out.println("Đã ép kiểu int thành long cho Z3");
+                return ctx.mkSignExt(32, arg);
+            } else if ("int".equals(targetType) && currentSize == 64) {
+                System.out.println(" Đã ép kiểu long thành int cho Z3");
+                return ctx.mkExtract(31, 0, arg);
+            } else if ("short".equals(targetType) && currentSize == 32) {
+                System.out.println(" Đã ép kiểu int thành short cho Z3");
+                return ctx.mkExtract(15, 0, arg);
+            } else if ("int".equals(targetType) && currentSize == 8) {
+                return ctx.mkSignExt(24, arg);
             }
         }
 
         return z3Inner;
     }
-
-    private static String normalizeType(String type) {
-        if (type == null) return "";
-
-        type = type.trim();
-
-        switch (type) {
-            case "java.lang.String":
-                return "String";
-            case "java.lang.Integer":
-                return "int";
-            case "java.lang.Long":
-                return "long";
-            case "java.lang.Short":
-                return "short";
-            case "java.lang.Byte":
-                return "byte";
-            case "java.lang.Character":
-                return "char";
-            case "java.lang.Float":
-                return "float";
-            case "java.lang.Double":
-                return "double";
-            default:
-                return type;
-        }
-    }
-
-    private static BitVecExpr resizeSignedBV(Context ctx, BitVecExpr arg, int targetSize) {
-        int currentSize = arg.getSortSize();
-
-        if (currentSize == targetSize) {
-            return arg;
-        }
-
-        if (currentSize > targetSize) {
-            return ctx.mkExtract(targetSize - 1, 0, arg);
-        }
-
-        return ctx.mkSignExt(targetSize - currentSize, arg);
-    }
-
-    private static BitVecExpr resizeUnsignedBV(Context ctx, BitVecExpr arg, int targetSize) {
-        int currentSize = arg.getSortSize();
-
-        if (currentSize == targetSize) {
-            return arg;
-        }
-
-        if (currentSize > targetSize) {
-            return ctx.mkExtract(targetSize - 1, 0, arg);
-        }
+}
 
         return ctx.mkZeroExt(targetSize - currentSize, arg);
     }

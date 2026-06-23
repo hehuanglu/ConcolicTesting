@@ -13,7 +13,6 @@ import org.eclipse.jdt.core.dom.*;
 public abstract class ExpressionNode extends AstNode {
 
     public static AstNode executeExpression(Expression expression, MemoryModel memoryModel) {
-        // expr i == 5
         if (isOperationExpression(expression)) {
             return OperationExpressionNode.executeOperationExpression(expression, memoryModel);
         } else if (isLiteral(expression)) {

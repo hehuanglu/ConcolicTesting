@@ -22,25 +22,32 @@ public class PrimitiveTypeVariable extends Variable {
         PrimitiveType.Code code = primitiveTypeVariable.getCode();
         String name = primitiveTypeVariable.getName();
         SymbolicExecutionRewrite.variableTypeMap.put(name, name);
+        int bitSize;
 
-        // Nhóm các kiểu số nguyên (Byte, Short, Char, Int, Long) về Z3 Int
-        if (code.equals(PrimitiveType.BYTE) ||
-                code.equals(PrimitiveType.SHORT) ||
-                code.equals(PrimitiveType.CHAR) ||
-                code.equals(PrimitiveType.INT) ||
-                code.equals(PrimitiveType.LONG)) {
-
-            return ctx.mkIntConst(name);
-        }
-        // Nhóm các kiểu số thực (Float, Double) về Z3 Real
-        else if (code.equals(PrimitiveType.FLOAT) || code.equals(PrimitiveType.DOUBLE)) {
-            return ctx.mkRealConst(name);
-        }
-        // Kiểu Boolean giữ nguyên
-        else if (code.equals(PrimitiveType.BOOLEAN)) {
+        if (code.equals(PrimitiveType.BYTE)) {
+            bitSize = 8;
+            return ctx.mkBVConst(name, bitSize);
+        } else if (code.equals(PrimitiveType.SHORT)) {
+            bitSize = 16;
+            return ctx.mkBVConst(name, bitSize);
+        } else if (code.equals(PrimitiveType.CHAR)) {
+            bitSize = 16; // unsigned
+            return ctx.mkBVConst(name, bitSize);
+        } else if (code.equals(PrimitiveType.INT)) {
+            bitSize = 32;
+            return ctx.mkBVConst(name, bitSize);
+        } else if (code.equals(PrimitiveType.LONG)) {
+            bitSize = 64;
+            return ctx.mkBVConst(name, bitSize);
+        } else if (code.equals(PrimitiveType.FLOAT)) {
+            FPSort f32 = ctx.mkFPSort32(); // tạo sort float (1/8/23) cho biến
+            return ctx.mkConst(name, f32);
+        } else if (code.equals(PrimitiveType.DOUBLE)) {
+            FPSort f64 = ctx.mkFPSort64(); // tạo sort double (1/11/52) cho biến
+            return ctx.mkConst(name, f64);
+        } else if (code.equals(PrimitiveType.BOOLEAN)) {
             return ctx.mkBoolConst(name);
-        }
-        else {
+        } else {
             throw new RuntimeException("Invalid type: " + code);
         }
     }

@@ -9,6 +9,7 @@ import core.ast.Expression.ExpressionNode;
 import core.ast.Expression.Literal.BooleanLiteralNode;
 import core.ast.Expression.Literal.CharacterLiteralNode;
 import core.ast.Expression.Literal.LiteralNode;
+import core.ast.Expression.Literal.NullLiteralNode;
 import core.ast.Expression.Literal.NumberLiteral.IntegerLiteralNode;
 import core.ast.Expression.Literal.NumberLiteral.NumberLiteralNode;
 import core.ast.Expression.Literal.StringLiteralNode;
@@ -17,6 +18,7 @@ import core.ast.Expression.Method.MethodInvocationNode;
 import core.ast.Expression.Method.StringMethodNode;
 import core.ast.Type.AnnotatableType.SimpleTypeNode;
 import core.ast.Expression.Name.NameNode;
+import core.ast.Type.AnnotatableType.SimpleTypeNode;
 import core.symbolicExecution.MemoryModel;
 import core.variable.Variable;
 import org.eclipse.jdt.core.dom.*;
@@ -76,7 +78,7 @@ public abstract class OperationExpressionNode extends ExpressionNode {
                 return lengthVar;
             }
             return createZ3Variable(n, ctx, vars, memoryModel);
-        } else if (operand instanceof LiteralNode) {
+        }else if (operand instanceof LiteralNode) {
             if (operand instanceof NumberLiteralNode) {
                 String tokenVal = ((NumberLiteralNode) operand).getTokenValue();
 
@@ -115,7 +117,7 @@ public abstract class OperationExpressionNode extends ExpressionNode {
                 return ctx.mkBool(((BooleanLiteralNode) operand).getValue());
             } else if (operand instanceof CharacterLiteralNode) {
                 return ctx.mkString(String.valueOf(((CharacterLiteralNode) operand).getCharacterValue()));
-            } else if (operand instanceof  NullLiteralNode){
+            } else if (operand instanceof NullLiteralNode) {
                 //đặt 0 tượng trưng cho null trong bộ giải z3
                 return ctx.mkInt(0);
             } else if (operand instanceof StringLiteralNode) {
@@ -131,8 +133,7 @@ public abstract class OperationExpressionNode extends ExpressionNode {
             return CastExpressionNode.createZ3Expression((CastExpressionNode) operand, memoryModel, ctx, vars);
         }  if (operand instanceof SimpleTypeNode) {
             return SimpleTypeNode.createZ3Expression((SimpleTypeNode) operand, memoryModel, ctx, vars);
-        }
-        else {
+        } else {
             throw new RuntimeException(operand.getClass() + " is not an Expression");
         }
     }
@@ -175,9 +176,6 @@ public abstract class OperationExpressionNode extends ExpressionNode {
         }
     }
 
-    // Character.toLowerCase(x);
-    // s.concat()
-
     public static ExpressionNode executeOperandNode(ExpressionNode operand, MemoryModel memoryModel) {
         if (operand instanceof InfixExpressionNode) {
             return InfixExpressionNode.executeInfixExpressionNode((InfixExpressionNode) operand, memoryModel);
@@ -195,7 +193,9 @@ public abstract class OperationExpressionNode extends ExpressionNode {
             return operand;
         } else if (operand instanceof ArrayAccessNode) {
             return operand;
-        }else if (operand instanceof SimpleTypeNode) {
+        } else if (operand instanceof SimpleTypeNode) {
+            return operand;
+        } else if (operand instanceof LiteralNode) {
             return operand;
         }
         else {

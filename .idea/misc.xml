@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ExternalStorageConfigurationManager" enabled="true" />
+  <component name="MavenProjectsManager">
+    <option name="originalFiles">
+      <list>
+        <option value="$PROJECT_DIR$/pom.xml" />
+        <option value="$PROJECT_DIR$/src/main/java/core-engine/cfg/pom.xml" />
+        <option value="$PROJECT_DIR$/src/main/java/core-engine/core/pom.xml" />
+        <option value="$PROJECT_DIR$/src/main/java/core-engine/jdt/pom.xml" />
+        <option value="$PROJECT_DIR$/src/main/java/core-engine/utils/pom.xml" />
+        <option value="$PROJECT_DIR$/src/main/java/core-engine/xml/pom.xml" />
+        <option value="$PROJECT_DIR$/src/main/java/processing-service/unitTesting/pom.xml" />
+        <option value="$PROJECT_DIR$/src/main/java/processing-service/upload-project-service/pom.xml" />
+        <option value="$PROJECT_DIR$/processing-service/unitTesting/pom.xml" />
+        <option value="$PROJECT_DIR$/processing-service/upload-project-service/pom.xml" />
+        <option value="$PROJECT_DIR$/core-engine/cfg/pom.xml" />
+        <option value="$PROJECT_DIR$/core-engine/core/pom.xml" />
+        <option value="$PROJECT_DIR$/core-engine/jdt/pom.xml" />
+        <option value="$PROJECT_DIR$/core-engine/utils/pom.xml" />
+        <option value="$PROJECT_DIR$/core-engine/xml/pom.xml" />
+        <option value="$PROJECT_DIR$/project/anonymous/tmp-prj/testStub.zip.project/testStub/pom.xml" />
+      </list>
+    </option>
+  </component>
+  <component name="ProjectRootManager" version="2" languageLevel="JDK_11" default="true" project-jdk-name="11" project-jdk-type="JavaSDK">
+    <output url="file://$PROJECT_DIR$/out" />
+  </component>
+</project>

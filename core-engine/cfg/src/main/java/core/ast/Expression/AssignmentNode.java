@@ -14,6 +14,7 @@ import core.ast.Expression.Name.NameNode;
 import core.ast.Expression.OperationExpression.InfixExpressionNode;
 import core.ast.Expression.OperationExpression.OperationExpressionNode;
 import core.symbolicExecution.MemoryModel;
+import core.symbolicExecution.SymbolicExecutionRewrite;
 import org.eclipse.jdt.core.dom.*;
 
 import java.util.List;
@@ -62,7 +63,6 @@ public class AssignmentNode extends ExpressionNode {
                 System.out.println("Bỏ qua gán RAM do Index là symbolic");
             }
 
-            // 2. GỌI mkStore LƯU LỊCH SỬ CHO Z3
             try {
                 String arrayName = arrayAccess.getArray().toString();
 
@@ -74,19 +74,25 @@ public class AssignmentNode extends ExpressionNode {
                     // Lấy mảng cũ
                     Expr z3OldArray = stateMap.get(arrayName);
                     if (z3OldArray == null) {
-                        // Tự động suy luận Sort từ variableTypeMap
+                        // CMặc định Range là BitVec 32-bit
                         Sort rangeSort = ctx.mkBitVecSort(32);
-                        Map<String, String> typeMap = core.symbolicExecution.SymbolicExecutionRewrite.variableTypeMap;
+                        Map<String, String> typeMap = SymbolicExecutionRewrite.variableTypeMap;
 
                         if (typeMap != null && typeMap.get(arrayName) != null) {
                             String typeStr = typeMap.get(arrayName).toString();
-                            if (typeStr.equals("long")) rangeSort = ctx.mkBitVecSort(64);
-                            else if (typeStr.equals("double")) rangeSort = ctx.mkFPSortDouble();
-                            else if (typeStr.equals("float")) rangeSort = ctx.mkFPSortSingle();
+                            if (typeStr.equals("long")) {
+                                rangeSort = ctx.mkBitVecSort(64);
+                            } else if (typeStr.equals("double")) {
+                                rangeSort = ctx.mkFPSortDouble();
+                            } else if (typeStr.equals("float")) {
+                                rangeSort = ctx.mkFPSortSingle();
+                            }
                         }
+
                         z3OldArray = ctx.mkConst(arrayName, ctx.mkArraySort(ctx.mkBitVecSort(32), rangeSort));
                     }
 
+                    // Dịch Index
                     Expr z3Index = OperationExpressionNode.createZ3Expression(cookedArrayIndex, ctx, vars, memoryModel);
 
                     // Dịch Value
@@ -98,6 +104,7 @@ public class AssignmentNode extends ExpressionNode {
                 }
             } catch (Exception e) {
                 System.out.println("   ---> Lỗi Z3 mkStore: " + e.getMessage());
+                e.printStackTrace();
             }
         }
     }

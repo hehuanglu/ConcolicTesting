@@ -32,6 +32,17 @@ public class Path {
         } else lastNode.setNext(currentLast);
     }
 
+    public void addFirst(CfgNode data) {
+        Node newNode = new Node(data);
+        if (isEmpty()) {
+            currentFirst = newNode;
+            currentLast = newNode;
+        } else {
+            newNode.setNext(currentFirst);
+            currentFirst = newNode;
+        }
+    }
+
     public void removeLast() {
         if (isEmpty()) return;
 

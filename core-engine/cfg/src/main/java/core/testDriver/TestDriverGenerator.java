@@ -275,7 +275,9 @@ public final class TestDriverGenerator {
 
         // Đóng khối try-catch tổng quản lý Runtime Exception trong quá trình test
         result.append("} catch (Throwable e) {\n");
-        result.append("e.printStackTrace();\n");
+        // THÊM LỆNH MARK GIẢ: Đánh dấu đường đi bị đứt đoạn do Exception
+        result.append("    mark(\"EXCEPTION_THROWN: \" + e.getClass().getSimpleName(), true, false);\n");
+        result.append("    e.printStackTrace();\n");
         result.append("}\n");
 
         result.append("long endRunTestTime = System.nanoTime();\n");

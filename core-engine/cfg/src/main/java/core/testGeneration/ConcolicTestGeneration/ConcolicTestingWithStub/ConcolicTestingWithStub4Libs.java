@@ -66,6 +66,7 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
         setup(path, className, methodName, coverage);
         setupCfgTree(coverage);
         setupParameters(methodName);
+        TestGeneration.isSetup = true;
 
         // data flow setup
         /*
@@ -138,16 +139,13 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
 
 
             // ====== LICO testing method ======
-            /*
-            List<Path> licoPaths = LoopPathGenerator.generateLicoPaths(TestGeneration.cfgBeginNode, TestGeneration.cfgEndNode);
-            int cnt = 1;
-            for (Path path : licoPaths) {
-                System.out.println("LICO đang chạy path: " + cnt);
-                cnt++;
-                solveAndRunTest(path, testResult, coverage);
-            }
-
-             */
+//            List<Path> licoPaths = LoopPathGenerator.generateLicoPaths(TestGeneration.cfgBeginNode, TestGeneration.cfgEndNode);
+//            int cnt = 1;
+//            for (Path path : licoPaths) {
+//                System.out.println("LICO đang chạy path: " + cnt);
+//                cnt++;
+//                solveAndRunTest(path, testResult, coverage);
+//            }
             // ==================================
 
             //----- End test Lico
@@ -367,6 +365,7 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
             }
             report.append(String.format(" - Thời gian:    %s s\n", df.format((endTime - startTime) / 1000.0)));
             report.append("===================================================");
+
             log.info(report.toString());
             testResult.setMemoryUsage(averageMemory);
         }
@@ -377,7 +376,6 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
         testResult.setExecutionTime(totalTime);
         log.info("Tổng Execute Time (Các Test Cases): {} ms", totalTime);
 
-        /*
         try {
             Set<String> uniqueInputs = new HashSet<>();
             List<Object[]> generatedInputs = new ArrayList<>();
@@ -387,7 +385,7 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
             for (TestData data : testResult.getFullTestData()) {
                 Object[] input = data.getTestDataSet().toArray();
 
-                String markInput = Arrays.toString(input);
+                String markInput = Arrays.deepToString(input);
 
                 if (!uniqueInputs.contains(markInput)) {
                     uniqueInputs.add(markInput);
@@ -437,8 +435,6 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
         } catch (Exception e) {
             log.error("Lỗi ở khâu hậu kỳ: {}", e.getMessage(), e);
         }
-
-         */
 
         return testResult;
     }
@@ -521,7 +517,7 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
         log.info("Bắt đầu Setup phân tích hàm: [{}] trong file: {}", methodName, className);
         TestGeneration.compilationUnit = ProjectParserRewrite.parseFileToCompilationUnit(path);
         TestGeneration.funcAstNodeList = ProjectParserRewrite.parseFile(path, TestGeneration.compilationUnit);
-        //classKey = (TestGeneration.compilationUnit.getPackage() != null ? TestGeneration.compilationUnit.getPackage().getName().toString() : "") + className.replace(".java", "") + "totalStatement";
+        classKey = (TestGeneration.compilationUnit.getPackage() != null ? TestGeneration.compilationUnit.getPackage().getName().toString() : "") + className.replace(".java", "") + "totalStatement";
 
         setupFullyClonedClassName(className, path, coverage);
         setUpTestFunc(methodName);
@@ -580,6 +576,7 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
         compileInstrumentedClass(className);
 
         File file = new File(core.FilePath.targetClassesFolderPath);
+        log.debug("Đang ép nạp class [{}] từ thư mục: {}", className, file.getAbsolutePath());
 
         URLClassLoader classLoader = new URLClassLoader(
                 new URL[]{file.toURI().toURL()},
@@ -652,6 +649,7 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
             throw new RuntimeException("Không compile được class instrumented: " + className, e);
         }
     }
+
     private static double calculateFullTestSuiteCoverage(Coverage coverage) throws Exception {
         // Load class một lần, giữ reference
         Class<?> latestClass = loadLatestClass(fullyClonedClassName);
@@ -885,14 +883,16 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
         Set<String> executedInThisPath = new HashSet<>();
 
         for (Object[] input : inputCandidates) {
-            String inputSign = Arrays.toString(input);
+            String inputSign = Arrays.deepToString(input);
 
             // Kiểm tra trong lịch sử testResult xem input này đã từng xuất hiện chưa
             boolean isDuplicateGlobal = false;
 
             for (TestData oldData : testResult.getFullTestData()) {
                 Object[] oldInput = oldData.getTestDataSet().toArray();
-                String oldInputSign = Arrays.toString(oldInput);
+
+                // Dùng deepToString để so sánh ruột mảng
+                String oldInputSign = Arrays.deepToString(oldInput);
 
                 // Nếu trùng với input chuẩn bị chạy
                 if (oldInputSign.equals(inputSign)) {
@@ -938,6 +938,14 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
 
             List<CoveredStatement> coveredStatements = CoveredStatement.switchToCoveredStatementList(markedStatements);
 
+            boolean hitException = false;
+            for (CoveredStatement stmt : coveredStatements) {
+                if (stmt.getStatementContent().startsWith("EXCEPTION_THROWN")) {
+                    hitException = true;
+                    log.warn("Đụng phải Exception: {}. Chấm dứt Path này, thử đường khác!", stmt.getStatementContent());
+                    break;
+                }
+            }
             testResult.addToFullTestData(new TestData(
                     TestGeneration.parameterNames,
                     TestGeneration.parameterClasses,
@@ -949,7 +957,10 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
                     //calculateFunctionCoverage(),
                     //calculateSourceCodeCoverage()
             ));
-        }
+
+            if (hitException) {
+                return false;
+            }
 
         return true;
     }
@@ -985,8 +996,7 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
             throw new RuntimeException("Invalid Coverage");
         }
 
-        String ans = reformatVariableName(result.toString());
-        return ans;
+        return reformatVariableName(result.toString());
     }
 
     private static String reformatVariableName(String name) {

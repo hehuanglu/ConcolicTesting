@@ -294,7 +294,7 @@ public class InfixExpressionNode extends OperationExpressionNode {
     }
 
     public static ExpressionNode executeInfixExpression(InfixExpression infixExpression, MemoryModel memoryModel) {
-        InfixExpressionNode infixExpressionNode = new InfixExpressionNode(); // i
+        InfixExpressionNode infixExpressionNode = new InfixExpressionNode();
         infixExpressionNode.leftOperand = (ExpressionNode) ExpressionNode.executeExpression(infixExpression.getLeftOperand(), memoryModel);
         infixExpressionNode.rightOperand = (ExpressionNode) ExpressionNode.executeExpression(infixExpression.getRightOperand(), memoryModel);
         infixExpressionNode.operator = infixExpression.getOperator();

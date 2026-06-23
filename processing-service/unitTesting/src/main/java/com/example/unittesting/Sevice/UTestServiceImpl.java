@@ -56,7 +56,7 @@ public class UTestServiceImpl implements UTestService {
                         String className = file.getName();
 
                         // TEST TEMPLATE
-                        // createMethodTest("project/anonymous/tmp-prj/" + nameProject + "/tmp-prjt.json", targetId);
+//                        createMethodTest("project/anonymous/tmp-prj/" + nameProject + "/tmp-prjt.json", targetId);
 
                         TestResult result = ConcolicTestingWithStub4Libs.runFullConcolic(targetId, pathMethod, name, className, coverage);
 
@@ -306,5 +306,26 @@ public class UTestServiceImpl implements UTestService {
             e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error processing request. Exception: " + e.getMessage());
         }
+    }
+
+    public void createMethodTest(String path, Integer targerId) throws IOException {
+        File file = new File(path);
+        ObjectMapper objectMapper = new ObjectMapper();
+        JsonNode nodes = objectMapper.readTree(file);
+        JsonNode rootNode = nodes.get("rootNode");
+        NodeServiceImpl nodeService = new NodeServiceImpl(rootNode);
+        JsonNode node = nodeService.findByIdNode(targerId);
+        Integer idMethod = node.get("id").intValue();
+        String nameMethod = node.get("simpleName").textValue();
+
+        JsonNode parentNode = nodeService.findParentById(targerId);
+//        String className = parentNode.get("simpleName").textValue() + "Test";
+        String methodPath = node.get("path").textValue();
+//        String qualifiedClassName = parentNode.get("qualifiedName").textValue();
+
+//        methodTest = new MethodTest(idMethod, nameMethod, qualifiedClassName, methodPath);
+        methodTest = new MethodTest(idMethod, nameMethod, "ABC", methodPath);
+        nodeService.getParameterDependency(targerId);
+        parameterInputs = nodeService.getParameterInputs();
     }
 }

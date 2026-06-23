@@ -3,6 +3,7 @@ package core.testDriver;
 import core.FilePath;
 import core.cmd.CommandLine;
 import core.path.MarkedStatement;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
@@ -11,6 +12,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+@Slf4j
 public final class TestDriverRunner {
     private static double runtime;
     private static String output;
@@ -25,17 +27,15 @@ public final class TestDriverRunner {
 
         String path = FilePath.newTestDriverPath + "/" + fullyClonedClassName.replace(".", "/");
         writeDataToFile(testDriver, path + "/TestDriver.java");
+
+        // Lấy Mockito ghép với TestDriver path
         String currentCp = System.getProperty("java.class.path");
-
         try {
-            String mockitoPath = new java.io.File(org.mockito.Mockito.class
-                                    .getProtectionDomain()
-                                    .getCodeSource()
-                                    .getLocation()
-                                    .toURI()).getAbsolutePath();
-
+            // Định vị chính xác file Mockito
+            String mockitoPath = new java.io.File(org.mockito.Mockito.class.getProtectionDomain().getCodeSource().getLocation().toURI()).getAbsolutePath();
             currentCp = currentCp + java.io.File.pathSeparator + mockitoPath;
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            // Bỏ qua nếu không tìm thấy
         }
 
         String fullCp = FilePath.newTestDriverPath + java.io.File.pathSeparator + currentCp;
@@ -68,61 +68,38 @@ public final class TestDriverRunner {
             Process pRun = pbRun.start();
 
             StringBuilder runLog = new StringBuilder();
-            Thread outputThread =
-                    new Thread(() -> {
-                        try (BufferedReader r =
-                                     new BufferedReader(
-                                             new java.io.InputStreamReader(
-                                                     pRun.getInputStream()
-                                             ))) {
-
+            Thread outputThread = new Thread(() -> {
+                try (BufferedReader r = new BufferedReader(new java.io.InputStreamReader(pRun.getInputStream()))) {
                             String line;
-
                             while ((line = r.readLine()) != null) {
-
                                 synchronized (runLog) {
                                     runLog.append(line).append('\n');
                                 }
 
-                                System.out.println(
-                                        "[TEST DRIVER LOG] "
-                                                + line
-                                );
+                                System.out.println("[TEST DRIVER LOG] " + line);
                             }
 
                         } catch (IOException ignored) {
                         }
                     });
-
             outputThread.start();
 
             //chatgpt
             boolean runFinished = pRun.waitFor(5, java.util.concurrent.TimeUnit.SECONDS);
 
             if (!runFinished) {
-
                 pRun.destroyForcibly();
-
                 outputThread.join(2000);
-
-                throw new RuntimeException(
-                        "Execution timeout after 1 minute"
-                );
+                throw new RuntimeException("Execution timeout after 1 minute");
             }
 
             outputThread.join();
-
             if (pRun.exitValue() != 0) {
-
-                throw new RuntimeException(
-                        "Execution failed"
-                );
+                throw new RuntimeException("Execution failed");
             }
 
         } catch (Exception e) {
-
             e.printStackTrace();
-
             throw e;
         }
 
@@ -142,6 +119,7 @@ public final class TestDriverRunner {
         List<MarkedStatement> result = new ArrayList<>();
 
         String markedData = getDataFromFile(FilePath.concreteExecuteResultPath);
+        if (markedData == null || markedData.isBlank()) return result;
         String[] markedStatements = markedData.split("---end---");
         for (int i = 0; i < markedStatements.length; i++) {
             String[] markedStatementData = markedStatements[i].split("===", -1);

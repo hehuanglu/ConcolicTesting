@@ -34,18 +34,29 @@ public class ArrayCreationWithNewKeyWord implements ArrayCreationStrategy {
                                                                MemoryModel memoryModel) {
         int capacityOfDimension = 0;
         ExpressionNode lengthOfDimension = null;
-        AstNode dimension = AstNode.executeASTNode(dimensions.get(nextDimension), memoryModel);
-        if(dimension instanceof NameNode) {
-            dimension = NameNode.executeNameNode((NameNode) dimension, memoryModel);
-        }
-        if(dimension instanceof LiteralNode) {
-            capacityOfDimension = LiteralNode.changeLiteralNodeToInteger((LiteralNode) dimension);
-            lengthOfDimension = (LiteralNode) dimension;
-        } else if (dimension instanceof NameNode) {
-            lengthOfDimension = (NameNode) dimension;
-            System.out.println("SYMBOLIC CAPACITY");
+        // ĐÃ SỬA: Gọi tường minh ExpressionNode.executeExpression thay vì AstNode
+        AstNode dimension = ExpressionNode.executeExpression((Expression) dimensions.get(nextDimension), memoryModel);
+
+        if (dimension == null) {
+            System.err.println("CẢNH BÁO: Dịch Dimension thất bại, kết quả trả về NULL! Lỗi ở ExpressionNode.java");
         } else {
-            throw new RuntimeException("Can't execute Dimension");
+            if(dimension instanceof NameNode) {
+                dimension = NameNode.executeNameNode((NameNode) dimension, memoryModel);
+            }
+            if(dimension instanceof LiteralNode) {
+                capacityOfDimension = LiteralNode.changeLiteralNodeToInteger((LiteralNode) dimension);
+                lengthOfDimension = (LiteralNode) dimension;
+            } else if (dimension instanceof NameNode) {
+                lengthOfDimension = (NameNode) dimension;
+                System.out.println("SYMBOLIC CAPACITY");
+            }
+            else if (dimension instanceof core.ast.Expression.OperationExpression.OperationExpressionNode) {
+                lengthOfDimension = (core.ast.Expression.ExpressionNode) dimension;
+                System.out.println("SYMBOLIC CAPACITY (Operation)");
+            }
+            else {
+                throw new RuntimeException("Can't execute Dimension. Type: " + dimension.getClass());
+            }
         }
         ArrayNode result = new ArrayNode();
         result.setLengthOfDimensions(lengthOfDimension);

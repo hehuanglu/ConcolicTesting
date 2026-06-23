@@ -56,6 +56,7 @@ public class MethodInvocationNode extends ExpressionNode {
         if (methodInvocation.getExpression() != null) { // method invocation in the same class
             String className = methodInvocation.getExpression().toString();
 
+
             IMethodBinding methodBinding = methodInvocation.resolveMethodBinding();
             if (methodBinding != null) {
                 ITypeBinding declaringClass = methodBinding.getDeclaringClass();
@@ -73,6 +74,7 @@ public class MethodInvocationNode extends ExpressionNode {
             }
 
 
+
             if (methodName.equals("get")) {
                 List<AstNode> arguments = new ArrayList<>();
                 for (Object arg : methodInvocation.arguments()) {
@@ -82,7 +84,7 @@ public class MethodInvocationNode extends ExpressionNode {
                 return new MethodInvocationNode(className, methodName, arguments);
             }
 
-            if (className.equals("Math") && (methodName.equals("abs") || methodName.equals("max") || methodName.equals("min"))) {
+            if ((className.equals("Math") || className.equals("java.lang.Math")) && (methodName.equals("abs") || methodName.equals("max") || methodName.equals("min"))) {
                 List<AstNode> arguments = new ArrayList<>();
                 for (int i = 0; i < methodInvocation.arguments().size(); i++) {
                     AstNode argNode = ExpressionNode.executeExpression((Expression) methodInvocation.arguments().get(i), memoryModel);
