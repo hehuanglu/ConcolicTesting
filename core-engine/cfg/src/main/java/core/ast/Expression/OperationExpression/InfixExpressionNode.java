@@ -188,6 +188,11 @@ public class InfixExpressionNode extends OperationExpressionNode {
 
                 if (operator.equals(InfixExpression.Operator.PLUS)) {
                     return ctx.mkConcat(left, right);
+                } else if (operator.equals(InfixExpression.Operator.MINUS)) {
+                    return ctx.mkSub(
+                            ctx.charToInt(ctx.mkNth(left, ctx.mkInt(0))),
+                            ctx.charToInt(ctx.mkNth(right, ctx.mkInt(0)))
+                    );
                 } else if (operator.equals(InfixExpression.Operator.EQUALS)) {
                     return ctx.mkEq(left, right);
                 } else if (operator.equals(InfixExpression.Operator.NOT_EQUALS)) {

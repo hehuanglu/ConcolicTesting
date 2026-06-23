@@ -476,12 +476,14 @@ public class StringMethodNode extends MethodInvocationNode {
         return ctx.mkExtract(target, beginExpr, lengthExpr);
     }
 
-    private static Expr<CharSort> handleCharAt(StringMethodNode node, SeqExpr<CharSort> target, MemoryModel memoryModel, Context ctx, List<Z3VariableWrapper> vars) {
+    private static Expr handleCharAt(StringMethodNode node, SeqExpr<CharSort> target,
+                                     MemoryModel memoryModel, Context ctx, List<Z3VariableWrapper> vars) {
         ExpressionNode indexNode = (ExpressionNode) node.arguments.get(0);
-
         IntExpr indexExpr = (IntExpr) OperationExpressionNode.createZ3Expression(indexNode, ctx, vars, memoryModel);
 
-        return (Expr<CharSort>) ctx.mkNth(target, indexExpr);
+        Expr<CharSort> ch = (Expr<CharSort>) ctx.mkNth(target, indexExpr);
+
+        return ctx.mkUnit(ch);
     }
 
     private static Expr handleReplace(StringMethodNode node, SeqExpr<CharSort> target,

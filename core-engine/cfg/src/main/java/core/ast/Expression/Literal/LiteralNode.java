@@ -68,9 +68,15 @@ public abstract class LiteralNode extends ExpressionNode {
             return calculateTwoInfixBooleanLiteral((BooleanLiteralNode) literal1, operator,
                     (BooleanLiteralNode) literal2);
         } else if (literal1.isStringLiteralNode() && literal2.isStringLiteralNode()) {
-            return calculateTwoInfixStringLiteral((StringLiteralNode) literal1, operator,
-                    (StringLiteralNode) literal2);
+            return calculateTwoInfixStringLiteral((StringLiteralNode) literal1, operator, (StringLiteralNode) literal2);
         } else if (literal1.isStringLiteralNode() || literal2.isStringLiteralNode()) {
+            if (literal1.isCharacterLiteralNode()) {
+                CharacterLiteralNode characterLiteral = (CharacterLiteralNode) literal1;
+                return calculateTwoInfixStringLiteral(new StringLiteralNode(characterLiteral), operator, (StringLiteralNode) literal2);
+            } else if (literal2.isCharacterLiteralNode()) {
+                CharacterLiteralNode characterLiteral = (CharacterLiteralNode) literal2;
+                return calculateTwoInfixStringLiteral((StringLiteralNode) literal1, operator, new StringLiteralNode(characterLiteral));
+            }
             return calculateTwoInfixConcatenableLiteral(literal1, operator, literal2);
         } else {
             throw new RuntimeException("Invalid literals to analyze!!!");
@@ -506,7 +512,7 @@ public abstract class LiteralNode extends ExpressionNode {
     }
 
     public final boolean isStringLiteralNode() {
-        return this instanceof StringLiteralNode;
+        return (this instanceof StringLiteralNode);
     }
 
     public final boolean isNullLiteralNode() {

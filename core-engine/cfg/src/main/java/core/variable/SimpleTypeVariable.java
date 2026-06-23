@@ -1,8 +1,6 @@
 package core.variable;
 
-import com.microsoft.z3.Context;
-import com.microsoft.z3.Expr;
-import com.microsoft.z3.Sort;
+import com.microsoft.z3.*;
 import core.symbolicExecution.SymbolicExecutionRewrite;
 import org.eclipse.jdt.core.dom.SimpleType;
 
@@ -37,7 +35,6 @@ public class SimpleTypeVariable extends Variable {
             default :
                 sort = ctx.mkStringSort();
         }
-        Expr res =  ctx.mkConst(name, sort);
-        return res;
+        return (SeqExpr<CharSort>) ctx.mkConst(name, ctx.mkStringSort());
     }
 }
