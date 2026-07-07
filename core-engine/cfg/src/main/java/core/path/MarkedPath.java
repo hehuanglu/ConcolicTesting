@@ -329,10 +329,10 @@ public final class MarkedPath {
             if (rootNode instanceof CfgBoolExprNode) {
                 CfgBoolExprNode boolExprNode = (CfgBoolExprNode) rootNode;
 
-                if (!boolExprNode.isTrueMarked() && !boolExprNode.isFakeTrueMarked()) {
+                if (!boolExprNode.isTrueMarked() && boolExprNode.getFakeTrueMarked() < 5) {
                     return boolExprNode;
                 }
-                if (!boolExprNode.isFalseMarked() && !boolExprNode.isFakeFalseMarked()) {
+                if (!boolExprNode.isFalseMarked() && boolExprNode.getFakeFalseMarked() < 5) {
                     return boolExprNode;
                 }
 

@@ -68,10 +68,18 @@ public class SymbolicExecutionRewrite {
     public static ThreadLocal<List<Z3VariableWrapper>> globalZ3Vars = new ThreadLocal<>();
     public static Map<String, Class<?>> variableGenericTypeMap = new HashMap<>();
     public static java.util.List<BoolExpr> arrayLengthConstraints = new java.util.ArrayList<>();
+    private static BoolExpr finalZ3Expression;
+    public static Context ctx;
+    private static int count = 0;
 
     public SymbolicExecutionRewrite(Path testPath, List<ASTNode> parameters) {
         this.testPath = testPath;
         this.parameters = parameters;
+    }
+
+    public static void addConstraint(BoolExpr constraint) {
+        System.out.println("cond: " + constraint);
+        finalZ3Expression = ctx.mkAnd(finalZ3Expression, constraint);
     }
 
     public List<Z3VariableWrapper> execute() {
@@ -83,7 +91,7 @@ public class SymbolicExecutionRewrite {
 
         HashMap<String, String> cfg = new HashMap();
         cfg.put("model", "true");
-        Context ctx = new Context(cfg);
+        ctx = new Context(cfg);
 
         globalCtx.set(ctx);
         globalZ3Vars.set(Z3Vars);
@@ -110,7 +118,7 @@ public class SymbolicExecutionRewrite {
 
         Node currentNode = testPath.getCurrentFirst();
 
-        BoolExpr finalZ3Expression = null;
+        finalZ3Expression = null;
 
         if (this.parameters != null) {
 
@@ -321,6 +329,10 @@ public class SymbolicExecutionRewrite {
                     }
                 });
 
+                if (count == 7) {
+                    System.out.println("mark");
+                }
+                System.out.println("node " + (++count) + ": " + astNode);
                 AstNode executedAstNode = Rewrite.reStm(astNode, symbolicMap);
 
                 if (currentNode.getData() instanceof CfgBoolExprNode) { // Condition
@@ -356,7 +368,7 @@ public class SymbolicExecutionRewrite {
 
                     Expr expr = OperationExpressionNode.createZ3Expression((ExpressionNode) executedAstNode, ctx, Z3Vars, symbolicMap);
 
-                    System.out.println("Expr: " + expr);
+                    //System.out.println("Expr: " + expr);
 
                     BoolExpr constraint;
                     if (expr instanceof BoolExpr) {
@@ -874,8 +886,7 @@ public class SymbolicExecutionRewrite {
         for (int i = 0; i < parameterClasses.length; i++) {
             // nếu z3 ko giải được, bỏ qua
             if (i >= lines.length) {
-                log.warn("Dữ liệu Z3 bị thiếu hoặc rỗng ở tham số thứ {}. Gán giá trị mặc định (null).", i);
-                result.add(null);
+                result.add("");
                 continue;
             }
 

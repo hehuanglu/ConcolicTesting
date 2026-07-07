@@ -9,6 +9,10 @@ public class DoubleLiteralNode extends NumberLiteralNode {
         super.setTokenValue("0.0");
     }
 
+    public DoubleLiteralNode(Double value) {
+        super.setTokenValue(value.toString());
+    }
+
     public static DoubleLiteralNode executeDoubleLiteral(double value) {
         DoubleLiteralNode doubleLiteralNode = new DoubleLiteralNode();
         doubleLiteralNode.setTokenValue(value);

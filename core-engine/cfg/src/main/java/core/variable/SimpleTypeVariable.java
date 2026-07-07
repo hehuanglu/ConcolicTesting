@@ -1,8 +1,6 @@
 package core.variable;
 
-import com.microsoft.z3.Context;
-import com.microsoft.z3.Expr;
-import com.microsoft.z3.Sort;
+import com.microsoft.z3.*;
 import core.symbolicExecution.SymbolicExecutionRewrite;
 import org.eclipse.jdt.core.dom.SimpleType;
 
@@ -11,7 +9,6 @@ import java.util.Map;
 
 public class SimpleTypeVariable extends Variable {
     private SimpleType simpleType;
-    private static final Map<String, Sort> sortCache = new HashMap<>();
 
     public SimpleTypeVariable(SimpleType simpleType, String name) {
         this.simpleType = simpleType;
@@ -31,21 +28,11 @@ public class SimpleTypeVariable extends Variable {
         String typeName = simpleTypeVariable.getTypeName();
 
         SymbolicExecutionRewrite.variableTypeMap.put(name, typeName.toString());
+        switch (typeName) {
             case "String":
-                sort = ctx.mkStringSort();
-                break;
-            case "Integer":
-                sort = ctx.mkIntSort();
-                break;
+                return (SeqExpr<CharSort>) ctx.mkConst(name, ctx.mkStringSort());
             default:
-                sort = ctx.mkUninterpretedSort(typeName);
-                break;
+                throw new IllegalArgumentException("Unsupported type: " + typeName);
         }
-        return (SeqExpr<CharSort>) ctx.mkConst(name, ctx.mkStringSort());
-    /*
-        Expr res =  ctx.mkConst(name, sort);
-        return res;
-
-     */
     }
 }

@@ -1,8 +1,6 @@
 package core.ast.Expression.OperationExpression;
 
-import com.microsoft.z3.BitVecExpr;
-import com.microsoft.z3.Context;
-import com.microsoft.z3.Expr;
+import com.microsoft.z3.*;
 import core.Z3Vars.Z3VariableWrapper;
 import core.ast.AstNode;
 import core.ast.Expression.ExpressionNode;
@@ -184,10 +182,6 @@ public class CastExpressionNode extends ExpressionNode {
 
         return z3Inner;
     }
-}
-
-        return ctx.mkZeroExt(targetSize - currentSize, arg);
-    }
 
     private static SeqExpr<CharSort> bvToCharSeq(Context ctx, BitVecExpr arg) {
         BitVecExpr bv16 = resizeUnsignedBV(ctx, arg, JAVA_CHAR_SIZE);
@@ -203,6 +197,20 @@ public class CastExpressionNode extends ExpressionNode {
         BitVecExpr codePoint = ctx.charToBv(ch);
         BitVecExpr bv16 = resizeUnsignedBV(ctx, codePoint, JAVA_CHAR_SIZE);
         return resizeUnsignedBV(ctx, bv16, targetSize);
+    }
+
+    private static BitVecExpr resizeUnsignedBV(Context ctx, BitVecExpr arg, int targetSize) {
+        int currentSize = arg.getSortSize();
+
+        if (currentSize == targetSize) {
+            return arg;
+        }
+
+        if (currentSize > targetSize) {
+            return ctx.mkExtract(targetSize - 1, 0, arg);
+        }
+
+        return ctx.mkZeroExt(targetSize - currentSize, arg);
     }
 
     private static FPExpr realToFP(Context ctx, Expr<RealSort> real, FPSort targetSort) {

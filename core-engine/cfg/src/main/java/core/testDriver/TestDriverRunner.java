@@ -97,12 +97,10 @@ public final class TestDriverRunner {
             if (pRun.exitValue() != 0) {
                 throw new RuntimeException("Execution failed");
             }
-
         } catch (Exception e) {
             e.printStackTrace();
-            throw e;
+            throw new RuntimeException("Execution failed");
         }
-
         return getMarkedStatement();
     }
 
@@ -123,6 +121,9 @@ public final class TestDriverRunner {
         String[] markedStatements = markedData.split("---end---");
         for (int i = 0; i < markedStatements.length; i++) {
             String[] markedStatementData = markedStatements[i].split("===", -1);
+            if(markedStatementData.length == 3) {
+                return result;
+            }
             if (i == markedStatements.length - 1) {
                 if (markedStatementData.length == 0 || markedStatementData[0].isBlank()) {
                     continue; // bỏ qua dòng trống

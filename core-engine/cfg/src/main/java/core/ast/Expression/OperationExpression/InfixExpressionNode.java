@@ -319,6 +319,10 @@ public class InfixExpressionNode extends OperationExpressionNode {
         InfixExpression.Operator operator = infixExpressionNode.operator;
         List<AstNode> extendedOperands = infixExpressionNode.extendedOperands;
 
+        if (leftOperand == null ||  rightOperand == null) {
+            System.err.println("Invalid infix expression node: " + infixExpressionNode);
+        }
+
         if (leftOperand.isLiteralNode() && rightOperand.isLiteralNode()) {
             LiteralNode literalResult = LiteralNode.analyzeTwoInfixLiteral((LiteralNode) leftOperand, operator, (LiteralNode) rightOperand);
 

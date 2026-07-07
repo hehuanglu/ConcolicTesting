@@ -446,3 +446,69 @@ MyAtoi | mcdc | 81.82% | 9.68ms | 202.56MB | 6 cases
 TestData: [] ; [鲮] ; [-] ; [+] ; [-\000] ; [-0] ; 
 ReturnSubsequence | mcdc | 58.33% | 32.58ms | 115.71MB | 1 cases
 TestData: [￮] ; 
+
+========================================
+Start Time             : 2026-06-23T22:14:43.526653
+========================================
+HorspoolSearch | mcdc | 0.00% | 0.00ms | 114.83MB | 0 cases
+TestData: 
+reverseWords | mcdc | 91.67% | 100.28ms | 119.27MB | 3 cases
+TestData: [] ; [ ] ; [ࡤ쩀] ; 
+reverse | mcdc | 0.00% | 0.00ms | 197.09MB | 0 cases
+TestData: 
+queryString | mcdc | 0.00% | 0.00ms | 67.24MB | 0 cases
+TestData: 
+removeOuterParentheses | mcdc | 75.00% | 2.76ms | 191.36MB | 2 cases
+TestData: [] ; [(] ; 
+isMatch | mcdc | 0.00% | 0.00ms | 153.37MB | 0 cases
+TestData: 
+reverseStr | mcdc | 16.67% | 0.84ms | 180.45MB | 1 cases
+TestData: [, 0] ; 
+isPalindrome | mcdc | 58.33% | 3.33ms | 139.92MB | 2 cases
+TestData: [iダ] ; [] ; 
+isOneEditDistance | mcdc | 0.00% | 0.00ms | 106.26MB | 0 cases
+TestData: 
+add | mcdc | 100.00% | 28.62ms | 132.18MB | 1 cases
+TestData: [iダ, 0] ; 
+reformatNumber | mcdc | 50.00% | 58.08ms | 94.42MB | 2 cases
+TestData: [] ; [吠] ; 
+CharactersSame | mcdc | 100.00% | 3.53ms | 211.42MB | 4 cases
+TestData: [] ; [鲮] ; [iダ] ; [ẑẑ] ; 
+CheckVowels | mcdc | 100.00% | 7.65ms | 153.71MB | 7 cases
+TestData: [] ; [鲮] ; [a] ; [e] ; [i] ; [o] ; [u] ; 
+GreekToUpperCase | mcdc | 100.00% | 47.64ms | 111.60MB | 2 cases
+TestData: [] ; [ς] ; 
+GreekToLowerCase | mcdc | 0.00% | 77.16ms | 219.11MB | 3 cases
+TestData: [] ; [Σ] ; [Σ?] ; 
+Anagrams | mcdc | 0.00% | 0.00ms | 96.24MB | 0 cases
+TestData: 
+MoveHashToEnd | mcdc | 100.00% | 50.62ms | 117.05MB | 3 cases
+TestData: [] ; [鲮] ; [#] ; 
+RabinKarp | mcdc | 0.00% | 0.00ms | 221.71MB | 0 cases
+TestData: 
+Lower | mcdc | 0.00% | 29.25ms | 94.06MB | 2 cases
+TestData: [] ; [鲮] ; 
+ZigZagPattern | mcdc | 18.75% | 1.13ms | 114.93MB | 2 cases
+TestData: [, 0] ; [鲮, 0] ; 
+Alphabetical | mcdc | 40.00% | 2.41ms | 222.40MB | 2 cases
+TestData: [] ; [奢] ; 
+RemoveStars | mcdc | 87.50% | 29.23ms | 172.92MB | 3 cases
+TestData: [] ; [鲮] ; [*] ; 
+
+========================================
+Start Time             : 2026-06-23T22:40:40.420345
+========================================
+HorspoolSearch | mcdc | 100.00% | 8.76ms | 122.68MB | 7 cases
+TestData: [, ] ; [쏧, ] ; [ς, ] ; [\001, \000] ; [ׂ㡵, ᳴] ; [ᤕF, 耀ᤕ] ; [＿, ＿] ; 
+reverseWords | mcdc | 91.67% | 98.62ms | 151.28MB | 3 cases
+TestData: [] ; [ ] ; [ࡤ쩀] ; 
+reverse | mcdc | 0.00% | 0.00ms | 145.15MB | 0 cases
+TestData: 
+queryString | mcdc | 0.00% | 0.00ms | 171.05MB | 0 cases
+TestData: 
+removeOuterParentheses | mcdc | 75.00% | 2.91ms | 158.09MB | 2 cases
+TestData: [] ; [(] ; 
+isMatch | mcdc | 0.00% | 4.11ms | 152.30MB | 2 cases
+TestData: [씚, ] ; [㟯, 㟯] ; 
+reverseStr | mcdc | 16.67% | 0.85ms | 180.41MB | 1 cases
+TestData: [, 0] ; 

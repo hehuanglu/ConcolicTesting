@@ -1,4 +1,553 @@
-Method: 11
+Method: 7
 Criterion: MCDC
+Error: java.lang.RuntimeException
+Message: Cannot promote expression to Java int: n sort=(_ BitVec 32)
+----------------------------------------
+Method: 7
+Criterion: MCDC
+Error: java.lang.RuntimeException
+Message: Cannot promote expression to Java int: n sort=(_ BitVec 32)
+----------------------------------------
+Method: 7
+Criterion: MCDC
+Error: java.lang.RuntimeException
+Message: Cannot promote expression to Java int: n sort=(_ BitVec 32)
+----------------------------------------
+Method: 7
+Criterion: MCDC
+Error: java.lang.RuntimeException
+Message: Cannot promote expression to Java int: n sort=(_ BitVec 32)
+----------------------------------------
+Method: 7
+Criterion: MCDC
+Error: java.lang.RuntimeException
+Message: Cannot promote expression to Java int: n sort=(_ BitVec 32)
+----------------------------------------
+Method: 7
+Criterion: MCDC
+Error: java.lang.RuntimeException
+Message: Cannot promote expression to Java int: n sort=(_ BitVec 32)
+----------------------------------------
+Method: 10
+Criterion: MCDC
+Error: java.lang.RuntimeException
+Message: Cannot promote expression to Java int: k sort=(_ BitVec 32)
+----------------------------------------
+Method: 10
+Criterion: MCDC
+Error: java.lang.RuntimeException
+Message: Cannot promote expression to Java int: k sort=(_ BitVec 32)
+----------------------------------------
+Method: 10
+Criterion: MCDC
+Error: java.lang.RuntimeException
+Message: Cannot promote expression to Java int: k sort=(_ BitVec 32)
+----------------------------------------
+Method: 10
+Criterion: MCDC
+Error: java.lang.RuntimeException
+Message: Cannot promote expression to Java int: k sort=(_ BitVec 32)
+----------------------------------------
+Method: 6
+Criterion: BRANCH
+Error: java.lang.RuntimeException
+Message: Cannot promote expression to Java int: i sort=(_ BitVec 32)
+----------------------------------------
+Method: 6
+Criterion: BRANCH
+Error: java.lang.RuntimeException
+Message: Cannot promote expression to Java int: i sort=(_ BitVec 32)
+----------------------------------------
+Method: 6
+Criterion: BRANCH
+Error: java.lang.RuntimeException
+Message: Cannot promote expression to Java int: i sort=(_ BitVec 32)
+----------------------------------------
+Method: 6
+Criterion: BRANCH
+Error: java.lang.RuntimeException
+Message: Cannot promote expression to Java int: i sort=(_ BitVec 32)
+----------------------------------------
+Method: 6
+Criterion: BRANCH
+Error: java.lang.RuntimeException
+Message: Cannot promote expression to Java int: i sort=(_ BitVec 32)
+----------------------------------------
+Method: 6
+Criterion: BRANCH
+Error: java.lang.RuntimeException
+Message: Cannot promote expression to Java int: i sort=(_ BitVec 32)
+----------------------------------------
+Method: 6
+Criterion: BRANCH
+Error: java.lang.RuntimeException
+Message: Cannot promote expression to Java int: i sort=(_ BitVec 32)
+----------------------------------------
+Method: 6
+Criterion: BRANCH
+Error: java.lang.RuntimeException
+Message: Cannot promote expression to Java int: i sort=(_ BitVec 32)
+----------------------------------------
+Method: 6
+Criterion: BRANCH
+Error: java.lang.RuntimeException
+Message: Cannot promote expression to Java int: i sort=(_ BitVec 32)
+----------------------------------------
+Method: 6
+Criterion: BRANCH
+Error: java.lang.RuntimeException
+Message: Cannot promote expression to Java int: i sort=(_ BitVec 32)
+----------------------------------------
+Method: 3
+Criterion: BRANCH
+Error: java.lang.RuntimeException
+Message: There's no variable with name: count in memory model!
+----------------------------------------
+Method: 5
+Criterion: BRANCH
+Error: java.lang.RuntimeException
+Message: There's no variable with name: count in memory model!
+----------------------------------------
+Method: 5
+Criterion: BRANCH
+Error: java.lang.RuntimeException
+Message: There's no variable with name: count in memory model!
+----------------------------------------
+Method: 5
+Criterion: BRANCH
+Error: java.lang.RuntimeException
+Message: There's no variable with name: freq[s.charAt(i) - 'a'] in memory model!
+----------------------------------------
+Method: 5
+Criterion: BRANCH
+Error: java.lang.RuntimeException
+Message: There's no variable with name: freq[s.charAt(i) - 'a'] in memory model!
+----------------------------------------
+Method: 5
+Criterion: BRANCH
+Error: java.lang.RuntimeException
+Message: There's no variable with name: freq[s.charAt(i) - 'a'] in memory model!
+----------------------------------------
+Method: 5
+Criterion: BRANCH
+Error: java.lang.RuntimeException
+Message: There's no variable with name: freq[s.charAt(i) - 'a'] in memory model!
+----------------------------------------
+Method: 5
+Criterion: BRANCH
+Error: java.lang.RuntimeException
+Message: There's no variable with name: freq[s.charAt(i) - 'a'] in memory model!
+----------------------------------------
+Method: 5
+Criterion: BRANCH
+Error: java.lang.RuntimeException
+Message: There's no variable with name: count in memory model!
+----------------------------------------
+Method: 5
+Criterion: BRANCH
+Error: java.lang.RuntimeException
+Message: There's no variable with name: count in memory model!
+----------------------------------------
+Method: 5
+Criterion: BRANCH
+Error: java.lang.RuntimeException
+Message: There's no variable with name: count in memory model!
+----------------------------------------
+Method: 5
+Criterion: BRANCH
+Error: java.lang.RuntimeException
+Message: There's no variable with name: count in memory model!
+----------------------------------------
+Method: 5
+Criterion: BRANCH
+Error: java.lang.RuntimeException
+Message: There's no variable with name: count in memory model!
+----------------------------------------
+Method: 5
+Criterion: BRANCH
+Error: java.lang.RuntimeException
+Message: There's no variable with name: count in memory model!
+----------------------------------------
+Method: 5
+Criterion: BRANCH
+Error: java.lang.RuntimeException
+Message: There's no variable with name: count in memory model!
+----------------------------------------
+Method: 5
+Criterion: BRANCH
+Error: java.lang.RuntimeException
+Message: There's no variable with name: count in memory model!
+----------------------------------------
+Method: 5
+Criterion: BRANCH
+Error: java.lang.RuntimeException
+Message: There's no variable with name: count in memory model!
+----------------------------------------
+Method: 5
+Criterion: BRANCH
+Error: java.lang.RuntimeException
+Message: There's no variable with name: count in memory model!
+----------------------------------------
+Method: 5
+Criterion: BRANCH
+Error: java.lang.RuntimeException
+Message: There's no variable with name: count in memory model!
+----------------------------------------
+Method: 5
+Criterion: BRANCH
+Error: java.lang.RuntimeException
+Message: There's no variable with name: count in memory model!
+----------------------------------------
+Method: 5
+Criterion: BRANCH
+Error: java.lang.RuntimeException
+Message: There's no variable with name: count in memory model!
+----------------------------------------
+Method: 5
+Criterion: BRANCH
+Error: java.lang.RuntimeException
+Message: There's no variable with name: count in memory model!
+----------------------------------------
+Method: 5
+Criterion: BRANCH
+Error: java.lang.RuntimeException
+Message: There's no variable with name: count in memory model!
+----------------------------------------
+Method: 5
+Criterion: BRANCH
+Error: java.lang.RuntimeException
+Message: There's no variable with name: count in memory model!
+----------------------------------------
+Method: 5
+Criterion: BRANCH
+Error: java.lang.RuntimeException
+Message: There's no variable with name: count in memory model!
+----------------------------------------
+Method: 5
+Criterion: BRANCH
+Error: java.lang.RuntimeException
+Message: There's no variable with name: count in memory model!
+----------------------------------------
+Method: 5
+Criterion: BRANCH
+Error: java.lang.RuntimeException
+Message: There's no variable with name: freq[s.charAt(i) - 'a'] in memory model!
+----------------------------------------
+Method: 5
+Criterion: BRANCH
+Error: java.lang.RuntimeException
+Message: There's no variable with name: freq[s.charAt(i) - 'a'] in memory model!
+----------------------------------------
+Method: 5
+Criterion: BRANCH
+Error: java.lang.RuntimeException
+Message: There's no variable with name: freq[s.charAt(i) - 'a'] in memory model!
+----------------------------------------
+Method: 5
+Criterion: BRANCH
+Error: java.lang.RuntimeException
+Message: There's no variable with name: freq[s.charAt(i) - 'a'] in memory model!
+----------------------------------------
+Method: 5
+Criterion: BRANCH
+Error: java.lang.RuntimeException
+Message: There's no variable with name: freq[s.charAt(i) - 'a'] in memory model!
+----------------------------------------
+Method: 5
+Criterion: BRANCH
+Error: java.lang.RuntimeException
+Message: There's no variable with name: count in memory model!
+----------------------------------------
+Method: 5
+Criterion: BRANCH
+Error: java.lang.RuntimeException
+Message: There's no variable with name: count in memory model!
+----------------------------------------
+Method: 5
+Criterion: BRANCH
+Error: java.lang.RuntimeException
+Message: There's no variable with name: count in memory model!
+----------------------------------------
+Method: 5
+Criterion: BRANCH
+Error: java.lang.RuntimeException
+Message: There's no variable with name: count in memory model!
+----------------------------------------
+Method: 5
+Criterion: BRANCH
+Error: java.lang.RuntimeException
+Message: There's no variable with name: count in memory model!
+----------------------------------------
+Method: 5
+Criterion: BRANCH
+Error: java.lang.RuntimeException
+Message: There's no variable with name: count in memory model!
+----------------------------------------
+Method: 5
+Criterion: BRANCH
+Error: java.lang.RuntimeException
+Message: There's no variable with name: count in memory model!
+----------------------------------------
+Method: 5
+Criterion: BRANCH
+Error: java.lang.RuntimeException
+Message: There's no variable with name: freq[s.charAt(i) - 'a'] in memory model!
+----------------------------------------
+Method: 5
+Criterion: BRANCH
+Error: java.lang.RuntimeException
+Message: There's no variable with name: freq[s.charAt(i) - 'a'] in memory model!
+----------------------------------------
+Method: 5
+Criterion: BRANCH
+Error: java.lang.RuntimeException
+Message: There's no variable with name: freq[s.charAt(i) - 'a'] in memory model!
+----------------------------------------
+Method: 5
+Criterion: BRANCH
+Error: java.lang.RuntimeException
+Message: There's no variable with name: freq[s.charAt(i) - 'a'] in memory model!
+----------------------------------------
+Method: 5
+Criterion: BRANCH
+Error: java.lang.RuntimeException
+Message: There's no variable with name: freq[s.charAt(i) - 'a'] in memory model!
+----------------------------------------
+Method: 5
+Criterion: BRANCH
+Error: java.lang.RuntimeException
+Message: There's no variable with name: count in memory model!
+----------------------------------------
+Method: 5
+Criterion: BRANCH
+Error: java.lang.RuntimeException
+Message: There's no variable with name: count in memory model!
+----------------------------------------
+Method: 5
+Criterion: BRANCH
+Error: java.lang.RuntimeException
+Message: There's no variable with name: count in memory model!
+----------------------------------------
+Method: 13
+Criterion: BRANCH
 Lỗi viết sai biểu thức 
+----------------------------------------
+Method: 13
+Criterion: BRANCH
+Error: java.lang.RuntimeException
+Message: Invalid type
+----------------------------------------
+Method: 13
+Criterion: BRANCH
+Lỗi viết sai biểu thức 
+----------------------------------------
+Method: 13
+Criterion: BRANCH
+Error: java.lang.RuntimeException
+Message: Invalid type
+----------------------------------------
+Method: 13
+Criterion: BRANCH
+Error: java.lang.RuntimeException
+Message: Invalid type
+----------------------------------------
+Method: 13
+Criterion: BRANCH
+Error: java.lang.RuntimeException
+Message: Invalid type
+----------------------------------------
+Method: 13
+Criterion: BRANCH
+Lỗi viết sai biểu thức 
+----------------------------------------
+Method: 13
+Criterion: BRANCH
+Error: java.lang.RuntimeException
+Message: Invalid type
+----------------------------------------
+Method: 13
+Criterion: BRANCH
+Lỗi viết sai biểu thức 
+----------------------------------------
+Method: 13
+Criterion: BRANCH
+Lỗi viết sai biểu thức 
+----------------------------------------
+Method: 13
+Criterion: BRANCH
+Lỗi viết sai biểu thức 
+----------------------------------------
+Method: 13
+Criterion: BRANCH
+Lỗi viết sai biểu thức 
+----------------------------------------
+Method: 13
+Criterion: BRANCH
+Lỗi viết sai biểu thức 
+----------------------------------------
+Method: 13
+Criterion: BRANCH
+Lỗi viết sai biểu thức 
+----------------------------------------
+Method: 13
+Criterion: BRANCH
+Lỗi viết sai biểu thức 
+----------------------------------------
+Method: 13
+Criterion: BRANCH
+Lỗi viết sai biểu thức 
+----------------------------------------
+Method: 13
+Criterion: BRANCH
+Lỗi viết sai biểu thức 
+----------------------------------------
+Method: 13
+Criterion: BRANCH
+Lỗi viết sai biểu thức 
+----------------------------------------
+Method: 13
+Criterion: BRANCH
+Lỗi viết sai biểu thức 
+----------------------------------------
+Method: 13
+Criterion: BRANCH
+Lỗi viết sai biểu thức 
+----------------------------------------
+Method: 13
+Criterion: BRANCH
+Lỗi viết sai biểu thức 
+----------------------------------------
+Method: 13
+Criterion: BRANCH
+Lỗi viết sai biểu thức 
+----------------------------------------
+Method: 13
+Criterion: BRANCH
+Lỗi viết sai biểu thức 
+----------------------------------------
+Method: 13
+Criterion: BRANCH
+Lỗi viết sai biểu thức 
+----------------------------------------
+Method: 13
+Criterion: BRANCH
+Lỗi viết sai biểu thức 
+----------------------------------------
+Method: 13
+Criterion: BRANCH
+Lỗi viết sai biểu thức 
+----------------------------------------
+Method: 13
+Criterion: BRANCH
+Lỗi viết sai biểu thức 
+----------------------------------------
+Method: 5
+Criterion: BRANCH
+Error: java.lang.NullPointerException
+Message: null
+----------------------------------------
+Method: 5
+Criterion: BRANCH
+Error: java.lang.RuntimeException
+Message: There's no variable with name: freq[s.charAt(i) - 'a'] in memory model!
+----------------------------------------
+Method: 5
+Criterion: BRANCH
+Error: java.lang.RuntimeException
+Message: There's no variable with name: freq[s.charAt(i) - 'a'] in memory model!
+----------------------------------------
+Method: 5
+Criterion: BRANCH
+Error: java.lang.RuntimeException
+Message: There's no variable with name: freq[s.charAt(i) - 'a'] in memory model!
+----------------------------------------
+Method: 5
+Criterion: BRANCH
+Error: java.lang.RuntimeException
+Message: There's no variable with name: freq[s.charAt(i) - 'a'] in memory model!
+----------------------------------------
+Method: 5
+Criterion: BRANCH
+Error: java.lang.RuntimeException
+Message: There's no variable with name: freq[s.charAt(i) - 'a'] in memory model!
+----------------------------------------
+Method: 5
+Criterion: BRANCH
+Error: java.lang.NullPointerException
+Message: null
+----------------------------------------
+Method: 5
+Criterion: BRANCH
+Error: java.lang.NullPointerException
+Message: null
+----------------------------------------
+Method: 5
+Criterion: BRANCH
+Error: java.lang.NullPointerException
+Message: null
+----------------------------------------
+Method: 5
+Criterion: BRANCH
+Error: java.lang.NullPointerException
+Message: null
+----------------------------------------
+Method: 5
+Criterion: BRANCH
+Error: java.lang.NullPointerException
+Message: null
+----------------------------------------
+Method: 5
+Criterion: BRANCH
+Error: java.lang.RuntimeException
+Message: There's no variable with name: freq[s.charAt(i) - 'a'] in memory model!
+----------------------------------------
+Method: 5
+Criterion: BRANCH
+Error: java.lang.RuntimeException
+Message: There's no variable with name: freq[s.charAt(i) - 'a'] in memory model!
+----------------------------------------
+Method: 5
+Criterion: BRANCH
+Error: java.lang.RuntimeException
+Message: There's no variable with name: freq[s.charAt(i) - 'a'] in memory model!
+----------------------------------------
+Method: 5
+Criterion: BRANCH
+Error: java.lang.RuntimeException
+Message: There's no variable with name: freq[s.charAt(i) - 'a'] in memory model!
+----------------------------------------
+Method: 5
+Criterion: BRANCH
+Error: java.lang.RuntimeException
+Message: There's no variable with name: freq[s.charAt(i) - 'a'] in memory model!
+----------------------------------------
+Method: 5
+Criterion: BRANCH
+Error: java.lang.NullPointerException
+Message: null
+----------------------------------------
+Method: 5
+Criterion: BRANCH
+Error: java.lang.NullPointerException
+Message: null
+----------------------------------------
+Method: 5
+Criterion: BRANCH
+Error: java.lang.NullPointerException
+Message: null
+----------------------------------------
+Method: 5
+Criterion: BRANCH
+Error: java.lang.NullPointerException
+Message: null
+----------------------------------------
+Method: 5
+Criterion: BRANCH
+Error: java.lang.NullPointerException
+Message: null
+----------------------------------------
+Method: 5
+Criterion: BRANCH
+Error: java.lang.NullPointerException
+Message: null
 ----------------------------------------

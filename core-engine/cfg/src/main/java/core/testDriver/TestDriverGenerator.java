@@ -107,7 +107,7 @@ public final class TestDriverGenerator {
         result.append("Object output = null;\n");
 
         // Bắt đầu khối kiểm thử cô lập
-        result.append("try {\n");
+        // result.append("try {\n");
 
         List<ASTNode> modifiers = method.modifiers();
         boolean isStatic = false;
@@ -165,6 +165,7 @@ public final class TestDriverGenerator {
         }
 
         // Gọi phương thức mục tiêu với bộ tham số thực từ Z3.
+        result.append("    try {\n");
         if (isStatic) {
             result.append("    output = ").append(simpleClassName).append(".");
         } else {
@@ -273,12 +274,9 @@ public final class TestDriverGenerator {
             result.append("}\n");
         }
 
-        // Đóng khối try-catch tổng quản lý Runtime Exception trong quá trình test
-        result.append("} catch (Throwable e) {\n");
-        // THÊM LỆNH MARK GIẢ: Đánh dấu đường đi bị đứt đoạn do Exception
-        result.append("    mark(\"EXCEPTION_THROWN: \" + e.getClass().getSimpleName(), true, false);\n");
-        result.append("    e.printStackTrace();\n");
-        result.append("}\n");
+        result.append("    } catch (Throwable e) {\n");
+        result.append("        output = e;\n");
+        result.append("    }\n");
 
         result.append("long endRunTestTime = System.nanoTime();\n");
         result.append("double runTestDuration = (endRunTestTime - startRunTestTime) / 1000000.0;\n");

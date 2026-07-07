@@ -61,7 +61,8 @@ public class MethodInvocationNode extends ExpressionNode {
             if (methodBinding != null) {
                 ITypeBinding declaringClass = methodBinding.getDeclaringClass();
                 if (declaringClass != null) {
-                    className = declaringClass.getQualifiedName();
+                    className = declaringClass.getQualifiedName(); // className là StringBuilder
+                    System.out.println(className);
                 }
             }
 
@@ -71,9 +72,11 @@ public class MethodInvocationNode extends ExpressionNode {
                 return CharacterMethodNode.executeCharacterMethod(methodInvocation, memoryModel);
             } else if (className.equals("Integer") || className.equals("java.lang.Integer")) {
                 return IntegerMethodNode.executeIntegerMethod(methodInvocation, memoryModel);
+            } else if (className.equals("Math") || className.equals("java.lang.Math")) {
+                return MathMethodNode.executeMathMethod(methodInvocation, memoryModel);
+            } else if (className.equals("StringBuilder") || className.equals("java.lang.StringBuilder")) {
+                return StringBuilderMethodAdapter.executeStringBuilderMethodNode(methodInvocation, memoryModel);
             }
-
-
 
             if (methodName.equals("get")) {
                 List<AstNode> arguments = new ArrayList<>();
@@ -83,32 +86,11 @@ public class MethodInvocationNode extends ExpressionNode {
                 // Trả về MethodInvocationNode chứa tên List (expressionStr) và index (arguments)
                 return new MethodInvocationNode(className, methodName, arguments);
             }
-
-            if ((className.equals("Math") || className.equals("java.lang.Math")) && (methodName.equals("abs") || methodName.equals("max") || methodName.equals("min"))) {
-                List<AstNode> arguments = new ArrayList<>();
-                for (int i = 0; i < methodInvocation.arguments().size(); i++) {
-                    AstNode argNode = ExpressionNode.executeExpression((Expression) methodInvocation.arguments().get(i), memoryModel);
-                    arguments.add(argNode);
-                }
-                return new MethodInvocationNode(className, methodName, arguments);
-            }
-
-            MethodDeclaration methodDeclaration = getInvokedMethodAST(methodName);
-            return declareStubVariable(methodName, methodDeclaration, memoryModel, methodInvocation);
         } else { // method invocation outside the class or in libs
             Class<?> invokedMethodReturnClass = getInvokedMethodReturnClass(methodInvocation, memoryModel);
             return declareStubVariable(methodName, invokedMethodReturnClass, memoryModel, methodInvocation);
         }
-    }
-
-    private static MethodDeclaration getInvokedMethodAST(String methodName) {
-        ArrayList<ASTNode> funcAstNodeList = TestGeneration.getFuncAstNodeList();
-        for (ASTNode astNode : funcAstNodeList) {
-            if (((MethodDeclaration) astNode).getName().getIdentifier().equals(methodName)) {
-                return (MethodDeclaration) astNode;
-            }
-        }
-        throw new RuntimeException("There is no method named: " + methodName);
+        throw new RuntimeException("Method invocation has no method name");
     }
 
     private static Class<?> getInvokedMethodReturnClass(MethodInvocation methodInvocation, MemoryModel memoryModel) {
@@ -199,98 +181,13 @@ public class MethodInvocationNode extends ExpressionNode {
             return CharacterMethodNode.createZ3Expression((CharacterMethodNode) operand, memoryModel, ctx, vars);
         } else if (operand instanceof IntegerMethodNode) {
             return IntegerMethodNode.createZ3Expression((IntegerMethodNode) operand, memoryModel, ctx, vars);
+        } else if (operand instanceof MathMethodNode) {
+            return MathMethodNode.createZ3Expression((MathMethodNode) operand, memoryModel, ctx, vars);
+        } else if (operand instanceof StringBuilderMethodNode) {
+            return StringBuilderMethodAdapter.createZ3Expression((StringBuilderMethodNode) operand, memoryModel, ctx, vars);
         }
 
-        if ("Math".equals(className)) {
-            if ("abs".equals(methodName)) {
-                ExpressionNode argNode = (ExpressionNode) args.get(0);
-                Expr argZ3 = OperationExpressionNode.createZ3Expression(argNode, ctx, vars, memoryModel);
-                if (argZ3 instanceof BitVecExpr) {
-                    BitVecExpr x_arg = (BitVecExpr) argZ3;
-                    BoolExpr isNegative = ctx.mkBVSLT(x_arg, ctx.mkBV(0, x_arg.getSortSize()));
-                    BitVecExpr negativeX = ctx.mkBVNeg(x_arg);
-                    System.out.println("Đã dịch Math.abs sang Z3");
-                    return ctx.mkITE(isNegative, negativeX, x_arg);
-                }
-            } else if ("max".equals(methodName)) {
-                ExpressionNode arg1Node = (ExpressionNode) args.get(0);
-                ExpressionNode arg2Node = (ExpressionNode) args.get(1);
-
-                Expr arg1Z3 = OperationExpressionNode.createZ3Expression(arg1Node, ctx, vars, memoryModel);
-                Expr arg2Z3 = OperationExpressionNode.createZ3Expression(arg2Node, ctx, vars, memoryModel);
-
-                if (arg1Z3 instanceof BitVecExpr && arg2Z3 instanceof BitVecExpr) {
-                    BitVecExpr x_arg1 = (BitVecExpr) arg1Z3;
-                    BitVecExpr x_arg2 = (BitVecExpr) arg2Z3;
-
-                    BoolExpr a_gt_b = ctx.mkBVSGT(x_arg1, x_arg2);
-                    System.out.println("Đã dịch Math.max sang Z3");
-
-                    return ctx.mkITE(a_gt_b, x_arg1, x_arg2);
-                }
-            } else if ("min".equals(methodName)) {
-                ExpressionNode arg1Node = (ExpressionNode) args.get(0);
-                ExpressionNode arg2Node = (ExpressionNode) args.get(1);
-
-                Expr z3Arg1 = OperationExpressionNode.createZ3Expression(arg1Node, ctx, vars, memoryModel);
-                Expr z3Arg2 = OperationExpressionNode.createZ3Expression(arg2Node, ctx, vars, memoryModel);
-
-                if (z3Arg1 instanceof BitVecExpr && z3Arg2 instanceof BitVecExpr) {
-                    BitVecExpr a = (BitVecExpr) z3Arg1;
-                    BitVecExpr b = (BitVecExpr) z3Arg2;
-
-                    BoolExpr a_lt_b = ctx.mkBVSLT(a, b);
-                    System.out.println("Đã dịch Math.min sang Z3");
-
-                    return ctx.mkITE(a_lt_b, a, b);
-                }
-            } else if ("pow".equals(methodName)) {
-                ExpressionNode baseNode = (ExpressionNode) args.get(0);
-                ExpressionNode powNode = (ExpressionNode) args.get(1);
-
-                Expr z3Base = OperationExpressionNode.createZ3Expression(powNode, ctx, vars, memoryModel);
-
-                boolean isSquare = false;
-
-                if (powNode instanceof LiteralNode) {
-                    LiteralNode literalExp = (LiteralNode) powNode;
-
-                    // check xem nó có là số không
-                    if (literalExp.isNumberLiteralNode()) {
-                        // ép kiểu
-                        NumberLiteralNode numNode =
-                                (NumberLiteralNode) literalExp;
-
-                        String val = numNode.getTokenValue();
-
-                        // bắt cả số nguyên và số thực
-                        if (val.equals("2") || val.equals("2.0")) {
-                            isSquare = true;
-                        }
-                    }
-                }
-
-                if (isSquare) {
-                    if (z3Base instanceof BitVecExpr) {
-                        return ctx.mkBVMul((BitVecExpr) z3Base, (BitVecExpr) z3Base);
-                    } else if (z3Base instanceof FPExpr) {
-                        return ctx.mkFPMul(ctx.mkFPRoundNearestTiesToEven(), (FPExpr) z3Base, (FPExpr) z3Base);
-                    }
-                } else {
-                    return null;
-                }
-            } else if ("sqrt".equals(methodName)) {
-                ExpressionNode argNode = (ExpressionNode) args.get(0);
-                Expr z3Arg = OperationExpressionNode.createZ3Expression(argNode, ctx, vars, memoryModel);
-
-                if (z3Arg instanceof FPExpr) {
-                    return ctx.mkFPSqrt(ctx.mkFPRoundNearestTiesToEven(), (FPExpr) z3Arg);
-                } else if (z3Arg instanceof BitVecExpr) {
-                    ;
-                    return null;
-                }
-            }
-        } else if ("get".equals(methodName)) {
+        if ("get".equals(methodName)) {
             // Lấy trạng thái mảng mới nhất từ map (linh hồn logic trong Z3)
             // Lưu ý: Đảm bảo đường dẫn core.symbolicExecution.SymbolicExecutionRewrite là đúng với project của bạn
             Expr z3ListBase = core.symbolicExecution.SymbolicExecutionRewrite.z3ArrayStateMap.get().get(className);

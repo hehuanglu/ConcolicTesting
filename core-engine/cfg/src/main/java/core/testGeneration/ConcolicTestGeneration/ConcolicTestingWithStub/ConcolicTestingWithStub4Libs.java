@@ -224,7 +224,7 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
             int count = 0;
 
             for (CfgNode uncoveredNode = TestGeneration.findUncoverNode(TestGeneration.cfgBeginNode, coverage);
-                 uncoveredNode != null;
+                 uncoveredNode != null && count < 10;
                  uncoveredNode = TestGeneration.findUncoverNode(TestGeneration.cfgBeginNode, coverage)) {
 
                 boolean isGoingToTrueBranch = true;
@@ -251,7 +251,12 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
                         TestGeneration.cfgBeginNode,
                         uncoveredNode
                 )).getPath();
-                newPath.addLast(childNode); // gắn thêm node con vào cuối path
+                //newPath.addLast(childNode); // gắn thêm node con vào cuối path
+                newPath.addPath(new FindPath(
+                        childNode,
+                        TestGeneration.cfgEndNode
+                ).getPath());
+                //System.out.println("Path: \n" + newPath);
 
                 boolean success = solveAndRunTest(newPath, testResult, coverage, id);
 
@@ -843,7 +848,7 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
             } catch (IOException ioException) {
                 log.error("Không thể ghi lỗi vào file error.txt", ioException);
             }
-            return false;
+            // return false;
         }
 
 
@@ -928,13 +933,12 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
             } catch (RuntimeException e) {
                 if (e.getMessage() != null && e.getMessage().contains("timeout")) {
                     System.out.println("Infinite loop detected");
-                    return false;
                 }
-                throw e;
+                return false;
             }
 
             MarkedPath.markPathToCFGV2(TestGeneration.cfgBeginNode, markedStatements);
-            MarkedPath.printCoverageReport(coverage); // new
+            //MarkedPath.printCoverageReport(coverage); // new
 
             List<CoveredStatement> coveredStatements = CoveredStatement.switchToCoveredStatementList(markedStatements);
 
@@ -961,6 +965,7 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
             if (hitException) {
                 return false;
             }
+        }
 
         return true;
     }

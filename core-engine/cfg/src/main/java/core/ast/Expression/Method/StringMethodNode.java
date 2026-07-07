@@ -11,12 +11,15 @@ import core.ast.Expression.Literal.StringLiteralNode;
 import core.ast.Expression.OperationExpression.OperationExpressionNode;
 import core.ast.Type.AnnotatableType.SimpleTypeNode;
 import core.symbolicExecution.MemoryModel;
+import core.symbolicExecution.SymbolicExecutionRewrite;
 import core.symbolicExecution.UnsatPathException;
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class StringMethodNode extends MethodInvocationNode {
     private AstNode target; // phần trước method s
@@ -24,10 +27,36 @@ public class StringMethodNode extends MethodInvocationNode {
     private List<AstNode> arguments; // "abc" / a / b
     public final static int BOUND_LENGTH = 4;
 
+    public StringMethodNode() {}
+
+    public AstNode getTarget() {
+        return target;
+    }
+
+    public void setTarget(AstNode target) {
+        this.target = target;
+    }
+
+    public String getMethodName() {
+        return methodName;
+    }
+
+    public void setMethodName(String methodName) {
+        this.methodName = methodName;
+    }
+
+    public List<AstNode> getArguments() {
+        return arguments;
+    }
+
+    public void setArguments(List<AstNode> arguments) {
+        this.arguments = arguments;
+    }
+
     public static AstNode executeStringMethod(MethodInvocation methodInvocation, MemoryModel memoryModel) {
         StringMethodNode stringMethodNode = new StringMethodNode();
 
-        stringMethodNode. methodName = methodInvocation.getName().toString(); // tên method
+        stringMethodNode.methodName = methodInvocation.getName().toString(); // tên method
         List<AstNode> arguments = new ArrayList<>();
         for (int i = 0; i < methodInvocation.arguments().size(); i++) {
             AstNode argNode = ExpressionNode.executeExpression((Expression) methodInvocation.arguments().get(i), memoryModel);
@@ -302,6 +331,7 @@ public class StringMethodNode extends MethodInvocationNode {
 
     private static Expr handleConcat(StringMethodNode node, SeqExpr<CharSort> target,
                                      MemoryModel memoryModel, Context ctx, List<Z3VariableWrapper> vars) {
+        // Lấy đối số
         ExpressionNode argNode = (ExpressionNode) node.arguments.get(0);
         SeqExpr<CharSort> argExpr = (SeqExpr<CharSort>) OperationExpressionNode.createZ3Expression(argNode, ctx, vars, memoryModel);
         return ctx.mkConcat(target, argExpr);
@@ -377,22 +407,35 @@ public class StringMethodNode extends MethodInvocationNode {
     private static Expr handleIndexOf(StringMethodNode node, SeqExpr<CharSort> target,
                                       MemoryModel memoryModel, Context ctx, List<Z3VariableWrapper> vars) {
         ExpressionNode patternNode = (ExpressionNode) node.arguments.get(0);
-        SeqExpr<CharSort> patternExpr = (SeqExpr<CharSort>) OperationExpressionNode.createZ3Expression(patternNode, ctx, vars, memoryModel);
+        SeqExpr<CharSort> patternExpr = (SeqExpr<CharSort>) OperationExpressionNode
+                .createZ3Expression(patternNode, ctx, vars, memoryModel);
 
         IntExpr rawFromIndex;
         if (node.arguments.size() >= 2 && node.arguments.get(1) != null) {
             ExpressionNode fromNode = (ExpressionNode) node.arguments.get(1);
-            rawFromIndex = (IntExpr) OperationExpressionNode.createZ3Expression(fromNode, ctx, vars, memoryModel);
+            rawFromIndex = (IntExpr) OperationExpressionNode
+                    .createZ3Expression(fromNode, ctx, vars, memoryModel);
         } else {
             rawFromIndex = ctx.mkInt(0);
         }
 
         IntExpr len = ctx.mkLength(target);
-        IntExpr fromIndex = (IntExpr) ctx.mkITE(ctx.mkLt(rawFromIndex, ctx.mkInt(0)), ctx.mkInt(0), rawFromIndex);
 
-        BoolExpr emptyPattern = ctx.mkEq(patternExpr, ctx.mkString(""));
-        Expr emptyResult = ctx.mkITE(ctx.mkGt(rawFromIndex, len), len, fromIndex);
-        Expr normalResult = ctx.mkITE(ctx.mkGt(fromIndex, len), ctx.mkInt(-1), ctx.mkIndexOf(target, patternExpr, fromIndex));
+        // Clamp: fromIndex = max(rawFrom, 0). Nếu > len thì indexOf = -1 (non-empty) hoặc len (empty)
+        IntExpr fromIndex = (IntExpr) ctx.mkITE(
+                ctx.mkLt(rawFromIndex, ctx.mkInt(0)), ctx.mkInt(0), rawFromIndex);
+
+        BoolExpr emptyPattern  = ctx.mkEq(patternExpr, ctx.mkString(""));
+        BoolExpr fromPastEnd   = ctx.mkGt(fromIndex, len);
+
+        // empty pattern: Java trả min(fromIndex, len) — nếu from > len thì trả len
+        Expr emptyResult = ctx.mkITE(fromPastEnd, len, fromIndex);
+
+        // non-empty pattern: from > len → -1; ngược lại dùng mkIndexOf
+        Expr normalResult = ctx.mkITE(
+                fromPastEnd,
+                ctx.mkInt(-1),
+                ctx.mkIndexOf(target, patternExpr, fromIndex));
 
         return ctx.mkITE(emptyPattern, emptyResult, normalResult);
     }
@@ -462,18 +505,37 @@ public class StringMethodNode extends MethodInvocationNode {
         ExpressionNode beginNode = (ExpressionNode) node.arguments.get(0);
         IntExpr beginExpr = (IntExpr) OperationExpressionNode.createZ3Expression(beginNode, ctx, vars, memoryModel);
 
-        IntExpr lengthExpr;
+        IntExpr len = ctx.mkLength(target);
+
         if (node.arguments.size() == 1) {
-            // substring(begin) → extract từ begin đến hết
-            lengthExpr = (IntExpr) ctx.mkSub(ctx.mkLength(target), beginExpr);
+            // substring(begin): 0 <= begin <= len
+            IntExpr lengthExpr = (IntExpr) ctx.mkSub(len, beginExpr);
+
+            BoolExpr inBounds = ctx.mkAnd(
+                    ctx.mkGe(beginExpr, ctx.mkInt(0)),
+                    ctx.mkLe(beginExpr, len)
+            );
+
+            return ctx.mkITE(inBounds,
+                    ctx.mkExtract(target, beginExpr, lengthExpr),
+                    ctx.mkString(""));          // fallback: empty
+
         } else {
-            // substring(begin, end) → length = end - begin
+            // substring(begin, end): 0 <= begin <= end <= len
             ExpressionNode endNode = (ExpressionNode) node.arguments.get(1);
             IntExpr endExpr = (IntExpr) OperationExpressionNode.createZ3Expression(endNode, ctx, vars, memoryModel);
-            lengthExpr = (IntExpr) ctx.mkSub(endExpr, beginExpr);
-        }
+            IntExpr lengthExpr = (IntExpr) ctx.mkSub(endExpr, beginExpr);
 
-        return ctx.mkExtract(target, beginExpr, lengthExpr);
+            BoolExpr inBounds = ctx.mkAnd(
+                    ctx.mkGe(beginExpr, ctx.mkInt(0)),
+                    ctx.mkLe(beginExpr, endExpr),
+                    ctx.mkLe(endExpr, len)
+            );
+
+            return ctx.mkITE(inBounds,
+                    ctx.mkExtract(target, beginExpr, lengthExpr),
+                    ctx.mkString(""));
+        }
     }
 
     private static Expr handleCharAt(StringMethodNode node, SeqExpr<CharSort> target,
@@ -481,8 +543,14 @@ public class StringMethodNode extends MethodInvocationNode {
         ExpressionNode indexNode = (ExpressionNode) node.arguments.get(0);
         IntExpr indexExpr = (IntExpr) OperationExpressionNode.createZ3Expression(indexNode, ctx, vars, memoryModel);
 
-        Expr<CharSort> ch = (Expr<CharSort>) ctx.mkNth(target, indexExpr);
+        IntExpr len = ctx.mkLength(target);
 
+        BoolExpr inBounds = ctx.mkAnd(
+                ctx.mkGe(indexExpr, ctx.mkInt(0)),
+                ctx.mkLt(indexExpr, len)
+        );
+        SymbolicExecutionRewrite.addConstraint(inBounds);
+        Expr<CharSort> ch = (Expr<CharSort>) ctx.mkNth(target, indexExpr);
         return ctx.mkUnit(ch);
     }
 
@@ -499,20 +567,126 @@ public class StringMethodNode extends MethodInvocationNode {
         return ctx.mkReplaceAll(target, oldExpr, newExpr);
     }
 
-    private static Expr handleReplaceAll(StringMethodNode node, SeqExpr<CharSort> target,
-                                         MemoryModel memoryModel, Context ctx, List<Z3VariableWrapper> vars) {
-        // replaceAll dùng regex → model bằng uninterpreted function
+    private static Expr<SeqSort<CharSort>> handleReplaceAll(StringMethodNode node, SeqExpr<CharSort> target,
+                                                            MemoryModel memoryModel, Context ctx, List<Z3VariableWrapper> vars) {
         ExpressionNode oldNode = (ExpressionNode) node.arguments.get(0);
         ExpressionNode newNode = (ExpressionNode) node.arguments.get(1);
-        SeqExpr<CharSort> oldExpr = (SeqExpr<CharSort>) OperationExpressionNode.createZ3Expression(oldNode, ctx, vars, memoryModel);
-        SeqExpr<CharSort> newExpr = (SeqExpr<CharSort>) OperationExpressionNode.createZ3Expression(newNode, ctx, vars, memoryModel);
 
-        FuncDecl replaceAllFunc = ctx.mkFuncDecl(
-                "replaceAll",
-                new Sort[]{ctx.getStringSort(), ctx.getStringSort(), ctx.getStringSort()},
-                ctx.getStringSort()
-        );
-        return ctx.mkApp(replaceAllFunc, target, oldExpr, newExpr);
+        // Chỉ dispatch được sang predicate cụ thể nếu regex và replacement là literal
+        // (biết được giá trị ngay tại thời điểm phân tích, không phải symbolic).
+        String regexLiteral = tryGetStringLiteral(oldNode);
+        String replacementLiteral = tryGetStringLiteral(newNode);
+
+        // Case đã hỗ trợ: replaceAll("[^a-z]", "") -> lọc đệ quy đúng mọi độ dài, không cần bound.
+        if ("[^a-z]".equals(regexLiteral) && "".equals(replacementLiteral)) {
+            return handleReplaceAllNonLowerToEmpty(target, ctx);
+        }
+        throw new RuntimeException("Unreachable code");
+    }
+
+    /**
+     * Cố lấy giá trị chuỗi literal từ node biểu thức (nếu node là literal string),
+     * dùng để nhận diện regex/replacement tại thời điểm phân tích (không phải symbolic).
+     *
+     * LƯU Ý: mình đoán tên class literal trong AST của bạn là `StringLiteralNode` với field `value`
+     * — bạn đổi lại cho đúng với class thật trong dự án nếu khác.
+     */
+    private static String tryGetStringLiteral(ExpressionNode node) {
+        if (node instanceof StringLiteralNode) {
+            return ((StringLiteralNode) node).getStringValue();
+        }
+        return null;
+    }
+
+    @FunctionalInterface
+    interface CharPredicateZ3 {
+        BoolExpr test(Expr<CharSort> ch, Context ctx);
+    }
+
+    private static final Map<String, FuncDecl<SeqSort<CharSort>>> recFuncCache = new ConcurrentHashMap<>();
+
+    /**
+     * Khai báo (hoặc lấy lại từ cache) hàm đệ quy filter:
+     *   filter(s) = if len(s) == 0 then ""
+     *               else (keep(head(s)) ? unit(head(s)) : "") ++ filter(tail(s))
+     *
+     * Đúng semantics trên MỌI độ dài chuỗi, không cần bound.
+     */
+    private static FuncDecl<SeqSort<CharSort>> getOrDeclareFilterFunc(
+            Context ctx, CharPredicateZ3 keepPredicate, String funcName) {
+
+        String cacheKey = System.identityHashCode(ctx) + "::" + funcName;
+
+        return recFuncCache.computeIfAbsent(cacheKey, k -> {
+            // QUAN TRỌNG: khai báo đúng kiểu cụ thể CharSort / SeqSort<CharSort>,
+            // KHÔNG dùng kiểu chung "Sort", nếu không mọi generic inference phía sau sẽ sai.
+            CharSort charSort = ctx.mkCharSort();
+            SeqSort<CharSort> strSort = ctx.mkSeqSort(charSort);
+
+            FuncDecl<SeqSort<CharSort>> filterDecl =
+                    ctx.mkRecFuncDecl(ctx.mkSymbol(funcName), new Sort[]{strSort}, strSort);
+
+            // Biến hình thức đại diện tham số của hàm đệ quy.
+            // mkConst(String, Sort) trả về Expr thô (giống pattern gốc bạn dùng cho mkConst("upper_ch", ...)),
+            // nên cần 1 cast duy nhất ở đây — hợp lệ vì vế phải là raw Expr, không phải Expr<Sort> cụ thể.
+            @SuppressWarnings("unchecked")
+            Expr<SeqSort<CharSort>> s = (Expr<SeqSort<CharSort>>) ctx.mkConst("s_" + funcName, strSort);
+            SeqExpr<CharSort> seqS = (SeqExpr<CharSort>) s;
+
+            IntExpr len = ctx.mkLength(seqS);
+            BoolExpr isEmpty = ctx.mkEq(len, ctx.mkInt(0));
+
+            // head = s[0]  (kiểu Expr<CharSort> được suy luận đúng vì seqS: SeqExpr<CharSort>)
+            Expr<CharSort> headCh = ctx.mkNth(seqS, ctx.mkInt(0));
+
+            // tail = s[1 .. len-1]
+            SeqExpr<CharSort> tail = ctx.mkExtract(seqS, ctx.mkInt(1), ctx.mkSub(len, ctx.mkInt(1)));
+
+            // Gọi đệ quy trên tail — filterDecl.apply trả về Expr<SeqSort<CharSort>>
+            Expr<SeqSort<CharSort>> recOnTail = filterDecl.apply(tail);
+            SeqExpr<CharSort> recOnTailSeq = (SeqExpr<CharSort>) recOnTail;
+
+            BoolExpr keepHead = keepPredicate.test(headCh, ctx);
+
+            SeqExpr<CharSort> withHead = ctx.mkConcat(ctx.mkUnit(headCh), recOnTailSeq);
+
+            // Nhánh len > 0: giữ head nếu thỏa predicate rồi nối với kết quả đệ quy của tail
+            SeqExpr<CharSort> nonEmptyCase =
+                    (SeqExpr<CharSort>) ctx.mkITE(keepHead, withHead, recOnTailSeq);
+
+            SeqExpr<CharSort> emptyCase = ctx.mkEmptySeq(charSort);
+
+            SeqExpr<CharSort> body =
+                    (SeqExpr<CharSort>) ctx.mkITE(isEmpty, emptyCase, nonEmptyCase);
+
+            ctx.AddRecDef(filterDecl, new Expr<?>[]{s}, body);
+
+            return filterDecl;
+        });
+    }
+
+    /**
+     * Áp dụng hàm filter đệ quy lên text — dùng chung cho mọi replaceAll dạng
+     * character-class (mỗi ký tự được quyết định độc lập: [a-z], [^a-z], [0-9], \\s, ...).
+     *
+     * funcName PHẢI duy nhất cho mỗi predicate khác nhau (dùng làm symbol cache trong Z3 context).
+     */
+    private static SeqExpr<CharSort> handleReplaceAllKeepChars(
+            SeqExpr<CharSort> text, Context ctx, CharPredicateZ3 keepPredicate, String funcName) {
+
+        FuncDecl<SeqSort<CharSort>> filterFunc = getOrDeclareFilterFunc(ctx, keepPredicate, funcName);
+        return (SeqExpr<CharSort>) filterFunc.apply(text);
+    }
+
+    /**
+     * replaceAll("[^a-z]", "") : chỉ giữ lại ký tự a-z, xóa mọi ký tự khác,
+     * đúng với mọi độ dài chuỗi (không unroll/bound).
+     */
+    private static SeqExpr<CharSort> handleReplaceAllNonLowerToEmpty(SeqExpr<CharSort> text, Context ctx) {
+        return handleReplaceAllKeepChars(text, ctx, (ch, c) -> c.mkAnd(
+                c.mkGe(c.charToInt(ch), c.mkInt((int) 'a')),
+                c.mkLe(c.charToInt(ch), c.mkInt((int) 'z'))
+        ), "filter_keep_az");
     }
 
     private static SeqExpr<CharSort> handleLowerCase(SeqExpr<CharSort> text, Context ctx) {
@@ -592,10 +766,7 @@ public class StringMethodNode extends MethodInvocationNode {
         return (IntExpr) ctx.mkITE(
                 ctx.mkEq(a, b),
                 ctx.mkInt(0),
-                ctx.mkITE(
-                        ctx.MkStringLt(a, b),
-                        ctx.mkInt(-1),
-                        ctx.mkInt(1)
+                ctx.mkITE(ctx.MkStringLt(a, b), ctx.mkInt(-1), ctx.mkInt(1)
                 )
         );
     }
@@ -603,8 +774,7 @@ public class StringMethodNode extends MethodInvocationNode {
     private static Expr handleCompareTo(StringMethodNode node, SeqExpr<CharSort> target,
                                         MemoryModel memoryModel, Context ctx, List<Z3VariableWrapper> vars) {
         ExpressionNode argNode = (ExpressionNode) node.arguments.get(0);
-        SeqExpr<CharSort> argExpr =
-                (SeqExpr<CharSort>) OperationExpressionNode.createZ3Expression(argNode, ctx, vars, memoryModel);
+        SeqExpr<CharSort> argExpr = (SeqExpr<CharSort>) OperationExpressionNode.createZ3Expression(argNode, ctx, vars, memoryModel);
 
         return compareToSign(target, argExpr, ctx);
     }

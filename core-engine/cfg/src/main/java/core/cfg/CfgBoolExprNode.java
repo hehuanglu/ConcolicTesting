@@ -15,8 +15,6 @@ public class CfgBoolExprNode extends CfgNode implements IEvaluateCoverage
     private int isFakeTrueMarked = 0;
     private int isFakeFalseMarked = 0;
 
-    public boolean isLoopCondition = false;
-
     private int depth = 0;
 
     @Override

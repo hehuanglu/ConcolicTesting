@@ -18,17 +18,17 @@ public class FindPath {
 
     private FindPath() {}
 
-    public FindPath(CfgNode beginNode, CfgNode middleNode, CfgNode endNode) {}
+    public FindPath(CfgNode beginNode, CfgNode middleNode, CfgNode endNode) {
+        findPath(beginNode, middleNode);
+        findPath(middleNode, endNode);
+    }
 
     public FindPath(CfgNode beginNode, CfgNode middleNode) {
-        findPath(beginNode, middleNode, 2);
+        findPath(beginNode, middleNode);
     }
 
-    public FindPath(CfgNode beginNode, CfgNode middleNode, boolean isGoingTrueBranch) {
-        findPath(beginNode, middleNode, isGoingTrueBranch ? 1 : 0);
-    }
 
-    private void findPath(CfgNode beginNode, CfgNode endNode, int type) {
+    private void findPath(CfgNode beginNode, CfgNode endNode) {
         if (beginNode == null || path != null) return;
         if (visited.contains(beginNode)) return;
 
@@ -38,16 +38,6 @@ public class FindPath {
             path = new Path();
             for (CfgNode node : currentPath) {
                 path.addLast(node);
-            }
-            if (type < 2) {
-                if (endNode instanceof CfgBoolExprNode) {
-                    CfgBoolExprNode boolExprNode = (CfgBoolExprNode) endNode;
-                    if (type == 1) {
-                        path.addLast(boolExprNode.getTrueNode());
-                    } else if (type == 0) {
-                        path.addLast(boolExprNode.getFalseNode());
-                    }
-                }
             }
             currentPath.remove(currentPath.size() - 1);
             visited.remove(beginNode);
@@ -80,26 +70,23 @@ public class FindPath {
 
             // Thử nhánh ít fake trước
             if (path == null) {
-                firstNode.setIsFalseNode(firstNode == falseNode);
-                findPath(firstNode, endNode, type);
+                findPath(firstNode, endNode);
             }
             if (path == null) {
-                secondNode.setIsFalseNode(secondNode == falseNode);
-                findPath(secondNode, endNode, type);
+                findPath(secondNode, endNode);
             }
-
         } else if (beginNode instanceof CfgForEachExpressionNode) {
             CfgForEachExpressionNode forNode = (CfgForEachExpressionNode) beginNode;
             if (path == null) {
-                findPath(forNode.getHasElementAfterNode(), endNode, type);
+                findPath(forNode.getHasElementAfterNode(), endNode);
             }
             if (path == null) {
-                findPath(forNode.getNoMoreElementAfterNode(), endNode, type);
+                findPath(forNode.getNoMoreElementAfterNode(), endNode);
             }
 
         } else {
             if (path == null) {
-                findPath(beginNode.getAfterStatementNode(), endNode, type);
+                findPath(beginNode.getAfterStatementNode(), endNode);
             }
         }
 
