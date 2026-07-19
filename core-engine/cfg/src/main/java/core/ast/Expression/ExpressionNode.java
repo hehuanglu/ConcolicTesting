@@ -2,13 +2,17 @@ package core.ast.Expression;
 
 import core.ast.AstNode;
 import core.ast.Expression.Array.ArrayAccessNode;
+import core.ast.Expression.Field.FieldAccessNode;
 import core.ast.Expression.Literal.LiteralNode;
+import core.ast.Expression.Literal.StringLiteralNode;
 import core.ast.Expression.Method.MethodInvocationNode;
 import core.ast.Expression.Name.NameNode;
 import core.ast.Expression.OperationExpression.CastExpressionNode;
 import core.ast.Expression.OperationExpression.OperationExpressionNode;
 import core.symbolicExecution.MemoryModel;
 import org.eclipse.jdt.core.dom.*;
+
+import java.util.List;
 
 public abstract class ExpressionNode extends AstNode {
 
@@ -36,10 +40,25 @@ public abstract class ExpressionNode extends AstNode {
             return CastExpressionNode.executeCastExpression((CastExpression) expression, memoryModel);
         } else if (expression instanceof MethodInvocation) {
             return MethodInvocationNode.executeMethodInvocation((MethodInvocation) expression, memoryModel);
-        } else {
-//            throw new RuntimeException(expression.getClass() + " is not an Expression!!!");
-            return null;
+        } else if (expression instanceof ClassInstanceCreation) {
+            ClassInstanceCreation cic = (ClassInstanceCreation) expression;
+
+            String typeName = cic.getType().toString();
+
+            if ("String".equals(typeName) || "StringBuilder".equals(typeName) || "StringBuffer".equals(typeName)) {
+                List<?> args = cic.arguments();
+
+                if (args.isEmpty()) {
+                    return new StringLiteralNode();
+                } else {
+                    return ExpressionNode.executeExpression((Expression) args.get(0), memoryModel);
+                }
+            }
         }
+        else if (expression instanceof FieldAccess) {
+            return FieldAccessNode.executeFieldAccess((FieldAccess) expression, memoryModel);
+        }
+        throw new RuntimeException(expression.getClass() + " is not an Expression!!!");
     }
 
     public final boolean isLiteralNode() {

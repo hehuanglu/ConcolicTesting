@@ -190,6 +190,16 @@ public final class SymbolicExecution {
                         } else {
                             result.append(boolExpr);
                         }
+                    } else if (evaluateResult instanceof SeqExpr) {
+                        // Handle String (SeqExpr in Z3)
+                        String val = evaluateResult.toString();
+                        if (val.startsWith("\"") && val.endsWith("\"")) {
+                            val = val.substring(1, val.length() - 1);
+                        }
+                        result.append(val);
+                    } else {
+                        // Fallback for other types or complex expressions
+                        result.append(evaluateResult.toString());
                     }
 
                 } else {
@@ -223,7 +233,7 @@ public final class SymbolicExecution {
 
             Class<?> parameterClass = parameterClasses[i];
 
-            if (parameterClass.isPrimitive()) {
+            if (parameterClass.isPrimitive() || parameterClass.equals(String.class)) {
 
                 String type = parameterClasses[i].getName();
                 result.add(scanValue(scanner, type));
@@ -262,6 +272,11 @@ public final class SymbolicExecution {
             return scanner.nextFloat();
         } else if ("double".equals(type)) {
             return scanner.nextDouble();
+        } else if ("java.lang.String".equals(type) || "String".equals(type)) {
+            if (scanner.hasNextLine()) {
+                return scanner.nextLine();
+            }
+            return "";
         } else if ("void".equals(type)) {
             return null;
         } else {
@@ -284,6 +299,8 @@ public final class SymbolicExecution {
             return createRandomPrimitiveVariableData(parameterClass);
         } else if (parameterClass.isArray()) {
             return createRandomArrayVariableData(parameterClass);
+        } else if (parameterClass.equals(String.class)) {
+            return "randomString";
         }
         throw new RuntimeException("Unsupported type: " + parameterClass.getName());
     }

@@ -12,8 +12,11 @@ public class CfgBoolExprNode extends CfgNode implements IEvaluateCoverage
 
     private boolean isTrueMarked = false;
     private boolean isFalseMarked = false;
-    private boolean isFakeTrueMarked = false;
-    private boolean isFakeFalseMarked = false;
+    private int isFakeTrueMarked = 0;
+    private int isFakeFalseMarked = 0;
+
+    public int trueCounting = 0;
+    public int falseCounting = 0;
 
     private int depth = 0;
 
@@ -86,19 +89,27 @@ public class CfgBoolExprNode extends CfgNode implements IEvaluateCoverage
     }
 
     public boolean isFakeTrueMarked() {
+        return isFakeTrueMarked > 0;
+    }
+
+    public int getFakeTrueMarked() {
         return isFakeTrueMarked;
     }
 
     public void setFakeTrueMarked(boolean fakeTrueMarked) {
-        isFakeTrueMarked = fakeTrueMarked;
+        isFakeTrueMarked++;
     }
 
     public boolean isFakeFalseMarked() {
+        return isFakeFalseMarked > 0;
+    }
+
+    public int getFakeFalseMarked() {
         return isFakeFalseMarked;
     }
 
     public void setFakeFalseMarked(boolean fakeFalseMarked) {
-        isFakeFalseMarked = fakeFalseMarked;
+        isFakeFalseMarked++;
     }
 
     public int getDepth() {

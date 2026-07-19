@@ -22,29 +22,21 @@ public class PrimitiveTypeVariable extends Variable {
         PrimitiveType.Code code = primitiveTypeVariable.getCode();
         String name = primitiveTypeVariable.getName();
         SymbolicExecutionRewrite.variableTypeMap.put(name, name);
-        int bitSize;
 
         if (code.equals(PrimitiveType.BYTE)) {
-            bitSize = 8;
-            return ctx.mkBVConst(name, bitSize);
+            return ctx.mkIntConst(name);
         } else if (code.equals(PrimitiveType.SHORT)) {
-            bitSize = 16;
-            return ctx.mkBVConst(name, bitSize);
+            return ctx.mkIntConst(name);
         } else if (code.equals(PrimitiveType.CHAR)) {
-            bitSize = 16; // unsigned
-            return ctx.mkBVConst(name, bitSize);
+            return ctx.mkIntConst(name); // range 0–65535
         } else if (code.equals(PrimitiveType.INT)) {
-            bitSize = 32;
-            return ctx.mkBVConst(name, bitSize);
+            return ctx.mkIntConst(name);
         } else if (code.equals(PrimitiveType.LONG)) {
-            bitSize = 64;
-            return ctx.mkBVConst(name, bitSize);
+            return ctx.mkIntConst(name);
         } else if (code.equals(PrimitiveType.FLOAT)) {
-            FPSort f32 = ctx.mkFPSort32(); // tạo sort float (1/8/23) cho biến
-            return ctx.mkConst(name, f32);
+            return ctx.mkConst(name, ctx.mkFPSort32());
         } else if (code.equals(PrimitiveType.DOUBLE)) {
-            FPSort f64 = ctx.mkFPSort64(); // tạo sort double (1/11/52) cho biến
-            return ctx.mkConst(name, f64);
+            return ctx.mkConst(name, ctx.mkFPSort64());
         } else if (code.equals(PrimitiveType.BOOLEAN)) {
             return ctx.mkBoolConst(name);
         } else {

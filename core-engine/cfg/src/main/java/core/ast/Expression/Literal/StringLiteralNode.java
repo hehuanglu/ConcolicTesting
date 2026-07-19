@@ -1,9 +1,18 @@
 package core.ast.Expression.Literal;
 
+import org.eclipse.jdt.core.dom.CharacterLiteral;
 import org.eclipse.jdt.core.dom.StringLiteral;
 
 public class StringLiteralNode extends LiteralNode {
     private String stringValue = "";
+
+    public StringLiteralNode() {}
+    public StringLiteralNode(String stringValue) {
+        this.stringValue = stringValue;
+    }
+    public StringLiteralNode(CharacterLiteralNode characterLiteral) {
+        this.stringValue += characterLiteral.getCharacterValue();
+    }
 
     public static StringLiteralNode executeStringLiteral(StringLiteral stringLiteral) {
         StringLiteralNode stringLiteralNode = new StringLiteralNode();

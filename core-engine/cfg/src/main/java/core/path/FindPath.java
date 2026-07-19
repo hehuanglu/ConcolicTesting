@@ -3,6 +3,9 @@ package core.path;
 import core.cfg.CfgBoolExprNode;
 import core.cfg.CfgForEachExpressionNode;
 import core.cfg.CfgNode;
+import core.cfg.CfgReturnStatementNode;
+import org.eclipse.jdt.core.dom.ReturnStatement;
+import org.eclipse.jdt.core.dom.ThrowStatement;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -20,21 +23,18 @@ public class FindPath {
 
     public FindPath(CfgNode beginNode, CfgNode middleNode, CfgNode endNode) {
         findPath(beginNode, middleNode);
-        Path firstHaft = path;
-        path = null;
-        findPath(middleNode.getAfterStatementNode(), endNode);
-        Path lastHaft = path;
-        if(lastHaft != null) {
-            firstHaft.getCurrentLast().setNext(lastHaft.getCurrentFirst());
-        }
-        path = firstHaft;
+        findPath(middleNode, endNode);
     }
+
+    public FindPath(CfgNode beginNode, CfgNode middleNode) {
+        findPath(beginNode, middleNode);
+    }
+
 
     private void findPath(CfgNode beginNode, CfgNode endNode) {
         if (beginNode == null || path != null) return;
         if (visited.contains(beginNode)) return;
 
-        // Add a path to the list of path if the node is endNode
         if (beginNode == endNode) {
             currentPath.add(beginNode);
             path = new Path();
@@ -44,44 +44,88 @@ public class FindPath {
             currentPath.remove(currentPath.size() - 1);
             visited.remove(beginNode);
             return;
-        } else if (beginNode.getIsEndCfgNode()) {
+        } else if (beginNode.getIsEndCfgNode()
+                || beginNode.getAst() instanceof ReturnStatement
+                || beginNode.getAst() instanceof ThrowStatement) {
             return;
-        } else {
-            currentPath.add(beginNode);
-            visited.add(beginNode);
-            if (beginNode instanceof CfgBoolExprNode) {
-                CfgBoolExprNode boolExprNode = (CfgBoolExprNode) beginNode;
-                CfgNode falseNode = boolExprNode.getFalseNode();
-                CfgNode trueNode = boolExprNode.getTrueNode();
+        }
 
-                if (path == null) {
-                    if (falseNode == endNode) {
-                        falseNode.setIsFalseNode(true);
-                        findPath(falseNode, endNode);
-                    }
-                }
-                if (path == null) {
-                    findPath(trueNode, endNode);
-                }
-                if (path == null) {
-                    falseNode.setIsFalseNode(true);
-                    findPath(falseNode, endNode);
-                }
-            } else if (beginNode instanceof CfgForEachExpressionNode) {
-                if (path == null) {
-                    findPath(((CfgForEachExpressionNode) beginNode).getHasElementAfterNode(), endNode);
-                }
-                if (path == null) {
-                    findPath(((CfgForEachExpressionNode) beginNode).getNoMoreElementAfterNode(), endNode);
-                }
+        currentPath.add(beginNode);
+        visited.add(beginNode);
+
+        if (beginNode instanceof CfgBoolExprNode) {
+            CfgBoolExprNode boolNode = (CfgBoolExprNode) beginNode;
+            CfgNode falseNode = boolNode.getFalseNode();
+            CfgNode trueNode = boolNode.getTrueNode();
+
+            CfgNode firstNode, secondNode;
+            boolean firstIsTrueBranch;
+            if (boolNode.falseCounting < boolNode.trueCounting) {
+                firstNode = falseNode;
+                secondNode = trueNode;
+                firstIsTrueBranch = false;
             } else {
+                firstNode = trueNode;
+                secondNode = falseNode;
+                firstIsTrueBranch = true;
+            }
+
+            if (path == null) {
+                findPath(firstNode, endNode);
                 if (path == null) {
-                    findPath(beginNode.getAfterStatementNode(), endNode);
+                    // Ghi nhận thất bại VĨNH VIỄN, không giảm lại
+                    if (firstIsTrueBranch) boolNode.trueCounting++;
+                    else boolNode.falseCounting++;
                 }
             }
-            currentPath.remove(currentPath.size() - 1);
-            visited.remove(beginNode);
+            if (path == null) {
+                findPath(secondNode, endNode);
+                if (path == null) {
+                    if (firstIsTrueBranch) boolNode.falseCounting++;
+                    else boolNode.trueCounting++;
+                }
+            }
+
+        } else if (beginNode instanceof CfgForEachExpressionNode) {
+            CfgForEachExpressionNode forNode = (CfgForEachExpressionNode) beginNode;
+            CfgNode hasElementNode = forNode.getHasElementAfterNode();
+            CfgNode noMoreNode = forNode.getNoMoreElementAfterNode();
+
+            CfgNode firstNode, secondNode;
+            boolean firstIsHasElement;
+            if (forNode.noMoreElementCounting < forNode.hasElementCounting) {
+                firstNode = noMoreNode;
+                secondNode = hasElementNode;
+                firstIsHasElement = false;
+            } else {
+                firstNode = hasElementNode;
+                secondNode = noMoreNode;
+                firstIsHasElement = true;
+            }
+
+            if (path == null) {
+                findPath(firstNode, endNode);
+                if (path == null) {
+                    if (firstIsHasElement) forNode.hasElementCounting++;
+                    else forNode.noMoreElementCounting++;
+                }
+            }
+            if (path == null) {
+                findPath(secondNode, endNode);
+                if (path == null) {
+                    if (firstIsHasElement) forNode.noMoreElementCounting++;
+                    else forNode.hasElementCounting++;
+                }
+            }
+
+        } else {
+            if (path == null) {
+                findPath(beginNode.getAfterStatementNode(), endNode);
+            }
         }
+
+        currentPath.remove(currentPath.size() - 1);
+        visited.remove(beginNode);
     }
 
     public Path getPath() {

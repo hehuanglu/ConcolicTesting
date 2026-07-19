@@ -8,14 +8,13 @@ import core.path.MarkedPath;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
+import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 public abstract class TestGeneration {
     public enum Coverage {
@@ -36,6 +35,8 @@ public abstract class TestGeneration {
     protected static List<String> parameterNames;
     protected static ASTNode testFunc;
     protected static Set<DefUsePair> targetDUAs;
+    public static List<VariableDeclarationFragment> globalVariables = new ArrayList<>();
+
 
     protected static CfgNode findUncoverNode(CfgNode cfgNode, Coverage coverage) {
         switch (coverage) {
@@ -110,5 +111,9 @@ public abstract class TestGeneration {
 //        } else {
 //            throw new RuntimeException("Value has not been setup");
 //        }
+    }
+
+    public static List<String> getParameterNames() {
+        return parameterNames;
     }
 }

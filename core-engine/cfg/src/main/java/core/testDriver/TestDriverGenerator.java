@@ -8,6 +8,7 @@ import org.eclipse.jdt.core.dom.*;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 
@@ -47,6 +48,7 @@ public final class TestDriverGenerator {
         result.append("import org.mockito.MockedStatic;\n");
         result.append("import org.mockito.Mockito;\n");
         result.append("import static org.mockito.ArgumentMatchers.any;\n");
+        result.append("import java.util.*;\n");
         result.append("public class TestDriver {\n");
         result.append(markMethodUtility);
         result.append(writeDataToFileUtility);
@@ -106,7 +108,11 @@ public final class TestDriverGenerator {
         result.append("Object output = null;\n");
 
         // Bắt đầu khối kiểm thử cô lập
-        result.append("try {\n");
+        // result.append("try {\n");
+
+        boolean isVoidReturn = method.getReturnType2() != null
+                && method.getReturnType2().isPrimitiveType()
+                && ((PrimitiveType) method.getReturnType2()).getPrimitiveTypeCode() == PrimitiveType.VOID;
 
         List<ASTNode> modifiers = method.modifiers();
         boolean isStatic = false;
@@ -142,32 +148,50 @@ public final class TestDriverGenerator {
                     SymbolicExecutionRewrite.MockInfo innerMock = mocks.get(j);
                     if (innerMock.className.equals(className)) {
 
-                        // Trích xuất giá trị cho biến Mock từ mảng nghiệm do bộ giải Z3 trả về
-                        String valueAsString = "0"; // Giá trị mặc định dự phòng
+                        String valueAsString = "0";
                         int z3Index = method.parameters().size() + j;
                         if (testData != null && z3Index < testData.length) {
                             Object value = testData[z3Index];
                             if (value != null) valueAsString = String.valueOf(value);
                         }
-
                         if (innerMock.solveValue != null) {
                             valueAsString = String.valueOf(innerMock.solveValue);
                         }
 
-                        // Cắm lệnh thenReturn cho từng hàm
+                        // Sinh danh sách matcher đúng theo số lượng và kiểu tham số thật
+                        String matchers = "";
+                        if (innerMock.paramTypeNames != null && !innerMock.paramTypeNames.isEmpty()) {
+                            matchers = innerMock.paramTypeNames.stream()
+                                    .map(SymbolicExecutionRewrite::resolveMockitoMatcher)
+                                    .collect(java.util.stream.Collectors.joining(", "));
+                        }
+                        // Nếu method không có tham số, matchers rỗng -> gọi không đối số
+
                         result.append("    ").append(mockVarName).append(".when(() -> ")
                                 .append(className).append(".").append(innerMock.methodName)
-                                .append("(org.mockito.Mockito.anyInt())).thenReturn(").append(valueAsString).append(");\n");
+                                .append("(").append(matchers).append(")).thenReturn(").append(valueAsString).append(");\n");
                     }
                 }
             }
         }
 
         // Gọi phương thức mục tiêu với bộ tham số thực từ Z3.
-        if (isStatic) {
-            result.append("    output = ").append(simpleClassName).append(".");
+        result.append("    try {\n");
+        if (isVoidReturn) {
+            // Void method: không gán "output = ...", chỉ gọi trực tiếp
+            result.append("    ");
+            if (isStatic) {
+                result.append(simpleClassName).append(".");
+            } else {
+                result.append("new ").append(simpleClassName).append("().");
+            }
         } else {
-            result.append("    output = new ").append(simpleClassName).append("().");
+            result.append("    output = ");
+            if (isStatic) {
+                result.append(simpleClassName).append(".");
+            } else {
+                result.append("new ").append(simpleClassName).append("().");
+            }
         }
         result.append(method.getName().toString()).append("(");
 
@@ -182,41 +206,9 @@ public final class TestDriverGenerator {
             }
         }
         for (int i = 0; i < actualParamCount; i++) {
-            String valueAsString = "0"; // Giá trị khởi tạo mặc định tránh lỗi NullReference
-
-            // Xử lý và ép kiểu dữ liệu từ Object của Z3 sang định dạng mã nguồn Java hợp lệ
+            String valueAsString = "0"; // giá trị mặc định tránh NullReference
             if (testData != null && i < testData.length) {
-                Object value = testData[i];
-                if (value == null) {
-                    valueAsString = "null";
-                } else if (value.getClass().isArray()) {
-                    if (value instanceof int[]) {
-                        valueAsString = "new int[]" + java.util.Arrays.toString((int[]) value).replace('[', '{').replace(']', '}');
-                    } else if (value instanceof long[]) {
-                        valueAsString = "new long[]" + java.util.Arrays.toString((long[]) value).replace('[', '{').replace(']', '}');
-                    } else if (value instanceof double[]) {
-                        valueAsString = "new double[]" + java.util.Arrays.toString((double[]) value).replace('[', '{').replace(']', '}');
-                    } else if (value instanceof float[]) {
-                        valueAsString = "new float[]" + java.util.Arrays.toString((float[]) value).replace('[', '{').replace(']', '}');
-                    } else if (value instanceof boolean[]) {
-                        valueAsString = "new boolean[]" + java.util.Arrays.toString((boolean[]) value).replace('[', '{').replace(']', '}');
-                    } else {
-                        valueAsString = "null"; // Fallback an toàn
-                    }
-                } else {
-                    // Xử lý các kiểu dữ liệu nguyên thủy và chuỗi
-                    valueAsString = String.valueOf(value);
-                    if (value instanceof String) valueAsString = "\"" + valueAsString + "\"";
-                    else if (value instanceof Long) valueAsString += "L";
-                    else if (value instanceof Character) valueAsString = "'" + valueAsString + "'";
-                    else if (value instanceof Float) valueAsString += "f";
-                    else if (value instanceof Double) {
-                        Double dVal = (Double) value;
-                        if (Double.isNaN(dVal)) valueAsString = "Double.NaN";
-                        else if (Double.isInfinite(dVal))
-                            valueAsString = dVal > 0 ? "Double.POSITIVE_INFINITY" : "Double.NEGATIVE_INFINITY";
-                    }
-                }
+                valueAsString = convertToJavaLiteral(testData[i]);
             }
             result.append(valueAsString);
 
@@ -227,15 +219,17 @@ public final class TestDriverGenerator {
         }
         result.append(");\n");
 
-        // Cần đóng toàn bộ các block try-with-resources của Mockito
+        // Đóng khối try gọi hàm đích BẰNG catch ngay lập tức (không được chen ngặt gì ở giữa),
+        // nếu không "try { ... }" sẽ không có catch/finally đi kèm ngay sau -> lỗi biên dịch.
+        result.append("    } catch (Throwable e) {\n");
+        result.append("        output = e;\n");
+        result.append("    }\n");
+
+        // Sau khi đã đóng đúng try-catch của lệnh gọi, mới đóng TOÀN BỘ (không phải -1)
+        // các khối try-with-resources của Mockito đã mở ở trên.
         for (int i = 0; i < tryBlockCount; i++) {
             result.append("}\n");
         }
-
-        // Đóng khối try-catch tổng quản lý Runtime Exception trong quá trình test
-        result.append("} catch (Throwable e) {\n");
-        result.append("e.printStackTrace();\n");
-        result.append("}\n");
 
         result.append("long endRunTestTime = System.nanoTime();\n");
         result.append("double runTestDuration = (endRunTestTime - startRunTestTime) / 1000000.0;\n");
@@ -265,6 +259,155 @@ public final class TestDriverGenerator {
 
         result.append("}\n"); // Kết thúc hàm main của TestDriver
         return result.toString();
+    }
+
+    /**
+     * Chuyển một giá trị test data (Object trả về từ Z3) thành literal Java hợp lệ
+     * để chèn vào source code của test driver được sinh ra.
+     */
+    private static String convertToJavaLiteral(Object value) {
+        if (value == null) {
+            return "null";
+        }
+        if (value.getClass().isArray()) {
+            return convertArrayToLiteral(value);
+        }
+        if (value instanceof List) {
+            return convertListToLiteral((List<?>) value);
+        }
+        return convertScalarToLiteral(value);
+    }
+
+    private static String convertArrayToLiteral(Object array) {
+        if (array instanceof int[]) {
+            return "new int[]" + Arrays.toString((int[]) array).replace('[', '{').replace(']', '}');
+        }
+        if (array instanceof long[]) {
+            return formatPrimitiveArray((long[]) array, "long", "L");
+        }
+        if (array instanceof float[]) {
+            return formatPrimitiveArray((float[]) array, "float", "f");
+        }
+        if (array instanceof double[]) {
+            return "new double[]" + Arrays.toString((double[]) array).replace('[', '{').replace(']', '}');
+        }
+        if (array instanceof boolean[]) {
+            return "new boolean[]" + Arrays.toString((boolean[]) array).replace('[', '{').replace(']', '}');
+        }
+        if (array instanceof char[]) {
+            return formatCharArray((char[]) array);
+        }
+        if (array instanceof String[]) {
+            return formatStringArray((String[]) array);
+        }
+        throw new IllegalStateException("Chưa xử lý input kiểu mảng: " + array.getClass().getName());
+    }
+
+    /** long[]/float[] cần hậu tố (L, f) cho từng phần tử nên không dùng Arrays.toString trực tiếp. */
+    private static String formatPrimitiveArray(long[] values, String typeName, String suffix) {
+        StringBuilder sb = new StringBuilder("new ").append(typeName).append("[]{");
+        for (int i = 0; i < values.length; i++) {
+            if (i > 0) sb.append(", ");
+            sb.append(values[i]).append(suffix);
+        }
+        return sb.append("}").toString();
+    }
+
+    private static String formatPrimitiveArray(float[] values, String typeName, String suffix) {
+        StringBuilder sb = new StringBuilder("new ").append(typeName).append("[]{");
+        for (int i = 0; i < values.length; i++) {
+            if (i > 0) sb.append(", ");
+            sb.append(values[i]).append(suffix);
+        }
+        return sb.append("}").toString();
+    }
+
+    /** Mỗi phần tử String cần được quote + escape riêng, không thể dùng Arrays.toString trực tiếp. */
+    private static String formatStringArray(String[] values) {
+        StringBuilder sb = new StringBuilder("new String[]{");
+        for (int i = 0; i < values.length; i++) {
+            if (i > 0) sb.append(", ");
+            sb.append(values[i] == null ? "null" : quoteAndEscapeString(values[i]));
+        }
+        return sb.append("}").toString();
+    }
+
+    private static String convertListToLiteral(List<?> list) {
+        StringBuilder sb = new StringBuilder("new ArrayList<>(Arrays.asList(");
+        for (int i = 0; i < list.size(); i++) {
+            if (i > 0) sb.append(", ");
+            sb.append(convertListItemToLiteral(list.get(i)));
+        }
+        return sb.append("))").toString();
+    }
+
+    private static String convertListItemToLiteral(Object item) {
+        if (item == null) return "null";
+        if (item instanceof String) return quoteAndEscapeString((String) item);
+        if (item instanceof Character) return "'" + item + "'";
+        if (item instanceof Long) return item + "L";
+        if (item instanceof Float) return item + "f";
+        return String.valueOf(item);
+    }
+
+    private static String convertScalarToLiteral(Object value) {
+        if (value instanceof String) {
+            return quoteAndEscapeString((String) value);
+        }
+        if (value instanceof Long) {
+            return value + "L";
+        }
+        if (value instanceof Character) {
+            return "'" + value + "'";
+        }
+        if (value instanceof Float) {
+            return value + "f";
+        }
+        if (value instanceof Double) {
+            return formatDoubleLiteral((Double) value);
+        }
+        return String.valueOf(value);
+    }
+
+    private static String formatDoubleLiteral(Double value) {
+        if (Double.isNaN(value)) return "Double.NaN";
+        if (Double.isInfinite(value)) {
+            return value > 0 ? "Double.POSITIVE_INFINITY" : "Double.NEGATIVE_INFINITY";
+        }
+        return String.valueOf(value);
+    }
+
+    private static String quoteAndEscapeString(String s) {
+        return "\"" + s.replace("\\", "\\\\").replace("\"", "\\\"") + "\"";
+    }
+
+    /** Mỗi phần tử char cần quote đơn + escape riêng (ví dụ '\n', '\'', '\\'), không thể dùng Arrays.toString trực tiếp. */
+    private static String formatCharArray(char[] values) {
+        StringBuilder sb = new StringBuilder("new char[]{");
+        for (int i = 0; i < values.length; i++) {
+            if (i > 0) sb.append(", ");
+            sb.append(quoteAndEscapeChar(values[i]));
+        }
+        return sb.append("}").toString();
+    }
+
+    /** Escape một ký tự char thành literal Java hợp lệ, bọc trong dấu nháy đơn. */
+    private static String quoteAndEscapeChar(char c) {
+        switch (c) {
+            case '\\': return "'\\\\'";
+            case '\'': return "'\\''";
+            case '\n': return "'\\n'";
+            case '\r': return "'\\r'";
+            case '\t': return "'\\t'";
+            case '\b': return "'\\b'";
+            case '\f': return "'\\f'";
+            default:
+                if (c < 0x20 || c == 0x7F || c > 0x7E) {
+                    // ký tự điều khiển hoặc ngoài phạm vi ASCII in được -> dùng unicode escape
+                    return String.format("'\\u%04x'", (int) c);
+                }
+                return "'" + c + "'";
+        }
     }
 
     private static String generateUtilities(MethodDeclaration method, ASTHelper.Coverage coverage) {
@@ -607,27 +750,7 @@ public final class TestDriverGenerator {
     private static String generateCodeForMarkMethod(ASTNode statement, String markMethodSeparator) {
         StringBuilder result = new StringBuilder();
 
-        String stringStatement = statement.toString();
-        StringBuilder newStatement = new StringBuilder();
-
-        // Rewrite Statement for mark method
-        for (int i = 0; i < stringStatement.length(); i++) {
-            char charAt = stringStatement.charAt(i);
-
-            if (charAt == '\n') {
-                newStatement.append("\\n");
-                continue;
-            } else if (charAt == '"') {
-                newStatement.append("\\").append('"');
-                continue;
-            } else if (i != stringStatement.length() - 1 && charAt == '\\' && stringStatement.charAt(i + 1) == 'n') {
-                newStatement.append("\" + \"").append("\\n").append("\" + \"");
-                i++;
-                continue;
-            }
-
-            newStatement.append(charAt);
-        }
+        String newStatement = escapeString(statement.toString());
 
         result.append("mark(\"").append(newStatement).append("\", false, false)").append(markMethodSeparator).append("\n");
 
@@ -645,8 +768,31 @@ public final class TestDriverGenerator {
     }
 
     private static String generateCodeForConditionForBranchAndStatementCoverage(Expression condition) {
-        return "((" + condition + ") && mark(\"" + condition + "\", true, false))" +
-                " || mark(\"" + condition + "\", false, true)";
+        String escapedCondition = escapeString(condition.toString());
+        return "((" + condition + ") && mark(\"" + escapedCondition + "\", true, false))" +
+                " || mark(\"" + escapedCondition + "\", false, true)";
+    }
+
+    private static String escapeString(String s) {
+        if (s == null) return "";
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (c == '\"') {
+                sb.append("\\\"");
+            } else if (c == '\\') {
+                sb.append("\\\\");
+            } else if (c == '\n') {
+                sb.append("\\n");
+            } else if (c == '\r') {
+                sb.append("\\r");
+            } else if (c == '\t') {
+                sb.append("\\t");
+            } else {
+                sb.append(c);
+            }
+        }
+        return sb.toString();
     }
 
     private static String generateCodeForConditionForMCDCCoverage(Expression condition) {

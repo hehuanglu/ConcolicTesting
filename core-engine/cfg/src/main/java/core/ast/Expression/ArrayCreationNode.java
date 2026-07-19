@@ -1,5 +1,6 @@
 package core.ast.Expression;
 
+import core.ast.Expression.Array.ArrayNode;
 import core.ast.Expression.Name.NameNode;
 import core.ast.Type.ArrayTypeNode;
 import core.ast.AstNode;
@@ -37,11 +38,9 @@ public class ArrayCreationNode extends ExpressionNode {
         }
         if(dimension instanceof LiteralNode) {
             capacityOfDimension = LiteralNode.changeLiteralNodeToInteger((LiteralNode) dimension);
-        } else if (dimension instanceof NameNode) {
-            System.out.println("SYMBOLIC CAPACITY");
-            capacityOfDimension = 100; // SYMBOLIC CAPACITY
         } else {
-            throw new RuntimeException("Can't execute Dimension");
+            System.out.println("SYMBOLIC CAPACITY");
+            capacityOfDimension = 200; // SYMBOLIC CAPACITY
         }
 
         if (iterateDimension >= 0 && iterateDimension < numberOfDimensions - 1) {

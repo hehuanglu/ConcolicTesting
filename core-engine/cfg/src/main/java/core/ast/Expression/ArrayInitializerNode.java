@@ -1,6 +1,7 @@
 package core.ast.Expression;
 
 import core.ast.AstNode;
+import core.ast.Expression.Array.ArrayNode;
 import core.symbolicExecution.MemoryModel;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.ArrayInitializer;

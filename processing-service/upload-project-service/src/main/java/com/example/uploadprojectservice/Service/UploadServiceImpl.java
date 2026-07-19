@@ -139,12 +139,6 @@ public class UploadServiceImpl implements UploadService {
 
         long startRunTestTime = System.nanoTime();
 
-        // Clone Project (NTD)
-//        CloneProject.cloneProject(rootPackage.toString(), FilePath.clonedProjectPath, coverage);
-
-        // Concolic Preprocess
-//            ConcolicUploadUtil.ConcolicPreprocessSourceCode(rootPackage.toString());
-
         long endRunTestTime = System.nanoTime();
 
         double runTestDuration = (endRunTestTime - startRunTestTime) / 1000000.0;

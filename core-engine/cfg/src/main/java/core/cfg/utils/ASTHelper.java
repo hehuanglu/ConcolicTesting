@@ -1,8 +1,16 @@
 package core.cfg.utils;
 
+import com.microsoft.z3.ArrayExpr;
+import core.ast.AstNode;
 import core.cfg.*;
 import core.utils.Utils;
+import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.dom.*;
+import org.eclipse.jdt.core.dom.rewrite.ASTRewrite;
+import org.eclipse.jdt.internal.compiler.ast.BinaryExpression;
+import org.eclipse.jface.text.Document;
+import org.eclipse.jface.text.IDocument;
+import org.eclipse.text.edits.TextEdit;
 
 import java.util.*;
 
@@ -12,6 +20,21 @@ public class ASTHelper {
         BRANCH,
         MCDC,
         PATH
+    }
+
+    private static CompilationUnit parserToCompilationUnit(String sourceCode) {
+        ASTParser parser = ASTParser.newParser(AST.JLS8);
+        parser.setSource(sourceCode.toCharArray());
+        parser.setKind(ASTParser.K_COMPILATION_UNIT);
+        parser.setResolveBindings(true);
+        parser.setBindingsRecovery(true);
+        parser.setEnvironment(null, null, null, true);
+        parser.setUnitName("ReparsedSource.java");
+
+        Map options = JavaCore.getOptions();
+        JavaCore.setComplianceOptions(JavaCore.VERSION_1_8, options);
+        parser.setCompilerOptions(options);
+        return (CompilationUnit) parser.createAST(null);
     }
     protected static List<String> primitiveTypes = Arrays.asList("boolean", "short", "int", "long", "float", "double", "void");
     protected static List<String> javaLangTypes = Arrays.asList("Boolean", "Byte", "Character.Subset", "Character.UnicodeBlock", "ClassLoader", "Double",
@@ -217,10 +240,15 @@ public class ASTHelper {
             if (expr instanceof ConditionalExpression) {
                 // Target = null, isReturn = true
                 return transformTernaryRecursive(ast, (ConditionalExpression) expr, statement, null, true);
+            }else if(expr instanceof InfixExpression){
+                if(((InfixExpression) expr).getOperator() == InfixExpression.Operator.CONDITIONAL_OR
+                        || ((InfixExpression) expr).getOperator() == InfixExpression.Operator.CONDITIONAL_AND){
+                    return generateIfElseStatementForReturn(ast, expr);
+                }
             }
         }
 
-        // TRƯỜNG HỢP 2: Phép gán (x = ... ? ... :)
+        // TRƯỜNG HỢP 2: Phép gán (x = ... ? ... :) hoặc (x = b && c)
         else if (statement instanceof ExpressionStatement) {
             Expression expr = ((ExpressionStatement) statement).getExpression();
             if (expr instanceof Assignment) {
@@ -229,26 +257,36 @@ public class ASTHelper {
                     // Target = vế trái (x), isReturn = false
                     // Hàm trả về IfStatement
                     return transformTernaryRecursive(ast, (ConditionalExpression) assign.getRightHandSide(), statement, assign.getLeftHandSide(), false);
+                } else if (assign.getRightHandSide() instanceof InfixExpression) {
+                    InfixExpression infixExpr = (InfixExpression) assign.getRightHandSide();
+                    if (infixExpr.getOperator() == InfixExpression.Operator.CONDITIONAL_AND ||
+                            infixExpr.getOperator() == InfixExpression.Operator.CONDITIONAL_OR) {
+                        IfStatement ifStatement = generateIfElseStatementForLogicalAssignment(ast, infixExpr, assign.getLeftHandSide().toString());
+                        return ifStatement;
+                    }
                 }
             }
         }
 
-        // TRƯỜNG HỢP 3: Khai báo biến (int x = ... ? ... :)
+        // TRƯỜNG HỢP 3: Khai báo biến (int x = ... ? ... :) hoặc (int x = b && c)
         else if (statement instanceof VariableDeclarationStatement) {
             VariableDeclarationStatement varDecl = (VariableDeclarationStatement) statement;
             // Lấy fragment đầu tiên (ví dụ: "x = ...")
+            if (varDecl.fragments().isEmpty()) return statement;
             VariableDeclarationFragment frag = (VariableDeclarationFragment) varDecl.fragments().get(0);
+            Expression initializer =  frag.getInitializer();
+            if (initializer == null) return statement;
 
-            if (frag.getInitializer() instanceof ConditionalExpression) {
-                // 1. Tạo dòng khai báo tách rời: "int x;" (Bỏ phần gán)
-                VariableDeclarationStatement newDecl = (VariableDeclarationStatement) ASTNode.copySubtree(ast, varDecl);
-                ((VariableDeclarationFragment) newDecl.fragments().get(0)).setInitializer(null);
+            // 1. Tạo dòng khai báo tách rời: "int x;" (Bỏ phần gán)
+            VariableDeclarationStatement newDecl = (VariableDeclarationStatement) ASTNode.copySubtree(ast, varDecl);
+            ((VariableDeclarationFragment) newDecl.fragments().get(0)).setInitializer(null);
 
+            if (initializer instanceof ConditionalExpression) {
                 // 2. Tạo khối If-Else gán giá trị: "if(...) x=... else x=..."
                 // Target = tên biến (x), isReturn = false
                 Statement ifStmt = transformTernaryRecursive(
                         ast,
-                        (ConditionalExpression) frag.getInitializer(),
+                        (ConditionalExpression) initializer,
                         statement,
                         ast.newSimpleName(frag.getName().getIdentifier()),
                         false
@@ -260,11 +298,106 @@ public class ASTHelper {
                 wrapperBlock.statements().add(ifStmt);  // if (...) ...
 
                 return wrapperBlock;
+            } else if(initializer instanceof InfixExpression){
+                InfixExpression infixExpr = (InfixExpression) initializer;
+
+                if (infixExpr.getOperator() == InfixExpression.Operator.CONDITIONAL_AND ||
+                        infixExpr.getOperator() == InfixExpression.Operator.CONDITIONAL_OR) {
+                    IfStatement ifStatement = generateIfElseStatementForLogicalAssignment(ast, initializer, frag.getName().getIdentifier());
+                    Block wrapperBlock = ast.newBlock();
+                    wrapperBlock.statements().add(newDecl); // int x;
+                    wrapperBlock.statements().add(ifStatement);  // if (...) ...
+                    return wrapperBlock;
+                }
             }
         }
 
         // Nếu không phải 3 trường hợp trên, trả về nguyên gốc
         return statement;
+    }
+
+    // Hàm đệ quy kiểm tra Collection
+    private static boolean isCollectionType(ITypeBinding binding) {
+        if (binding == null) return false;
+
+        String name = binding.getQualifiedName();
+        if (name.equals("java.util.Collection") || name.equals("java.util.List") || name.equals("java.util.Set")) {
+            return true;
+        }
+
+        for (ITypeBinding interfaceBinding : binding.getInterfaces()) {
+            if (isCollectionType(interfaceBinding.getErasure())) {
+                return true;
+            }
+        }
+
+        return isCollectionType(binding.getSuperclass());
+    }
+    private static IfStatement generateIfElseStatementForReturn(AST ast, Expression condition) {
+        // 1. Thiết lập điều kiện If
+        IfStatement ifStmt = ast.newIfStatement();
+        ifStmt.setExpression((Expression) ASTNode.copySubtree(ast, condition));
+
+        // 2. Tạo khối Then: { return true; }
+        Block thenBlock = ast.newBlock();
+        ReturnStatement thenReturn = ast.newReturnStatement();
+        thenReturn.setExpression(ast.newBooleanLiteral(true)); // return true
+        thenBlock.statements().add(thenReturn);
+
+        ifStmt.setThenStatement(thenBlock);
+
+        // 3. Tạo khối Else: { return false; }
+        Block elseBlock = ast.newBlock();
+        ReturnStatement elseReturn = ast.newReturnStatement();
+        elseReturn.setExpression(ast.newBooleanLiteral(false)); // return false
+        elseBlock.statements().add(elseReturn);
+
+        ifStmt.setElseStatement(elseBlock);
+
+        return ifStmt;
+    }
+    private static IfStatement generateIfElseStatementForLogicalAssignment(AST ast,Expression initializer,String varName) {
+        // 1. Thiết lập điều kiện If
+        IfStatement ifStmt = ast.newIfStatement();
+        ifStmt.setExpression((Expression) ASTNode.copySubtree(ast, initializer));
+//        2. Tạo khối Then
+        Block thenBlock = ast.newBlock();
+        Assignment thenAssign = ast.newAssignment();
+        thenAssign.setLeftHandSide(createLeftHandSide(ast, varName));
+        thenAssign.setRightHandSide(ast.newBooleanLiteral(true));
+        ExpressionStatement thenStmt = ast.newExpressionStatement(thenAssign);
+        thenBlock.statements().add(thenStmt);
+
+        ifStmt.setThenStatement(thenBlock);
+        // 3. Tạo khối else
+        Block elseBlock = ast.newBlock();
+        Assignment elseAssign = ast.newAssignment();
+        elseAssign.setLeftHandSide(createLeftHandSide(ast, varName));
+        elseAssign.setRightHandSide(ast.newBooleanLiteral(false));
+        ExpressionStatement elseStmt = ast.newExpressionStatement(elseAssign);
+        elseBlock.statements().add(elseStmt);
+
+        ifStmt.setElseStatement(elseBlock);
+
+        return ifStmt;
+    }
+
+    private static Expression createLeftHandSide(AST ast, String varName) {
+        if (varName.contains("[") && varName.endsWith("]")) {
+            int leftBracket = varName.indexOf('[');
+            int rightBracket = varName.lastIndexOf(']');
+
+            String arrayName = varName.substring(0, leftBracket);
+            String index = varName.substring(leftBracket + 1, rightBracket);
+
+            ArrayAccess arrayAccess = ast.newArrayAccess();
+            arrayAccess.setArray(ast.newSimpleName(arrayName));
+            arrayAccess.setIndex(ast.newSimpleName(index));
+
+            return arrayAccess;
+        }
+
+        return ast.newSimpleName(varName);
     }
 
     // Hàm tạo câu lệnh Gán (x = y;)
@@ -356,6 +489,23 @@ public class ASTHelper {
     // khối lệnh mà đứng trước nút End của khối
     public static CfgNode generateCFGForOneStatement(ASTNode statement, CfgNode beforeNode, CfgNode afterNode, CompilationUnit compilationUnit, int firstLine, Coverage coverage) {
         CfgNode currentNode;
+
+        if (statement instanceof EnhancedForStatement) {
+
+            CfgEnhancedForStatementBlockNode cfgNode =
+                    new CfgEnhancedForStatementBlockNode();
+
+            cfgNode.setAst(statement);
+            setLineNumber(cfgNode, compilationUnit, statement, firstLine);
+
+            LinkCurrentNode(beforeNode, cfgNode, afterNode);
+
+            return generateCFGFromEnhancedForASTNode(
+                    cfgNode,
+                    compilationUnit,
+                    firstLine,
+                    coverage);
+        }
 
         if (statement instanceof SwitchStatement) {
             currentNode = new CfgSwitchStatementBlockNode();
@@ -526,6 +676,9 @@ public class ASTHelper {
     }
 
     private static void LinkCurrentNode(CfgNode beforeNode, CfgNode currentNode, CfgNode afterNode) {
+        if (beforeNode == null) {
+            System.out.println("vcl roi");
+        }
         beforeNode.setAfterStatementNode(currentNode);
         currentNode.setBeforeStatementNode(beforeNode);
 
@@ -853,6 +1006,269 @@ public class ASTHelper {
         }
     }
 
+    private static CfgBeginForNode generateCFGFromEnhancedForASTNode(
+            CfgEnhancedForStatementBlockNode forCfgNode,
+            CompilationUnit compilationUnit,
+            int firstLine,
+            Coverage coverage) {
+
+        EnhancedForStatement enhancedFor =
+                (EnhancedForStatement) forCfgNode.getAst();
+
+        CfgNode beforeNode = forCfgNode.getBeforeStatementNode();
+
+        CfgBeginForNode beginForNode = new CfgBeginForNode();
+        beforeNode.setAfterStatementNode(beginForNode);
+        beginForNode.setBeforeStatementNode(beforeNode);
+
+        CfgEndBlockNode endForNode = new CfgEndBlockNode();
+
+        CfgNode afterNode = forCfgNode.getAfterStatementNode();
+        endForNode.setAfterStatementNode(afterNode);
+        afterNode.setBeforeStatementNode(endForNode);
+
+        beginForNode.setEndBlockNode(endForNode);
+
+        // initializer: index_x = 0
+        CfgNormalNode initializerNode = createEnhancedForInitializerNode(enhancedFor, compilationUnit, firstLine);
+        LinkCurrentNode(beginForNode, initializerNode, afterNode);
+
+        // condition: index_x < arr.length / list.size()
+        CfgEnhancedForConditionNode conditionNode = createEnhancedForConditionNode(enhancedFor, compilationUnit, firstLine);
+        LinkCurrentNode(initializerNode, conditionNode, afterNode);
+
+        // element bind: item = arr[index_x] / list.get(index_x)  -- true branch, TRƯỚC bodyBlock
+        CfgEnhancedForElementBindNode elementBindNode =
+                createEnhancedForElementBindNode(enhancedFor, conditionNode, compilationUnit, firstLine);
+
+        // body
+        CfgNode bodyBlock = new CfgBlockNode();
+        bodyBlock.setAst(enhancedFor.getBody());
+
+        // updater: index_x++
+        CfgEndBlockNode endBodyBlockNode = new CfgEndBlockNode();
+        CfgNode updaterNode = createEnhancedForUpdaterNode(enhancedFor, compilationUnit, firstLine);
+
+        CfgBeginBlockNode beginBodyBlockNode = new CfgBeginBlockNode();
+        bodyBlock.setBeforeStatementNode(beginBodyBlockNode);
+        bodyBlock.setAfterStatementNode(endBodyBlockNode);
+
+        endBodyBlockNode.setAfterStatementNode(updaterNode);
+        updaterNode.setBeforeStatementNode(endBodyBlockNode);
+        updaterNode.setAfterStatementNode(conditionNode);
+
+        // FIX: push endBodyBlockNode (điểm thoát THÂN vòng lặp), không phải endForNode
+        // (endForNode là điểm thoát của TOÀN BỘ vòng lặp -> gây orphan updaterNode)
+        endNodeStack.push(endBodyBlockNode);
+        CfgNode cfgBody = generateCFGFromASTBlockNode(bodyBlock, compilationUnit, firstLine, coverage);
+        endNodeStack.pop();
+
+        CfgNode bodyEntryNode = (cfgBody != null) ? cfgBody : bodyBlock;
+
+        // wire: elementBindNode -> beginBodyBlockNode -> bodyEntryNode
+        // (trước đây beginBodyBlockNode bị tạo ra nhưng không link vào đâu cả -> orphan,
+        //  giờ trở thành fencepost thật sự của thân vòng lặp)
+        beginBodyBlockNode.setBeforeStatementNode(elementBindNode);
+        beginBodyBlockNode.setAfterStatementNode(bodyEntryNode);
+        bodyEntryNode.setBeforeStatementNode(beginBodyBlockNode);
+
+        elementBindNode.setBeforeStatementNode(conditionNode);
+        elementBindNode.setAfterStatementNode(beginBodyBlockNode);
+
+        conditionNode.setTrueNode(elementBindNode);
+        conditionNode.setFalseNode(endForNode);
+
+        endForNode.getBeforeEndBoolNodeList().add(conditionNode);
+        endForNode.setBeforeStatementNode(conditionNode);
+
+        return beginForNode;
+    }
+
+    private static CfgNormalNode createEnhancedForInitializerNode(
+            EnhancedForStatement enhancedFor,
+            CompilationUnit cu,
+            int firstLine) {
+
+        AST ast = enhancedFor.getAST();
+
+        String indexName = "index_" + enhancedFor.getParameter().getName();
+
+        VariableDeclarationFragment fragment = ast.newVariableDeclarationFragment();
+        fragment.setName(ast.newSimpleName(indexName));
+        fragment.setInitializer(ast.newNumberLiteral("0"));
+
+        VariableDeclarationExpression expr =
+                ast.newVariableDeclarationExpression(fragment);
+        expr.setType(ast.newPrimitiveType(PrimitiveType.INT));
+
+        CfgNormalNode node = new CfgNormalNode();
+        node.setAst(expr);
+        setLineNumber(node, cu, expr, firstLine);
+
+        return node;
+    }
+
+    private static CfgEnhancedForConditionNode createEnhancedForConditionNode(
+            EnhancedForStatement enhancedFor,
+            CompilationUnit cu,
+            int firstLine) {
+
+        AST ast = enhancedFor.getAST();
+
+        Expression iterable = enhancedFor.getExpression();
+        String indexName = "index_" + enhancedFor.getParameter().getName();
+
+        ITypeBinding iterableBinding = iterable.resolveTypeBinding();
+        CfgEnhancedForConditionNode.IterableKind kind = resolveIterableKind(iterableBinding);
+
+        IVariableBinding paramBinding = enhancedFor.getParameter().resolveBinding();
+        ITypeBinding elementTypeBinding = (paramBinding != null) ? paramBinding.getType() : null;
+
+        InfixExpression condition = ast.newInfixExpression();
+        condition.setOperator(InfixExpression.Operator.LESS);
+        condition.setLeftOperand(ast.newSimpleName(indexName));
+
+        Expression right;
+
+        if (kind == CfgEnhancedForConditionNode.IterableKind.ARRAY) {
+            FieldAccess length = ast.newFieldAccess();
+            length.setExpression((Expression) ASTNode.copySubtree(ast, iterable));
+            length.setName(ast.newSimpleName("length"));
+            right = length;
+        } else {
+            MethodInvocation size = ast.newMethodInvocation();
+            size.setExpression((Expression) ASTNode.copySubtree(ast, iterable));
+            size.setName(ast.newSimpleName("size"));
+            right = size;
+        }
+
+        condition.setRightOperand(right);
+
+        CfgEnhancedForConditionNode node = new CfgEnhancedForConditionNode(
+                kind, indexName, iterable, elementTypeBinding);
+        node.setAst(condition);
+        node.setContent(condition.toString());
+        setLineNumber(node, cu, condition, firstLine);
+
+        return node;
+    }
+
+    private static CfgEnhancedForConditionNode.IterableKind resolveIterableKind(ITypeBinding binding) {
+        if (binding == null) {
+            throw new UnsupportedOperationException(
+                    "Enhanced-for: không resolve được kiểu của biểu thức iterable (binding null). " +
+                            "Hiện tại chỉ hỗ trợ array và java.util.List.");
+        }
+
+        if (binding.isArray()) {
+            return CfgEnhancedForConditionNode.IterableKind.ARRAY;
+        }
+
+        // kiểm tra binding (và toàn bộ interface/superclass cha) có phải java.util.List không
+        ITypeBinding current = binding;
+        java.util.Deque<ITypeBinding> stack = new java.util.ArrayDeque<>();
+        stack.push(current);
+        java.util.Set<String> visited = new java.util.HashSet<>();
+
+        while (!stack.isEmpty()) {
+            ITypeBinding b = stack.pop();
+            if (b == null) continue;
+
+            String key = b.getKey();
+            if (key != null && !visited.add(key)) continue; // tránh lặp vô hạn
+
+            ITypeBinding erasure = b.getErasure();
+            if (erasure != null && "java.util.List".equals(erasure.getQualifiedName())) {
+                return CfgEnhancedForConditionNode.IterableKind.LIST;
+            }
+
+            for (ITypeBinding itf : b.getInterfaces()) {
+                stack.push(itf);
+            }
+            stack.push(b.getSuperclass());
+        }
+
+        throw new UnsupportedOperationException(
+                "Enhanced-for: kiểu iterable '" + binding.getQualifiedName() + "' chưa được hỗ trợ. " +
+                        "Hiện tại chỉ hỗ trợ array và java.util.List (không hỗ trợ Iterable thuần, Set, Map.entrySet, ...).");
+    }
+
+    private static CfgEnhancedForElementBindNode createEnhancedForElementBindNode(
+            EnhancedForStatement enhancedFor,
+            CfgEnhancedForConditionNode conditionNode,
+            CompilationUnit cu,
+            int firstLine) {
+
+        AST ast = enhancedFor.getAST();
+        SingleVariableDeclaration param = enhancedFor.getParameter();
+
+        String elementVarName = param.getName().getIdentifier();
+        String indexName = conditionNode.getIndexVarName();
+        CfgEnhancedForConditionNode.IterableKind kind = conditionNode.getKind();
+
+        Expression rhs;
+        if (kind == CfgEnhancedForConditionNode.IterableKind.ARRAY) {
+            ArrayAccess arrayAccess = ast.newArrayAccess();
+            arrayAccess.setArray((Expression) ASTNode.copySubtree(ast, conditionNode.getOriginalIterableExpr()));
+            arrayAccess.setIndex(ast.newSimpleName(indexName));
+            rhs = arrayAccess;
+        } else {
+            MethodInvocation get = ast.newMethodInvocation();
+            get.setExpression((Expression) ASTNode.copySubtree(ast, conditionNode.getOriginalIterableExpr()));
+            get.setName(ast.newSimpleName("get"));
+            get.arguments().add(ast.newSimpleName(indexName));
+            rhs = get;
+        }
+
+        // Khai báo biến mới thay vì gán
+        VariableDeclarationFragment fragment = ast.newVariableDeclarationFragment();
+        fragment.setName(ast.newSimpleName(elementVarName));
+        fragment.setInitializer(rhs);
+
+        VariableDeclarationStatement declStmt = ast.newVariableDeclarationStatement(fragment);
+        declStmt.setType((Type) ASTNode.copySubtree(ast, param.getType()));
+
+        // Copy modifiers (vd: final) và annotations từ parameter gốc
+        for (Object modObj : param.modifiers()) {
+            declStmt.modifiers().add(ASTNode.copySubtree(ast, (ASTNode) modObj));
+        }
+
+        // Nếu là array kiểu extra dimensions (vd: for (int[] x : matrix)), cần copy thêm
+        if (!param.extraDimensions().isEmpty()) {
+            // JDT >= 3.10: dùng getExtraDimensions2() / Dimension nodes nếu cần giữ nguyên
+            for (Object dimObj : param.extraDimensions()) {
+                fragment.extraDimensions().add(ASTNode.copySubtree(ast, (ASTNode) dimObj));
+            }
+        }
+
+        CfgEnhancedForElementBindNode node = new CfgEnhancedForElementBindNode(
+                kind, elementVarName, indexName, conditionNode.getElementTypeBinding());
+        node.setAst(declStmt);
+        setLineNumber(node, cu, declStmt, firstLine);
+
+        return node;
+    }
+
+    private static CfgNode createEnhancedForUpdaterNode(
+            EnhancedForStatement enhancedFor,
+            CompilationUnit cu,
+            int firstLine) {
+
+        AST ast = enhancedFor.getAST();
+
+        String indexName = "index_" + enhancedFor.getParameter().getName();
+
+        PostfixExpression update = ast.newPostfixExpression();
+        update.setOperand(ast.newSimpleName(indexName));
+        update.setOperator(PostfixExpression.Operator.INCREMENT);
+
+        CfgNode node = new CfgNode();
+        node.setAst(update);
+        setLineNumber(node, cu, update, firstLine);
+
+        return node;
+    }
+
     private static boolean isOrOperator(InfixExpression.Operator operator) {
         return operator.equals(InfixExpression.Operator.CONDITIONAL_OR) ||
                 operator.equals(InfixExpression.Operator.OR);
@@ -929,8 +1345,15 @@ public class ASTHelper {
 
         //Dieu kien
         Expression forConditionAST = ((ForStatement) forCfgNode.getAst()).getExpression();
-        CfgBeginBlockNode beginForConditionNode = new CfgBeginBlockNode();
+        if (forConditionAST == null) {
+            ASTNode forAstNode = forCfgNode.getAst();
+            AST ast = forAstNode.getAST();
+            BooleanLiteral alwaysTrue = ast.newBooleanLiteral(true);
+            alwaysTrue.setSourceRange(forAstNode.getStartPosition(), forAstNode.getLength());
+            forConditionAST = alwaysTrue;
+        }
 
+        CfgBeginBlockNode beginForConditionNode = new CfgBeginBlockNode();
         tempBeforeNode.setAfterStatementNode(beginForConditionNode);
         beginForConditionNode.setBeforeStatementNode(tempBeforeNode);
 
@@ -946,7 +1369,7 @@ public class ASTHelper {
 
         CfgNode tempBeforeUpdaterNode = bodyStatementNode;
 
-        CfgNode firstUpdaterNode = null;
+        CfgNode firstUpdaterNode = new CfgNode();
 
         for (int i = 0; i < updaters.size(); i++) {
             CfgNormalNode normalNode = new CfgNormalNode();
@@ -957,6 +1380,9 @@ public class ASTHelper {
             } else if (updaters.get(i) instanceof Assignment) {
                 normalNode.setAst((Assignment) updaters.get(i));
                 setLineNumber(normalNode, compilationUnit, (Assignment) updaters.get(i), firstLine);
+            } else if (updaters.get(i) instanceof PrefixExpression) {
+                normalNode.setAst((PrefixExpression) updaters.get(i));
+                setLineNumber(normalNode, compilationUnit, (PrefixExpression) updaters.get(i), firstLine);
             }
 
             LinkCurrentNode(tempBeforeUpdaterNode, normalNode, afterNode);
@@ -978,6 +1404,13 @@ public class ASTHelper {
 
         bodyStatementNode.setBeforeStatementNode(beginBodyBlockNode);
         bodyStatementNode.setAfterStatementNode(endBodyBlockNode);
+
+        if (!updaters.isEmpty()) {
+            endBodyBlockNode.setAfterStatementNode(firstUpdaterNode);
+            firstUpdaterNode.setBeforeStatementNode(endBodyBlockNode);
+        } else {
+            endBodyBlockNode.setAfterStatementNode(beginForConditionNode);
+        }
 
         endBodyBlockNode.setAfterStatementNode(firstUpdaterNode);
         firstUpdaterNode.setBeforeStatementNode(endBodyBlockNode);
@@ -1049,6 +1482,13 @@ public class ASTHelper {
 
         //Dieu kien
         Expression forConditionAST = ((ForStatement) forCfgNode.getAst()).getExpression();
+        if (forConditionAST == null) {
+            ASTNode forAstNode = forCfgNode.getAst();
+            AST ast = forAstNode.getAST();
+            BooleanLiteral alwaysTrue = ast.newBooleanLiteral(true);
+            alwaysTrue.setSourceRange(forAstNode.getStartPosition(), forAstNode.getLength());
+            forConditionAST = alwaysTrue;
+        }
 
         CfgBoolExprNode forConditionNode = new CfgBoolExprNode();
         forConditionNode.setAst(forConditionAST);
@@ -1069,7 +1509,7 @@ public class ASTHelper {
 
         CfgNode tempBeforeUpdaterNode = bodyStatementNode;
 
-        CfgNode firstUpdaterNode = null;
+        CfgNode firstUpdaterNode = new CfgNode();
 
         for (int i = 0; i < updaters.size(); i++) {
             CfgNormalNode normalNode = new CfgNormalNode();
@@ -1080,6 +1520,9 @@ public class ASTHelper {
             } else if (updaters.get(i) instanceof Assignment) {
                 normalNode.setAst((Assignment) updaters.get(i));
                 setLineNumber(normalNode, compilationUnit, (Assignment) updaters.get(i), firstLine);
+            } else if (updaters.get(i) instanceof PrefixExpression) {
+                normalNode.setAst((PrefixExpression) updaters.get(i));
+                setLineNumber(normalNode, compilationUnit, (PrefixExpression) updaters.get(i), firstLine);
             }
 
             LinkCurrentNode(tempBeforeUpdaterNode, normalNode, afterNode);
@@ -1100,6 +1543,13 @@ public class ASTHelper {
 
         bodyStatementNode.setBeforeStatementNode(forConditionNode);
         bodyStatementNode.setAfterStatementNode(endBodyBlockNode);
+
+        if (!updaters.isEmpty()) {
+            endBodyBlockNode.setAfterStatementNode(firstUpdaterNode);
+            firstUpdaterNode.setBeforeStatementNode(endBodyBlockNode);
+        } else {
+            endBodyBlockNode.setAfterStatementNode(forConditionNode);
+        }
 
         endBodyBlockNode.setAfterStatementNode(firstUpdaterNode);
         firstUpdaterNode.setBeforeStatementNode(endBodyBlockNode);

@@ -1,6 +1,7 @@
 package core.ast.Expression;
 
 import core.ast.AstNode;
+import core.ast.Expression.Array.ArrayNode;
 import core.ast.Expression.Literal.LiteralNode;
 import core.ast.Expression.Name.NameNode;
 import core.symbolicExecution.MemoryModel;

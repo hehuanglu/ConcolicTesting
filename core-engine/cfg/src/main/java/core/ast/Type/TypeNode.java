@@ -5,7 +5,7 @@ import core.ast.Expression.ExpressionNode;
 import core.ast.Type.AnnotatableType.*;
 import core.ast.Type.AnnotatableType.WildcardTypeNode;
 
-public class TypeNode extends AstNode {
+public class TypeNode extends ExpressionNode {
 
 //    public static TypeNode executeType(Type type) {
 //        if(type instanceof PrimitiveType) {

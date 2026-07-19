@@ -6,34 +6,39 @@ import core.cfg.CfgNode;
 public class Path {
 
     private Node currentFirst;
-
     private Node currentLast;
+
+    public Path() {
+    }
+
+    public Path(Path other) {
+        Node current = other.currentFirst;
+
+        while (current != null) {
+            addLast(current.getData());
+            current = current.getNext();
+        }
+    }
 
     public boolean isEmpty() {
         return currentFirst == null;
     }
 
-    public Path(Path other) {
-        Node current = other.getCurrentFirst();
-        while (current != null) {
-            this.addLast(current.getData());
-            current = current.getNext();
-        }
-    }
-
-    public Path() {
-    }
-
     public void addLast(CfgNode data) {
-        Node lastNode = currentLast;
-        currentLast = new Node(data);
+        Node newNode = new Node(data);
+
         if (isEmpty()) {
-            currentFirst = currentLast;
-        } else lastNode.setNext(currentLast);
+            currentFirst = newNode;
+            currentLast = newNode;
+        } else {
+            currentLast.setNext(newNode);
+            currentLast = newNode;
+        }
     }
 
     public void addFirst(CfgNode data) {
         Node newNode = new Node(data);
+
         if (isEmpty()) {
             currentFirst = newNode;
             currentLast = newNode;
@@ -43,34 +48,41 @@ public class Path {
         }
     }
 
-    public void removeLast() {
-        if (isEmpty()) return;
-
-        if (currentLast == currentFirst) {
-            currentLast = null;
-            currentFirst = null;
+    /**
+     * Nối một bản sao của path vào cuối path hiện tại.
+     */
+    public void addPath(Path path) {
+        if (path == null || path.isEmpty()) {
             return;
         }
 
-        Node currentNode = currentFirst;
-        while (currentNode.getNext() != currentLast) {
-            currentNode = currentNode.getNext();
+        Node current = path.currentFirst;
+
+        while (current != null) {
+            addLast(current.getData());
+            current = current.getNext();
         }
-        currentNode.setNext(null);
-        currentLast = currentNode;
     }
 
-    @Override
-    public String toString() {
-        StringBuilder p = new StringBuilder("===============\n");
-        Node tmpNode = currentFirst;
-        while (tmpNode != null) {
-            p.append(tmpNode.getData().toString());
-            p.append("\n");
-            tmpNode = tmpNode.getNext();
+    public void removeLast() {
+        if (isEmpty()) {
+            return;
         }
-        p.append("===============");
-        return p.toString();
+
+        if (currentFirst == currentLast) {
+            currentFirst = null;
+            currentLast = null;
+            return;
+        }
+
+        Node current = currentFirst;
+
+        while (current.getNext() != currentLast) {
+            current = current.getNext();
+        }
+
+        current.setNext(null);
+        currentLast = current;
     }
 
     public Node getCurrentFirst() {
@@ -80,5 +92,20 @@ public class Path {
     public Node getCurrentLast() {
         return currentLast;
     }
-}
 
+    @Override
+    public String toString() {
+        StringBuilder builder = new StringBuilder();
+        builder.append("===============\n");
+
+        Node current = currentFirst;
+
+        while (current != null) {
+            builder.append(current.getData()).append('\n');
+            current = current.getNext();
+        }
+
+        builder.append("===============");
+        return builder.toString();
+    }
+}

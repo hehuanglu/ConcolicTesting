@@ -21,6 +21,16 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import org.eclipse.jdt.core.JavaCore;
+import org.eclipse.jdt.core.ToolFactory;
+import org.eclipse.jdt.core.formatter.CodeFormatter;
+import org.eclipse.jdt.core.formatter.DefaultCodeFormatterConstants;
+import org.eclipse.jface.text.Document;
+import org.eclipse.text.edits.TextEdit;
+
+import java.util.HashMap;
+import java.util.Map;
+
 import static core.cfg.utils.ASTHelper.convertTernaryToIf;
 
 public final class CloneProject {
@@ -106,6 +116,8 @@ public final class CloneProject {
         return root;
     }
 
+
+
     public static void cloneProject(String originalDirPath, String destinationDirPath, ASTHelper.Coverage coverage, String fileName) throws IOException, InterruptedException {
         command = new StringBuilder("javac -d " + FilePath.targetClassesFolderPath + " ");
         iCloneProject(originalDirPath, destinationDirPath, coverage, fileName);
@@ -167,6 +179,42 @@ public final class CloneProject {
         }
     }
 
+    private static String formatJavaSource(String source) {
+        try {
+            Map<String, String> options = new HashMap<>(JavaCore.getOptions());
+
+            options.put(JavaCore.COMPILER_SOURCE, JavaCore.VERSION_17);
+            options.put(JavaCore.COMPILER_COMPLIANCE, JavaCore.VERSION_17);
+            options.put(JavaCore.COMPILER_CODEGEN_TARGET_PLATFORM, JavaCore.VERSION_17);
+
+            options.put(DefaultCodeFormatterConstants.FORMATTER_TAB_CHAR, JavaCore.SPACE);
+            options.put(DefaultCodeFormatterConstants.FORMATTER_TAB_SIZE, "4");
+            options.put(DefaultCodeFormatterConstants.FORMATTER_INDENTATION_SIZE, "4");
+
+            CodeFormatter formatter = ToolFactory.createCodeFormatter(options);
+
+            TextEdit edit = formatter.format(
+                    CodeFormatter.K_COMPILATION_UNIT,
+                    source,
+                    0,
+                    source.length(),
+                    0,
+                    System.lineSeparator()
+            );
+
+            if (edit == null) {
+                return source;
+            }
+
+            Document document = new Document(source);
+            edit.apply(document);
+
+            return document.get();
+        } catch (Exception e) {
+            e.printStackTrace();
+            return source;
+        }
+    }
 
     private static File[] getFilesInDirectory(String directoryPath) {
         File directory = new File(directoryPath);
@@ -317,10 +365,9 @@ public final class CloneProject {
         }
 
         result.append(createTotalClassStatementVariable(classData));
-
         result.append("}");
 
-        return result.toString();
+        return formatJavaSource(result.toString());
     }
 
     private static String createTotalFunctionCoverageVariable(MethodDeclaration methodDeclaration, int totalStatement, CoverageType coverageType) {
@@ -464,11 +511,11 @@ public final class CloneProject {
         }
 
         // Tạo mark cho việc vào vòng lặp
-        String exprStr = forEachStatement.getExpression().toString().replace("\"", "\\\"");
+        String exprStr = escapeString(forEachStatement.getExpression().toString());
         result.append("mark(\"").append(exprStr).append("\", true, false, ").append(lineNumber).append(");\n");
         totalFunctionStatement++;
         totalClassStatement++;
-        totalFunctionBranch++; // Đếm nhánh True
+        totalFunctionBranch += 2;
 
         result.append(generateCodeForOneStatement(forEachStatement.getBody(), ";", coverage));
 
@@ -555,26 +602,7 @@ public final class CloneProject {
     private static String generateCodeForMarkMethod(ASTNode statement, String markMethodSeparator) {
         StringBuilder result = new StringBuilder();
 
-        String stringStatement = statement.toString();
-        StringBuilder newStatement = new StringBuilder();
-
-        for (int i = 0; i < stringStatement.length(); i++) {
-            char charAt = stringStatement.charAt(i);
-
-            if (charAt == '\n') {
-                newStatement.append("\\n");
-                continue;
-            } else if (charAt == '"') {
-                newStatement.append("\\").append('"');
-                continue;
-            } else if (i != stringStatement.length() - 1 && charAt == '\\' && stringStatement.charAt(i + 1) == 'n') {
-                newStatement.append("\" + \"").append("\\n").append("\" + \"");
-                i++;
-                continue;
-            }
-
-            newStatement.append(charAt);
-        }
+        String newStatement = escapeString(statement.toString());
 
         // Kiểm tra xem node có vị trí thực trong source file không
         int lineNumber = 0;
@@ -617,8 +645,31 @@ public final class CloneProject {
             lineNumber = classCompilationUnit.getLineNumber(startPos) - firstLine;
         }
 
-        return "((" + condition + ") && mark(\"" + condition + "\", true, false, " + lineNumber + "))" +
-                " || mark(\"" + condition + "\", false, true, " + lineNumber + ")";
+        String escapedCondition = escapeString(condition.toString());
+        return "((" + condition + ") && mark(\"" + escapedCondition + "\", true, false, " + lineNumber + "))" +
+                " || mark(\"" + escapedCondition + "\", false, true, " + lineNumber + ")";
+    }
+
+    private static String escapeString(String s) {
+        if (s == null) return "";
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (c == '\"') {
+                sb.append("\\\"");
+            } else if (c == '\\') {
+                sb.append("\\\\");
+            } else if (c == '\n') {
+                sb.append("\\n");
+            } else if (c == '\r') {
+                sb.append("\\r");
+            } else if (c == '\t') {
+                sb.append("\\t");
+            } else {
+                sb.append(c);
+            }
+        }
+        return sb.toString();
     }
 
     private static String generateCodeForConditionForMCDCCoverage(Expression condition) {
@@ -647,11 +698,13 @@ public final class CloneProject {
                 lineNumber = classCompilationUnit.getLineNumber(startPos) - firstLine;
             }
 
-            result.append("((").append(condition).append(") && mark(\"").append(condition).
+            String escapedCondition = escapeString(condition.toString());
+            result.append("((").append(condition).append(") && mark(\"").append(escapedCondition).
                     append("\", true, false, ").append(lineNumber).append("))");
-            result.append(" || mark(\"").append(condition).append("\", false, true, ").
+            result.append(" || mark(\"").append(escapedCondition).append("\", false, true, ").
                     append(lineNumber).append(")");
-        }
+            }
+
 
         return result.toString();
     }
@@ -736,7 +789,7 @@ public final class CloneProject {
                 case "boolean":
                     return "false";
                 case "char":
-                    return "'" + File.separator + "0'";
+                    return "'0'";
                 case "byte":
                     return "0";
                 case "short":

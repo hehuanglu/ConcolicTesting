@@ -10,6 +10,47 @@ public class CfgForEachExpressionNode extends CfgNode {
     private CfgNode noMoreElementAfterNode = null;
     private CfgNode parameterNode = null;
 
+    // Thêm mới, mirror theo CfgBoolExprNode
+    private boolean hasElementMarked = false;
+    private boolean noMoreElementMarked = false;
+    private int fakeHasElementMarked = 0;
+    private int fakeNoMoreElementMarked = 0;
+
+    public boolean isHasElementMarked() {
+        return hasElementMarked;
+    }
+
+    public void setHasElementMarked(boolean hasElementMarked) {
+        this.hasElementMarked = hasElementMarked;
+    }
+
+    public boolean isNoMoreElementMarked() {
+        return noMoreElementMarked;
+    }
+
+    public void setNoMoreElementMarked(boolean noMoreElementMarked) {
+        this.noMoreElementMarked = noMoreElementMarked;
+    }
+
+    public int getFakeHasElementMarked() {
+        return fakeHasElementMarked;
+    }
+
+    public void incrementFakeHasElementMarked() {
+        this.fakeHasElementMarked++;
+    }
+
+    public int getFakeNoMoreElementMarked() {
+        return fakeNoMoreElementMarked;
+    }
+
+    public void incrementFakeNoMoreElementMarked() {
+        this.fakeNoMoreElementMarked++;
+    }
+
+    public int hasElementCounting = 0;
+    public int noMoreElementCounting = 0;
+
     public CfgNode getHasElementAfterNode() {
         return hasElementAfterNode;
     }

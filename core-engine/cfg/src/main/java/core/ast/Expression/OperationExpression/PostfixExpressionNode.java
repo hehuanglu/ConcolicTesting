@@ -3,6 +3,7 @@ package core.ast.Expression.OperationExpression;
 import com.microsoft.z3.*;
 import core.Z3Vars.Z3VariableWrapper;
 import core.ast.AstNode;
+import core.ast.Expression.AssignmentNode;
 import core.ast.Expression.ExpressionNode;
 import core.ast.Expression.Literal.LiteralNode;
 import core.ast.Expression.Literal.NumberLiteral.IntegerLiteralNode;
@@ -29,38 +30,45 @@ public class PostfixExpressionNode extends OperationExpressionNode {
             originPostfixExpression.setOperand((Expression) replacement);
     }
 
-    public static Expr createZ3Expression(PostfixExpressionNode postfixExpressionNode, Context ctx, List<Z3VariableWrapper> vars, MemoryModel memoryModel) {
+    public static Expr createZ3Expression(PostfixExpressionNode postfixExpressionNode, Context ctx,
+                                          List<Z3VariableWrapper> vars, MemoryModel memoryModel) {
         ExpressionNode operand = postfixExpressionNode.operand;
         PostfixExpression.Operator operator = postfixExpressionNode.operator;
 
-        Expr oldValue = OperationExpressionNode.createZ3Expression(operand, ctx, vars, memoryModel);
-        Expr newValue = null;
-        if (oldValue instanceof BitVecExpr) {
-            BitVecExpr bvOld = (BitVecExpr) oldValue;
-            int size = bvOld.getSortSize();
-            BitVecExpr one = ctx.mkBV(1, size);
+        // Live-lookup này đã phản ánh giá trị SAU khi execute() chạy (side-effect đã xảy ra trước đó)
+        Expr newValue = OperationExpressionNode.createZ3Expression(operand, ctx, vars, memoryModel);
 
-            if (operator == PostfixExpression.Operator.INCREMENT) {
-                newValue = ctx.mkBVAdd(bvOld, one);
-            } else if (operator == PostfixExpression.Operator.DECREMENT) {
-                newValue = ctx.mkBVSub(bvOld, one);
-            }
+        boolean isIncrement = operator == PostfixExpression.Operator.INCREMENT;
+        if (!isIncrement && operator != PostfixExpression.Operator.DECREMENT) {
+            throw new IllegalStateException("Unsupported postfix operator: " + operator);
         }
-        else if (oldValue instanceof FPExpr) {
-            FPExpr fpOld = (FPExpr) oldValue;
-            FPSort sort = (FPSort) fpOld.getSort();
-            // Tạo số 1.0 đúng định dạng FP (Float hoặc Double)
+
+        // Giá trị CỦA BIỂU THỨC postfix là giá trị TRƯỚC khi tăng/giảm
+        // => đảo ngược đúng phép toán mà execute() đã áp dụng
+        Expr oldValue;
+        if (newValue instanceof IntExpr) {
+            IntExpr intNew = (IntExpr) newValue;
+            IntExpr one = (IntExpr) ctx.mkInt(1);
+            oldValue = isIncrement ? ctx.mkSub(intNew, one) : ctx.mkAdd(intNew, one);
+
+        } else if (newValue instanceof BitVecExpr) {
+            BitVecExpr bvNew = (BitVecExpr) newValue;
+            BitVecExpr one = ctx.mkBV(1, bvNew.getSortSize());
+            oldValue = isIncrement ? ctx.mkBVSub(bvNew, one) : ctx.mkBVAdd(bvNew, one);
+
+        } else if (newValue instanceof FPExpr) {
+            FPExpr fpNew = (FPExpr) newValue;
+            FPSort sort = (FPSort) fpNew.getSort();
             FPExpr one = ctx.mkFP(1.0, sort);
             FPRMExpr rm = ctx.mkFPRoundNearestTiesToEven();
+            oldValue = isIncrement ? ctx.mkFPSub(rm, fpNew, one) : ctx.mkFPAdd(rm, fpNew, one);
 
-            if (operator == PostfixExpression.Operator.INCREMENT) {
-                newValue = ctx.mkFPAdd(rm, fpOld, one);
-            } else if (operator == PostfixExpression.Operator.DECREMENT) {
-                newValue = ctx.mkFPSub(rm, fpOld, one);
-            }
+        } else {
+            throw new IllegalStateException(
+                    "Unsupported Z3 sort for postfix: " + (newValue == null ? "null" : newValue.getSort()));
         }
-        //Cần bổ sung bước cập nhật giá trị mới vào MemoryModel
-        return newValue;
+
+        return oldValue;
     }
 
     public static ExpressionNode executePostfixExpression(PostfixExpression postfixExpression, MemoryModel memoryModel) {
@@ -73,80 +81,23 @@ public class PostfixExpressionNode extends OperationExpressionNode {
         return expressionNode;
     }
 
-    public static ExpressionNode executePostfixExpressionNode(PostfixExpressionNode postfixExpressionNode, MemoryModel memoryModel) {
+    public static ExpressionNode executePostfixExpressionNode(PostfixExpressionNode postfixExpressionNode,
+                                                              MemoryModel memoryModel) {
         ExpressionNode operand = postfixExpressionNode.operand;
         PostfixExpression.Operator operator = postfixExpressionNode.operator;
 
-        // PAUSE executing
+        if (operator != PostfixExpression.Operator.INCREMENT
+                && operator != PostfixExpression.Operator.DECREMENT) {
+            throw new IllegalStateException("Unsupported postfix operator: " + operator);
+        }
 
-        // RE-ASSIGN
-            String key = postfixExpressionNode.originalOperand.toString();
-            AstNode value = memoryModel.getValue(key);
+        ExpressionNode oldValue = operand; // chụp lại TRƯỚC khi mutate
 
-            if (value instanceof NameNode) {
-                InfixExpressionNode expr = new InfixExpressionNode();
-                
-                if (operator == PostfixExpression.Operator.INCREMENT) {
-                    expr.setOperator(InfixExpression.Operator.PLUS);
-                } else if (operator == PostfixExpression.Operator.DECREMENT) {
-                    expr.setOperator(InfixExpression.Operator.MINUS);
-                } else {
-                    throw new IllegalStateException(
-                            "Unsupported postfix operator (only ++/-- supported): " + operator);
-                }
+        boolean isIncrement = operator == PostfixExpression.Operator.INCREMENT;
+        AssignmentNode.executeIncrementDecrement(
+                postfixExpressionNode.originalOperand, operand, isIncrement, memoryModel);
 
-                expr.setLeftOperand((ExpressionNode) value);
-
-                IntegerLiteralNode one = new IntegerLiteralNode();
-                one.setTokenValue(1);
-                expr.setRightOperand(one);
-
-                memoryModel.assignVariable(key, expr);
-            } else if (value instanceof InfixExpressionNode) {
-
-                if (operator != PostfixExpression.Operator.INCREMENT
-                        && operator != PostfixExpression.Operator.DECREMENT) {
-                    throw new IllegalStateException(
-                            "Unsupported postfix operator on infix expression: " + operator);
-                }
-
-                InfixExpressionNode inf = (InfixExpressionNode) value;
-
-                if (!(inf.getRightOperand() instanceof IntegerLiteralNode)) {
-                    throw new IllegalStateException(
-                            "Right operand is not IntegerLiteralNode: " + inf.getRightOperand());
-                }
-
-                IntegerLiteralNode kNode = (IntegerLiteralNode) inf.getRightOperand();
-                int k = kNode.getIntegerValue();
-
-                if (operator == PostfixExpression.Operator.INCREMENT) {
-                    k++;
-                } else {
-                    k--;
-                }
-
-                IntegerLiteralNode newK = new IntegerLiteralNode();
-                newK.setTokenValue(k);
-                inf.setRightOperand(newK);
-
-                memoryModel.assignVariable(key, inf);
-            } else if(value instanceof LiteralNode) {
-                memoryModel.assignVariable(key, LiteralNode.analyzeOnePostfixLiteral((LiteralNode) value, operator));
-            } else if (value instanceof OperationExpressionNode) {
-                PostfixExpressionNode newValue = new PostfixExpressionNode();
-                newValue.operator = operator;
-                newValue.operand = (OperationExpressionNode) value;
-                memoryModel.assignVariable(key, newValue);
-            }
-
-        // CONTINUE executing
-//        if(oldOperand != postfixExpressionNode.operand) {
-//            return executePostfixExpressionNode(postfixExpressionNode, memoryModel);
-//        } else {
-//            return postfixExpressionNode;
-//        }
-        return postfixExpressionNode;
+        return oldValue;
     }
 
     @Override

@@ -25,9 +25,6 @@ public class SimpleTypeNode extends ExpressionNode {
         this.sort = null;
     }
 
-    public SimpleTypeNode(SimpleType type, SimpleName name) {
-        this(type, name.getIdentifier());
-    }
 
     public String getName() {
         return name;

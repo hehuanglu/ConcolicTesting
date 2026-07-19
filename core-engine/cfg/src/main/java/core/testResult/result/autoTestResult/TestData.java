@@ -34,6 +34,23 @@ public class TestData {
         this.status = "PASS";
     }
 
+    public TestData(List<String> names, Class<?>[] types, Object[] values, List<CoveredStatement> coveredStatements,
+                    Object output, double executeTime) {
+        if(names.size() != types.length || types.length != values.length) {
+            throw new RuntimeException("Invalid");
+        }
+
+        for(int i = 0; i < names.size(); i++) {
+            this.addToParameterDataList(new ParameterData(names.get(i), types[i].toString(), values[i]));
+        }
+
+        this.coveredStatements = coveredStatements;
+        this.output = output;
+        this.executeTime = round(executeTime);
+        this.requiredCoverage = round(requiredCoverage);
+        this.status = "PASS";
+    }
+
     private double round(double number) {
         return (double) Math.round(number * 100) / 100;
     }

@@ -31,6 +31,16 @@ public class UTestController {
         UnitTestingApplication.restart();
     }
 
+    /** Readiness check for orchestrators (e.g. FullTesting on port 8007). */
+    @GetMapping("/health")
+    public ResponseEntity<String> health() {
+        if (UnitTestingApplication.isRestarting()) {
+            return ResponseEntity.status(503).body("RESTARTING");
+        }
+        return ResponseEntity.ok("UP");
+    }
+
+
     @GetMapping(value = "/unit")
     @Operation(
             summary = "This is API auto run full Concolic ",
@@ -77,6 +87,33 @@ public class UTestController {
         }
     }
 
+    @GetMapping(value = "/regressionTest")
+    @Operation(
+            parameters = {@io.swagger.v3.oas.annotations.Parameter(name = "nameProject"),
+                    @io.swagger.v3.oas.annotations.Parameter(name = "coverageType")}
+    )
+    public ResponseEntity<Object> getRegressionTest(@RequestParam String nameProject, @RequestParam String coverageType) throws IOException {
+        TestGeneration.Coverage coverage;
+        switch (coverageType) {
+            case "statement":
+                coverage = TestGeneration.Coverage.STATEMENT;
+                break;
+            case "branch":
+                coverage = TestGeneration.Coverage.BRANCH;
+                break;
+            case "path":
+                coverage = TestGeneration.Coverage.PATH;
+                break;
+            case "mcdc":
+                coverage = TestGeneration.Coverage.MCDC;
+                break;
+            default:
+                throw new RuntimeException("Invalid coverage type");
+        }
+
+        return ResponseEntity.ok(utestService.runRegressionTest(nameProject, coverage));
+    }
+
     @GetMapping(value = "/multiple-unit")
     public ResponseEntity<Object> getUnitTests(@RequestParam List<Integer> targetIds, @RequestParam String nameProject, @RequestParam String coverageType) throws IOException {
         TestGeneration.Coverage coverage;
@@ -103,5 +140,72 @@ public class UTestController {
         }
         return ResponseEntity.ok(results);
     }
-
+    @GetMapping(value="/unit-test-file")
+    public ResponseEntity<Object> getUnitTestFile(@RequestParam List<Integer> targetIds, @RequestParam String nameProject, @RequestParam String coverageType) throws IOException {
+        TestGeneration.Coverage coverage;
+        switch (coverageType) {
+            case "statement":
+                coverage = TestGeneration.Coverage.STATEMENT;
+                break;
+            case "branch":
+                coverage = TestGeneration.Coverage.BRANCH;
+                break;
+            case "path":
+                coverage = TestGeneration.Coverage.PATH;
+                break;
+            case "mcdc":
+                coverage = TestGeneration.Coverage.MCDC;
+                break;
+            default:
+                throw new RuntimeException("Invalid coverage type");
+        }
+        List<Object> results = new ArrayList<>();
+        for (int targetId : targetIds){
+            Object result = utestService.runAutomationTestFile(targetId, nameProject, coverage);
+            results.add(result);
+        }
+        return ResponseEntity.ok(results);
+    }
+    @GetMapping(value="/unit-test-project")
+    public ResponseEntity<Object> getUnitTestProject(@RequestParam String nameProject, @RequestParam String coverageType) throws IOException {
+        TestGeneration.Coverage coverage;
+        switch (coverageType) {
+            case "statement":
+                coverage = TestGeneration.Coverage.STATEMENT;
+                break;
+            case "branch":
+                coverage = TestGeneration.Coverage.BRANCH;
+                break;
+            case "path":
+                coverage = TestGeneration.Coverage.PATH;
+                break;
+            case "mcdc":
+                coverage = TestGeneration.Coverage.MCDC;
+                break;
+            default:
+                throw new RuntimeException("Invalid coverage type");
+        }
+        return ResponseEntity.ok(utestService.runAutomationTestProject(nameProject, coverage));
+    }
+    @GetMapping(value="/unit-test-all")
+    public ResponseEntity<Object> getUnitTestAll(@RequestParam List<Integer> targetIds, @RequestParam String nameProject, @RequestParam String coverageType) throws IOException {
+        TestGeneration.Coverage coverage;
+        switch (coverageType) {
+            case "statement":
+                coverage = TestGeneration.Coverage.STATEMENT;
+                break;
+            case "branch":
+                coverage = TestGeneration.Coverage.BRANCH;
+                break;
+            case "path":
+                coverage = TestGeneration.Coverage.PATH;
+                break;
+            case "mcdc":
+                coverage = TestGeneration.Coverage.MCDC;
+                break;
+            default:
+                throw new RuntimeException("Invalid coverage type");
+        }
+        return ResponseEntity.ok(utestService.runAutomationTestAll(targetIds, nameProject, coverage));
+    }
 }

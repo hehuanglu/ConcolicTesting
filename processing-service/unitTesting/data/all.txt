@@ -1,0 +1,415 @@
+
+========================================
+Start Time             : 2026-07-15T00:35:25.243569
+========================================
+49 | findNthCatalan | branch | 100.00% | 7.96ms | 120.17MB | 1 cases
+3 | change | branch | 75.00% | 3.50ms | 138.21MB | 1 cases
+4 | minimumCoins | branch | 90.00% | 11.24ms | 100.10MB | 1 cases
+27 | convolution | branch | 100.00% | 22.08ms | 202.98MB | 1 cases
+19 | correlation | branch | 75.00% | 5.46ms | 153.92MB | 1 cases
+21 | countFriendsPairing | branch | 83.33% | 3.20ms | 116.42MB | 2 cases
+15 | countNiceSubarrays | branch | 41.67% | 7.99ms | 219.16MB | 1 cases
+9 | crossCorrelation | branch | 100.00% | 48.53ms | 201.61MB | 1 cases
+78 | findMax | branch | 100.00% | 3.90ms | 171.07MB | 3 cases
+91 | max | branch | 100.00% | 2.11ms | 272.36MB | 3 cases
+87 | findMin | branch | 100.00% | 3.68ms | 197.58MB | 3 cases
+67 | min | branch | 100.00% | 2.60ms | 123.78MB | 3 cases
+93 | maxSum | branch | 100.00% | 5.02ms | 225.35MB | 2 cases
+56 | find | branch | 83.33% | 4.05ms | 155.31MB | 4 cases
+38 | compute | branch | 100.00% | 6.11ms | 261.34MB | 6 cases
+33 | getLongestArithmeticSubsequenceLength | branch | 100.00% | 18.02ms | 196.73MB | 3 cases
+6 | lowerBound | branch | 100.00% | 2.50ms | 132.78MB | 2 cases
+76 | longestSubarrayWithSumLEK | branch | 100.00% | 8.94ms | 233.62MB | 1 cases
+23 | maxProduct | branch | 100.00% | 6.82ms | 169.31MB | 3 cases
+44 | getMaxSumApproach1 | branch | 100.00% | 4.90ms | 272.25MB | 2 cases
+45 | getMaxSumApproach2 | branch | 100.00% | 6.13ms | 206.07MB | 2 cases
+52 | maxSumKSizeSubarray | branch | 100.00% | 3.18ms | 168.64MB | 2 cases
+71 | minimumWaitingTime | branch | 100.00% | 3.72ms | 254.40MB | 2 cases
+13 | minSumKSizeSubarray | branch | 100.00% | 3.64ms | 206.53MB | 2 cases
+54 | nthManShanksPrime | branch | 100.00% | 3.38ms | 167.69MB | 1 cases
+35 | buildPrefixSum | branch | 100.00% | 2.85ms | 268.52MB | 2 cases
+36 | sumRange | branch | 100.00% | 1.86ms | 229.59MB | 3 cases
+25 | cutRod | branch | 100.00% | 12.06ms | 225.11MB | 3 cases
+29 | stdDev | branch | 100.00% | 3.75ms | 168.68MB | 1 cases
+82 | subsetSum | branch | 83.33% | 6.73ms | 269.57MB | 2 cases
+69 | isSubsetSum | branch | 75.00% | 317.60ms | 235.33MB | 4 cases
+31 | subsetSum | branch | 83.33% | 2.98ms | 219.99MB | 4 cases
+42 | isPairedSum | branch | 100.00% | 6.43ms | 200.12MB | 4 cases
+58 | wpRecursion | branch | 100.00% | 1.60ms | 183.90MB | 2 cases
+59 | wptd | branch | 0.00% | 0.00ms | 290.50MB | 0 cases
+60 | wpbu | branch | 100.00% | 22.36ms | 191.13MB | 2 cases
+61 | isPalindrome | branch | 100.00% | 3.05ms | 174.61MB | 3 cases
+84 | bubbleSort | branch | 100.00% | 5.33ms | 280.11MB | 3 cases
+80 | binarySearch | branch | 100.00% | 4.60ms | 258.20MB | 4 cases
+47 | search | branch | 100.00% | 2.22ms | 239.99MB | 3 cases
+11 | sort | branch | 75.00% | 6.39ms | 199.31MB | 2 cases
+89 | selectionSort | branch | 100.00% | 29.30ms | 166.31MB | 2 cases
+
+========================================
+Start Time             : 2026-07-15T03:10:57.449156
+========================================
+49 | findNthCatalan | statement | 100.00% | 8.31ms | 119.30MB | 1 cases
+3 | change | statement | 100.00% | 4.46ms | 138.44MB | 1 cases
+4 | minimumCoins | statement | 100.00% | 13.96ms | 137.82MB | 1 cases
+27 | convolution | statement | 100.00% | 22.70ms | 133.28MB | 1 cases
+19 | correlation | statement | 95.83% | 4.35ms | 89.77MB | 1 cases
+21 | countFriendsPairing | statement | 83.33% | 2.08ms | 192.97MB | 1 cases
+15 | countNiceSubarrays | statement | 52.17% | 3.70ms | 214.20MB | 1 cases
+9 | crossCorrelation | statement | 100.00% | 29.26ms | 207.64MB | 1 cases
+78 | findMax | statement | 90.00% | 4.07ms | 162.70MB | 3 cases
+91 | max | statement | 100.00% | 2.55ms | 131.55MB | 3 cases
+87 | findMin | statement | 88.89% | 3.42ms | 103.39MB | 3 cases
+67 | min | statement | 100.00% | 2.25ms | 205.29MB | 3 cases
+93 | maxSum | statement | 90.91% | 4.80ms | 177.86MB | 2 cases
+56 | find | statement | 70.00% | 3.13ms | 160.94MB | 4 cases
+38 | compute | statement | 100.00% | 5.56ms | 197.39MB | 6 cases
+33 | getLongestArithmeticSubsequenceLength | statement | 100.00% | 16.06ms | 188.73MB | 3 cases
+6 | lowerBound | statement | 100.00% | 2.42ms | 182.97MB | 2 cases
+76 | longestSubarrayWithSumLEK | statement | 100.00% | 4.67ms | 177.93MB | 1 cases
+23 | maxProduct | statement | 75.00% | 6.34ms | 194.92MB | 2 cases
+44 | getMaxSumApproach1 | statement | 100.00% | 5.04ms | 217.08MB | 2 cases
+45 | getMaxSumApproach2 | statement | 100.00% | 10.05ms | 227.98MB | 2 cases
+52 | maxSumKSizeSubarray | statement | 100.00% | 3.30ms | 146.08MB | 2 cases
+71 | minimumWaitingTime | statement | 100.00% | 3.55ms | 212.58MB | 2 cases
+13 | minSumKSizeSubarray | statement | 100.00% | 3.33ms | 206.80MB | 2 cases
+54 | nthManShanksPrime | statement | 100.00% | 1.92ms | 200.57MB | 1 cases
+35 | buildPrefixSum | statement | 100.00% | 2.84ms | 197.03MB | 2 cases
+36 | sumRange | statement | 100.00% | 1.87ms | 200.59MB | 3 cases
+25 | cutRod | statement | 100.00% | 10.18ms | 206.78MB | 3 cases
+29 | stdDev | statement | 100.00% | 3.76ms | 215.95MB | 1 cases
+82 | subsetSum | statement | 92.31% | 5.34ms | 164.84MB | 1 cases
+69 | isSubsetSum | statement | 83.33% | 3.93ms | 140.74MB | 1 cases
+31 | subsetSum | statement | 77.78% | 2.68ms | 182.42MB | 3 cases
+42 | isPairedSum | statement | 91.67% | 5.62ms | 188.05MB | 3 cases
+58 | wpRecursion | statement | 100.00% | 1.72ms | 195.89MB | 2 cases
+59 | wptd | statement | 0.00% | 0.00ms | 209.11MB | 0 cases
+60 | wpbu | statement | 100.00% | 22.61ms | 231.11MB | 2 cases
+61 | isPalindrome | statement | 88.89% | 3.27ms | 240.09MB | 3 cases
+84 | bubbleSort | statement | 72.22% | 3.50ms | 146.87MB | 2 cases
+80 | binarySearch | statement | 100.00% | 3.03ms | 177.17MB | 4 cases
+47 | search | statement | 83.33% | 1.87ms | 122.69MB | 3 cases
+11 | sort | statement | 81.82% | 4.22ms | 141.33MB | 2 cases
+89 | selectionSort | statement | 92.86% | 11.76ms | 189.96MB | 2 cases
+
+========================================
+Start Time             : 2026-07-15T03:16:22.849851
+========================================
+49 | findNthCatalan | mcdc | 100.00% | 7.89ms | 118.24MB | 1 cases
+3 | change | mcdc | 75.00% | 3.74ms | 126.66MB | 1 cases
+4 | minimumCoins | mcdc | 83.33% | 13.92ms | 70.31MB | 1 cases
+27 | convolution | mcdc | 100.00% | 21.25ms | 177.98MB | 1 cases
+19 | correlation | mcdc | 75.00% | 4.30ms | 118.37MB | 1 cases
+21 | countFriendsPairing | mcdc | 66.67% | 2.86ms | 220.87MB | 1 cases
+15 | countNiceSubarrays | mcdc | 41.67% | 3.32ms | 164.25MB | 1 cases
+9 | crossCorrelation | mcdc | 100.00% | 27.62ms | 128.52MB | 1 cases
+78 | findMax | mcdc | 83.33% | 3.84ms | 231.21MB | 3 cases
+91 | max | mcdc | 100.00% | 2.07ms | 182.66MB | 3 cases
+87 | findMin | mcdc | 83.33% | 3.70ms | 144.84MB | 3 cases
+67 | min | mcdc | 100.00% | 2.37ms | 105.29MB | 3 cases
+93 | maxSum | mcdc | 75.00% | 4.91ms | 206.91MB | 2 cases
+56 | find | mcdc | 50.00% | 6.00ms | 172.22MB | 6 cases
+38 | compute | mcdc | 100.00% | 8.86ms | 160.55MB | 10 cases
+33 | getLongestArithmeticSubsequenceLength | mcdc | 100.00% | 16.25ms | 149.24MB | 3 cases
+6 | lowerBound | mcdc | 100.00% | 3.95ms | 138.86MB | 2 cases
+76 | longestSubarrayWithSumLEK | mcdc | 83.33% | 4.95ms | 240.74MB | 1 cases
+23 | maxProduct | mcdc | 87.50% | 6.13ms | 224.58MB | 4 cases
+44 | getMaxSumApproach1 | mcdc | 100.00% | 4.54ms | 209.09MB | 2 cases
+45 | getMaxSumApproach2 | mcdc | 100.00% | 7.57ms | 196.99MB | 2 cases
+52 | maxSumKSizeSubarray | mcdc | 100.00% | 3.35ms | 191.28MB | 2 cases
+71 | minimumWaitingTime | mcdc | 100.00% | 3.35ms | 191.94MB | 2 cases
+13 | minSumKSizeSubarray | mcdc | 100.00% | 3.13ms | 201.33MB | 2 cases
+54 | nthManShanksPrime | mcdc | 100.00% | 1.91ms | 187.38MB | 1 cases
+35 | buildPrefixSum | mcdc | 100.00% | 2.74ms | 154.97MB | 2 cases
+36 | sumRange | mcdc | 100.00% | 3.48ms | 142.67MB | 5 cases
+25 | cutRod | mcdc | 100.00% | 10.33ms | 165.63MB | 4 cases
+29 | stdDev | mcdc | 100.00% | 3.72ms | 181.24MB | 1 cases
+82 | subsetSum | mcdc | 87.50% | 5.22ms | 189.85MB | 1 cases
+69 | isSubsetSum | mcdc | 70.00% | 5.09ms | 198.46MB | 2 cases
+31 | subsetSum | mcdc | 80.00% | 3.89ms | 205.40MB | 5 cases
+42 | isPairedSum | mcdc | 87.50% | 5.69ms | 211.94MB | 3 cases
+58 | wpRecursion | mcdc | 100.00% | 1.96ms | 213.49MB | 2 cases
+59 | wptd | mcdc | 0.00% | 0.00ms | 217.43MB | 0 cases
+60 | wpbu | mcdc | 100.00% | 24.20ms | 189.79MB | 3 cases
+61 | isPalindrome | mcdc | 87.50% | 4.08ms | 240.06MB | 4 cases
+84 | bubbleSort | mcdc | 75.00% | 4.68ms | 206.02MB | 3 cases
+80 | binarySearch | mcdc | 100.00% | 3.46ms | 229.16MB | 4 cases
+47 | search | mcdc | 75.00% | 2.04ms | 219.74MB | 3 cases
+11 | sort | mcdc | 66.67% | 5.13ms | 213.13MB | 2 cases
+89 | selectionSort | mcdc | 83.33% | 11.98ms | 211.37MB | 2 cases
+
+========================================
+Start Time             : 2026-07-15T03:29:05.512580
+========================================
+92 | encode | statement | 100.00% | 5.86ms | 120.11MB | 2 cases
+118 | arrange | statement | 100.00% | 6.67ms | 135.19MB | 4 cases
+31 | areAnagramsByCountingCharsSingleArray | statement | 85.71% | 30.22ms | 94.92MB | 2 cases
+33 | areAnagramsBySingleFreqArray | statement | 78.57% | 29.57ms | 105.49MB | 2 cases
+20 | isAllCharactersSame | statement | 100.00% | 4.42ms | 141.39MB | 4 cases
+122 | countCharacters | statement | 100.00% | 11.44ms | 106.61MB | 2 cases
+79 | wordCount | statement | 100.00% | 11.35ms | 208.78MB | 2 cases
+114 | calculateHammingDistance | statement | 100.00% | 5.11ms | 174.62MB | 4 cases
+12 | charEquals | statement | 100.00% | 1.27ms | 152.64MB | 2 cases
+76 | isAlphabeticIsogram | statement | 42.11% | 23.70ms | 147.82MB | 1 cases
+54 | kasai | statement | 70.00% | 2.50ms | 172.13MB | 2 cases
+108 | computePrefixFunction | statement | 84.62% | 4.23ms | 221.71MB | 2 cases
+56 | lengthOfLastWord | statement | 100.00% | 2.97ms | 141.24MB | 2 cases
+41 | toLowerCase | statement | 100.00% | 2.89ms | 243.45MB | 1 cases
+59 | preprocess | statement | 100.00% | 3.83ms | 219.29MB | 3 cases
+127 | myAtoi | statement | 53.85% | 4.39ms | 160.99MB | 3 cases
+111 | isPalindromeRecursion | statement | 100.00% | 2.25ms | 196.14MB | 3 cases
+112 | isPalindromeTwoPointer | statement | 100.00% | 2.56ms | 187.82MB | 3 cases
+65 | reverseStringUsingRecursion | statement | 100.00% | 26.80ms | 156.16MB | 2 cases
+49 | compress | statement | 100.00% | 52.20ms | 159.17MB | 3 cases
+50 | appendCount | statement | 100.00% | 55.00ms | 186.49MB | 2 cases
+52 | toTitleCase | statement | 100.00% | 6.61ms | 202.48MB | 3 cases
+84 | toUpperCase | statement | 100.00% | 8.04ms | 212.48MB | 3 cases
+24 | zFunction | statement | 86.67% | 4.47ms | 216.25MB | 1 cases
+
+========================================
+Start Time             : 2026-07-15T03:34:33.668514
+========================================
+92 | encode | branch | 100.00% | 5.63ms | 117.40MB | 2 cases
+118 | arrange | branch | 100.00% | 6.61ms | 131.90MB | 4 cases
+31 | areAnagramsByCountingCharsSingleArray | branch | 75.00% | 27.37ms | 92.45MB | 2 cases
+33 | areAnagramsBySingleFreqArray | branch | 62.50% | 28.66ms | 221.68MB | 2 cases
+20 | isAllCharactersSame | branch | 100.00% | 3.61ms | 178.41MB | 4 cases
+122 | countCharacters | branch | 100.00% | 11.25ms | 127.59MB | 2 cases
+79 | wordCount | branch | 100.00% | 19.90ms | 229.54MB | 2 cases
+114 | calculateHammingDistance | branch | 100.00% | 5.37ms | 182.64MB | 4 cases
+12 | charEquals | branch | 100.00% | 1.37ms | 146.04MB | 2 cases
+76 | isAlphabeticIsogram | branch | 50.00% | 20.32ms | 125.43MB | 2 cases
+54 | kasai | branch | 66.67% | 3.83ms | 115.05MB | 4 cases
+108 | computePrefixFunction | branch | 66.67% | 4.55ms | 150.15MB | 2 cases
+56 | lengthOfLastWord | branch | 100.00% | 2.56ms | 156.29MB | 2 cases
+41 | toLowerCase | branch | 100.00% | 2.98ms | 166.30MB | 1 cases
+59 | preprocess | branch | 75.00% | 2.60ms | 184.67MB | 2 cases
+127 | myAtoi | branch | 43.75% | 11.03ms | 175.05MB | 8 cases
+111 | isPalindromeRecursion | branch | 100.00% | 2.18ms | 195.26MB | 3 cases
+112 | isPalindromeTwoPointer | branch | 100.00% | 2.65ms | 105.99MB | 3 cases
+65 | reverseStringUsingRecursion | branch | 100.00% | 26.78ms | 120.20MB | 2 cases
+49 | compress | branch | 100.00% | 51.02ms | 128.05MB | 4 cases
+50 | appendCount | branch | 100.00% | 55.04ms | 125.00MB | 2 cases
+52 | toTitleCase | branch | 100.00% | 9.04ms | 118.41MB | 3 cases
+84 | toUpperCase | branch | 100.00% | 5.53ms | 221.71MB | 3 cases
+24 | zFunction | branch | 75.00% | 4.77ms | 209.25MB | 1 cases
+
+========================================
+Start Time             : 2026-07-15T03:39:43.218657
+========================================
+92 | encode | mcdc | 100.00% | 6.60ms | 98.71MB | 3 cases
+118 | arrange | mcdc | 100.00% | 7.96ms | 135.18MB | 5 cases
+31 | areAnagramsByCountingCharsSingleArray | mcdc | 75.00% | 26.71ms | 95.06MB | 2 cases
+33 | areAnagramsBySingleFreqArray | mcdc | 62.50% | 27.64ms | 224.92MB | 2 cases
+20 | isAllCharactersSame | mcdc | 100.00% | 3.43ms | 185.81MB | 4 cases
+122 | countCharacters | mcdc | 100.00% | 11.51ms | 135.25MB | 2 cases
+79 | wordCount | mcdc | 100.00% | 12.14ms | 86.38MB | 3 cases
+114 | calculateHammingDistance | mcdc | 100.00% | 6.03ms | 191.77MB | 5 cases
+12 | charEquals | mcdc | 100.00% | 1.34ms | 152.15MB | 2 cases
+76 | isAlphabeticIsogram | mcdc | 57.14% | 25.72ms | 141.79MB | 3 cases
+54 | kasai | mcdc | 57.69% | 5.58ms | 142.24MB | 6 cases
+108 | computePrefixFunction | mcdc | 50.00% | 4.49ms | 177.37MB | 2 cases
+56 | lengthOfLastWord | mcdc | 100.00% | 3.87ms | 177.99MB | 3 cases
+41 | toLowerCase | mcdc | 100.00% | 3.45ms | 173.62MB | 1 cases
+59 | preprocess | mcdc | 75.00% | 2.59ms | 178.48MB | 2 cases
+127 | myAtoi | mcdc | 50.00% | 12.86ms | 198.17MB | 9 cases
+111 | isPalindromeRecursion | mcdc | 100.00% | 3.05ms | 151.45MB | 4 cases
+112 | isPalindromeTwoPointer | mcdc | 100.00% | 3.37ms | 189.72MB | 4 cases
+65 | reverseStringUsingRecursion | mcdc | 100.00% | 27.61ms | 144.08MB | 2 cases
+49 | compress | mcdc | 100.00% | 50.89ms | 168.37MB | 4 cases
+50 | appendCount | mcdc | 100.00% | 54.60ms | 189.03MB | 2 cases
+52 | toTitleCase | mcdc | 100.00% | 7.49ms | 203.78MB | 4 cases
+84 | toUpperCase | mcdc | 100.00% | 5.40ms | 209.55MB | 3 cases
+24 | zFunction | mcdc | 70.00% | 5.54ms | 210.44MB | 1 cases
+
+========================================
+Start Time             : 2026-07-15T03:52:09.410096
+========================================
+54 | lengthOfLongestSubstring | statement | 100.00% | 5.04ms | 115.41MB | 1 cases
+42 | myAtoi | statement | 56.00% | 1.82ms | 129.62MB | 2 cases
+66 | longestCommonPrefix | statement | 90.00% | 19.59ms | 143.46MB | 2 cases
+44 | strStr | statement | 100.00% | 8.49ms | 113.46MB | 5 cases
+40 | longestValidParentheses | statement | 57.14% | 3.78ms | 217.18MB | 2 cases
+68 | multiply | statement | 100.00% | 40.97ms | 98.25MB | 2 cases
+6 | isPalindrome | statement | 100.00% | 11.36ms | 203.91MB | 5 cases
+38 | isOneEditDistance | statement | 92.31% | 6.51ms | 173.31MB | 5 cases
+34 | numDecodings | statement | 90.91% | 1.93ms | 149.34MB | 2 cases
+22 | compareVersion | statement | 80.00% | 3.74ms | 122.63MB | 1 cases
+74 | titleToNumber | statement | 100.00% | 2.90ms | 233.29MB | 1 cases
+62 | shortestPalindrome | statement | 100.00% | 29.81ms | 202.18MB | 2 cases
+64 | isAnagram | statement | 92.86% | 6.78ms | 177.49MB | 3 cases
+60 | shortestDistance | statement | 100.00% | 4.93ms | 162.17MB | 1 cases
+32 | shortestWordDistance | statement | 84.21% | 6.42ms | 171.84MB | 2 cases
+20 | getHint | statement | 93.75% | 38.27ms | 164.95MB | 2 cases
+14 | reverseString | statement | 100.00% | 2.01ms | 202.16MB | 1 cases
+48 | canConstruct | statement | 72.73% | 3.30ms | 218.31MB | 3 cases
+12 | firstUniqChar | statement | 75.00% | 2.48ms | 116.02MB | 2 cases
+78 | findTheDifference | statement | 66.67% | 3.15ms | 150.03MB | 3 cases
+56 | isSubsequence | statement | 100.00% | 3.09ms | 133.79MB | 1 cases
+70 | toHex | statement | 90.00% | 1.61ms | 157.95MB | 2 cases
+50 | validWordAbbreviation | statement | 100.00% | 11.29ms | 182.93MB | 4 cases
+80 | longestPalindrome | statement | 92.31% | 26.55ms | 132.38MB | 2 cases
+52 | characterReplacement | statement | 70.00% | 2.63ms | 129.77MB | 3 cases
+76 | findLUSlength | statement | 66.67% | 0.54ms | 139.35MB | 1 cases
+3 | findLUSlength | statement | 85.71% | 28.11ms | 108.13MB | 2 cases
+4 | check | statement | 100.00% | 3.19ms | 135.44MB | 1 cases
+30 | checkRecord | statement | 66.67% | 1.15ms | 111.60MB | 2 cases
+16 | countSubstrings | statement | 100.00% | 8.65ms | 211.96MB | 1 cases
+18 | findSubstringInWraproundString | statement | 80.00% | 2.30ms | 196.41MB | 1 cases
+72 | repeatedStringMatch | statement | 18.18% | 0.59ms | 190.29MB | 1 cases
+46 | countBinarySubstrings | statement | 100.00% | 4.75ms | 196.84MB | 1 cases
+26 | scoreOfParentheses | statement | 80.00% | 2.40ms | 186.29MB | 3 cases
+58 | match | statement | 91.67% | 4.74ms | 184.19MB | 1 cases
+10 | numPermsDISequence | statement | 81.48% | 25.14ms | 187.73MB | 2 cases
+24 | isLongPressedName | statement | 88.89% | 6.67ms | 234.79MB | 2 cases
+36 | minFlipsMonoIncr | statement | 100.00% | 6.80ms | 240.22MB | 2 cases
+
+
+========================================
+Start Time             : 2026-07-15T04:18:30.576338
+========================================
+54 | lengthOfLongestSubstring | branch | 100.00% | 4.59ms | 116.39MB | 1 cases
+42 | myAtoi | branch | 55.00% | 4.72ms | 120.94MB | 5 cases
+66 | longestCommonPrefix | branch | 83.33% | 19.63ms | 101.82MB | 2 cases
+44 | strStr | branch | 100.00% | 8.63ms | 208.83MB | 5 cases
+40 | longestValidParentheses | branch | 62.50% | 4.58ms | 135.96MB | 3 cases
+68 | multiply | branch | 100.00% | 36.40ms | 248.27MB | 2 cases
+34 | numDecodings | branch | 66.67% | 1.91ms | 162.60MB | 2 cases
+6 | isPalindrome | branch | 100.00% | 6.12ms | 272.28MB | 4 cases
+38 | isOneEditDistance | branch | 90.00% | 7.24ms | 187.59MB | 5 cases
+22 | compareVersion | branch | 70.00% | 3.58ms | 99.86MB | 1 cases
+74 | titleToNumber | branch | 100.00% | 2.63ms | 202.37MB | 1 cases
+62 | shortestPalindrome | branch | 100.00% | 29.60ms | 108.64MB | 2 cases
+64 | isAnagram | branch | 87.50% | 7.31ms | 211.92MB | 3 cases
+60 | shortestDistance | branch | 100.00% | 5.51ms | 131.38MB | 2 cases
+32 | shortestWordDistance | branch | 75.00% | 6.74ms | 236.09MB | 4 cases
+20 | getHint | branch | 100.00% | 35.86ms | 196.28MB | 2 cases
+14 | reverseString | branch | 100.00% | 2.32ms | 119.71MB | 1 cases
+48 | canConstruct | branch | 66.67% | 3.37ms | 220.45MB | 3 cases
+12 | firstUniqChar | branch | 50.00% | 2.39ms | 147.71MB | 2 cases
+78 | findTheDifference | branch | 50.00% | 3.31ms | 250.32MB | 3 cases
+56 | isSubsequence | branch | 100.00% | 4.33ms | 184.39MB | 2 cases
+70 | toHex | branch | 83.33% | 1.78ms | 286.40MB | 2 cases
+50 | validWordAbbreviation | branch | 100.00% | 25.45ms | 220.26MB | 7 cases
+80 | longestPalindrome | branch | 66.67% | 27.82ms | 161.12MB | 2 cases
+52 | characterReplacement | branch | 50.00% | 2.80ms | 263.41MB | 3 cases
+76 | findLUSlength | branch | 50.00% | 0.55ms | 203.30MB | 1 cases
+3 | findLUSlength | branch | 83.33% | 19.71ms | 143.64MB | 2 cases
+4 | check | branch | 100.00% | 4.21ms | 247.56MB | 2 cases
+30 | checkRecord | branch | 50.00% | 1.22ms | 192.82MB | 2 cases
+16 | countSubstrings | branch | 100.00% | 7.75ms | 212.78MB | 1 cases
+18 | findSubstringInWraproundString | branch | 75.00% | 14.38ms | 154.62MB | 2 cases
+72 | repeatedStringMatch | branch | 50.00% | 0.91ms | 261.20MB | 1 cases
+46 | countBinarySubstrings | branch | 100.00% | 4.94ms | 202.12MB | 1 cases
+26 | scoreOfParentheses | branch | 66.67% | 2.33ms | 143.84MB | 3 cases
+58 | match | branch | 75.00% | 4.89ms | 245.49MB | 1 cases
+10 | numPermsDISequence | branch | 70.00% | 24.72ms | 196.50MB | 2 cases
+24 | isLongPressedName | branch | 91.67% | 8.38ms | 154.69MB | 4 cases
+36 | minFlipsMonoIncr | branch | 100.00% | 6.54ms | 257.92MB | 2 cases
+
+========================================
+Start Time             : 2026-07-15T04:24:02.635262
+========================================
+54 | lengthOfLongestSubstring | statement | 100.00% | 4.39ms | 116.19MB | 1 cases
+42 | myAtoi | statement | 56.00% | 2.03ms | 124.20MB | 2 cases
+66 | longestCommonPrefix | statement | 90.00% | 19.43ms | 130.48MB | 2 cases
+44 | strStr | statement | 100.00% | 8.42ms | 76.49MB | 5 cases
+40 | longestValidParentheses | statement | 57.14% | 3.28ms | 180.43MB | 2 cases
+68 | multiply | statement | 100.00% | 36.55ms | 164.59MB | 2 cases
+34 | numDecodings | statement | 90.91% | 2.05ms | 116.38MB | 2 cases
+6 | isPalindrome | statement | 100.00% | 8.01ms | 221.91MB | 5 cases
+38 | isOneEditDistance | statement | 92.31% | 6.19ms | 177.59MB | 5 cases
+22 | compareVersion | statement | 80.00% | 3.40ms | 141.52MB | 1 cases
+74 | titleToNumber | statement | 100.00% | 2.57ms | 119.91MB | 1 cases
+62 | shortestPalindrome | statement | 100.00% | 30.08ms | 220.15MB | 2 cases
+64 | isAnagram | statement | 92.86% | 7.74ms | 193.28MB | 3 cases
+60 | shortestDistance | statement | 100.00% | 4.91ms | 171.79MB | 1 cases
+32 | shortestWordDistance | statement | 84.21% | 4.61ms | 154.58MB | 2 cases
+20 | getHint | statement | 93.75% | 36.83ms | 172.52MB | 2 cases
+14 | reverseString | statement | 100.00% | 2.09ms | 176.46MB | 1 cases
+48 | canConstruct | statement | 72.73% | 3.50ms | 184.74MB | 3 cases
+12 | firstUniqChar | statement | 75.00% | 2.41ms | 221.05MB | 2 cases
+78 | findTheDifference | statement | 66.67% | 3.13ms | 152.75MB | 3 cases
+56 | isSubsequence | statement | 100.00% | 3.14ms | 192.31MB | 1 cases
+70 | toHex | statement | 90.00% | 1.47ms | 188.49MB | 2 cases
+50 | validWordAbbreviation | statement | 100.00% | 10.96ms | 165.62MB | 4 cases
+80 | longestPalindrome | statement | 92.31% | 27.85ms | 148.89MB | 2 cases
+52 | characterReplacement | statement | 70.00% | 2.63ms | 160.99MB | 3 cases
+76 | findLUSlength | statement | 66.67% | 0.52ms | 160.78MB | 1 cases
+3 | findLUSlength | statement | 85.71% | 20.33ms | 170.34MB | 2 cases
+4 | check | statement | 100.00% | 3.21ms | 222.02MB | 1 cases
+30 | checkRecord | statement | 66.67% | 1.14ms | 224.98MB | 2 cases
+16 | countSubstrings | statement | 100.00% | 7.91ms | 219.53MB | 1 cases
+18 | findSubstringInWraproundString | statement | 80.00% | 2.29ms | 219.51MB | 1 cases
+72 | repeatedStringMatch | statement | 18.18% | 0.59ms | 219.14MB | 1 cases
+46 | countBinarySubstrings | statement | 100.00% | 4.73ms | 236.41MB | 1 cases
+26 | scoreOfParentheses | statement | 80.00% | 2.50ms | 224.65MB | 3 cases
+58 | match | statement | 91.67% | 4.92ms | 214.80MB | 1 cases
+10 | numPermsDISequence | statement | 81.48% | 25.48ms | 208.86MB | 2 cases
+24 | isLongPressedName | statement | 88.89% | 7.21ms | 242.97MB | 2 cases
+36 | minFlipsMonoIncr | statement | 100.00% | 7.68ms | 234.82MB | 2 cases
+
+========================================
+Start Time             : 2026-07-15T04:31:05.105288
+========================================
+54 | lengthOfLongestSubstring | mcdc | 100.00% | 4.39ms | 115.36MB | 1 cases
+42 | myAtoi | mcdc | 50.00% | 5.17ms | 125.13MB | 5 cases
+66 | longestCommonPrefix | mcdc | 75.00% | 24.23ms | 114.58MB | 2 cases
+44 | strStr | mcdc | 100.00% | 8.31ms | 224.61MB | 5 cases
+40 | longestValidParentheses | mcdc | 80.00% | 6.16ms | 173.28MB | 4 cases
+68 | multiply | mcdc | 100.00% | 36.75ms | 136.22MB | 3 cases
+34 | numDecodings | mcdc | 50.00% | 2.09ms | 95.28MB | 2 cases
+6 | isPalindrome | mcdc | 100.00% | 6.38ms | 204.64MB | 4 cases
+38 | isOneEditDistance | mcdc | 90.00% | 6.58ms | 165.11MB | 5 cases
+22 | compareVersion | mcdc | 62.50% | 5.38ms | 137.17MB | 2 cases
+74 | titleToNumber | mcdc | 100.00% | 2.51ms | 140.77MB | 1 cases
+62 | shortestPalindrome | mcdc | 100.00% | 30.25ms | 120.32MB | 2 cases
+64 | isAnagram | mcdc | 87.50% | 7.25ms | 223.20MB | 3 cases
+60 | shortestDistance | mcdc | 90.00% | 6.58ms | 203.10MB | 2 cases
+32 | shortestWordDistance | mcdc | 66.67% | 6.97ms | 189.41MB | 4 cases
+20 | getHint | mcdc | 100.00% | 36.52ms | 215.89MB | 2 cases
+14 | reverseString | mcdc | 100.00% | 2.11ms | 204.15MB | 1 cases
+48 | canConstruct | mcdc | 66.67% | 4.41ms | 191.39MB | 4 cases
+12 | firstUniqChar | mcdc | 50.00% | 2.54ms | 185.42MB | 2 cases
+78 | findTheDifference | mcdc | 50.00% | 3.18ms | 187.44MB | 3 cases
+56 | isSubsequence | mcdc | 100.00% | 5.68ms | 197.80MB | 3 cases
+70 | toHex | mcdc | 83.33% | 1.46ms | 206.94MB | 2 cases
+50 | validWordAbbreviation | mcdc | 83.33% | 13.43ms | 188.91MB | 5 cases
+80 | longestPalindrome | mcdc | 66.67% | 27.62ms | 154.45MB | 2 cases
+52 | characterReplacement | mcdc | 50.00% | 2.68ms | 137.86MB | 3 cases
+76 | findLUSlength | mcdc | 50.00% | 0.53ms | 146.13MB | 1 cases
+3 | findLUSlength | mcdc | 87.50% | 22.69ms | 160.12MB | 1 cases
+4 | check | mcdc | 100.00% | 5.74ms | 185.23MB | 3 cases
+30 | checkRecord | mcdc | 50.00% | 1.25ms | 188.77MB | 2 cases
+16 | countSubstrings | mcdc | 75.00% | 10.57ms | 137.72MB | 1 cases
+18 | findSubstringInWraproundString | mcdc | 83.33% | 15.00ms | 128.15MB | 2 cases
+72 | repeatedStringMatch | mcdc | 50.00% | 0.91ms | 128.84MB | 1 cases
+46 | countBinarySubstrings | mcdc | 100.00% | 5.45ms | 127.07MB | 1 cases
+26 | scoreOfParentheses | mcdc | 66.67% | 2.48ms | 131.48MB | 3 cases
+58 | match | mcdc | 75.00% | 5.10ms | 127.54MB | 1 cases
+10 | numPermsDISequence | mcdc | 70.00% | 25.10ms | 204.41MB | 2 cases
+24 | isLongPressedName | mcdc | 90.00% | 9.56ms | 153.18MB | 3 cases
+36 | minFlipsMonoIncr | mcdc | 100.00% | 6.79ms | 125.01MB | 2 cases
+
+========================================
+Start Time             : 2026-07-16T13:16:28.491523
+========================================
+12 | firstUniqChar | mcdc | 50.00% | 2.42ms | 115.39MB | 2 cases
+78 | findTheDifference | mcdc | 50.00% | 33.16ms | 134.29MB | 3 cases
+56 | isSubsequence | mcdc | 100.00% | 5.26ms | 150.43MB | 3 cases
+70 | toHex | mcdc | 83.33% | 2.01ms | 159.27MB | 2 cases
+50 | validWordAbbreviation | mcdc | 83.33% | 13.29ms | 168.65MB | 5 cases
+80 | longestPalindrome | mcdc | 66.67% | 27.09ms | 178.26MB | 2 cases
+52 | characterReplacement | mcdc | 50.00% | 2.53ms | 179.46MB | 3 cases
+76 | findLUSlength | mcdc | 50.00% | 0.48ms | 179.28MB | 1 cases
+3 | findLUSlength | mcdc | 87.50% | 21.31ms | 175.32MB | 1 cases
+4 | check | mcdc | 100.00% | 6.29ms | 173.54MB | 3 cases
+30 | checkRecord | mcdc | 50.00% | 2.67ms | 174.38MB | 2 cases
+16 | countSubstrings | mcdc | 75.00% | 143.53ms | 173.85MB | 1 cases
+18 | findSubstringInWraproundString | mcdc | 83.33% | 24.41ms | 170.58MB | 2 cases
+72 | repeatedStringMatch | mcdc | 50.00% | 0.97ms | 170.10MB | 1 cases
+46 | countBinarySubstrings | mcdc | 100.00% | 12.33ms | 185.65MB | 1 cases
+26 | scoreOfParentheses | mcdc | 66.67% | 2.52ms | 186.18MB | 3 cases
+58 | match | mcdc | 75.00% | 9.69ms | 185.88MB | 1 cases
+10 | numPermsDISequence | mcdc | 70.00% | 42.99ms | 142.99MB | 2 cases
+24 | isLongPressedName | mcdc | 90.00% | 21.90ms | 193.09MB | 3 cases
+36 | minFlipsMonoIncr | mcdc | 100.00% | 6.91ms | 195.48MB | 2 cases

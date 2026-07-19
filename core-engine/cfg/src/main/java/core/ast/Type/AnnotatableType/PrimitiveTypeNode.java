@@ -1,5 +1,6 @@
 package core.ast.Type.AnnotatableType;
 
+import core.ast.Expression.ExpressionNode;
 import core.ast.Expression.Literal.BooleanLiteralNode;
 import core.ast.Expression.Literal.CharacterLiteralNode;
 import core.ast.Expression.Literal.NumberLiteral.DoubleLiteralNode;
@@ -9,6 +10,11 @@ import org.eclipse.jdt.core.dom.PrimitiveType;
 
 public class PrimitiveTypeNode extends AnnotatableTypeNode {
     private PrimitiveType.Code typeCode;
+
+    public PrimitiveTypeNode() {}
+    public PrimitiveTypeNode(PrimitiveType primitiveType) {
+        typeCode = primitiveType.getPrimitiveTypeCode();
+    }
 
     public PrimitiveType.Code getTypeCode() {
         return typeCode;

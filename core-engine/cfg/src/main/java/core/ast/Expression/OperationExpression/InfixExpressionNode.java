@@ -119,7 +119,7 @@ public class InfixExpressionNode extends OperationExpressionNode {
             }
         }
 
-        if (Z3LeftOperand instanceof BitVecExpr || Z3RightOperand instanceof BitVecExpr) {
+        if (Z3LeftOperand instanceof BitVecExpr && Z3RightOperand instanceof BitVecExpr) {
             //Xử lý phép toán BitVec
             boolean isShift = operator.equals(InfixExpression.Operator.LEFT_SHIFT)
                     || operator.equals(InfixExpression.Operator.RIGHT_SHIFT_SIGNED)
@@ -135,45 +135,171 @@ public class InfixExpressionNode extends OperationExpressionNode {
                 Z3LeftOperand = fixBvWidth(ctx, (BitVecExpr) Z3LeftOperand, max, true);
                 Z3RightOperand = fixBvWidth(ctx, (BitVecExpr) Z3RightOperand, max, true);
             }
+
+            if (operator.equals(InfixExpression.Operator.PLUS)) {
+                return ctx.mkBVAdd(Z3LeftOperand, Z3RightOperand);
+            } else if (operator.equals(InfixExpression.Operator.MINUS)) {
+                return ctx.mkBVSub(Z3LeftOperand, Z3RightOperand);
+            } else if (operator.equals(InfixExpression.Operator.TIMES)) {
+                return ctx.mkBVMul(Z3LeftOperand, Z3RightOperand);
+            } else if (operator.equals(InfixExpression.Operator.DIVIDE)) {
+                return ctx.mkBVSDiv(Z3LeftOperand, Z3RightOperand);
+            } else if (operator.equals(InfixExpression.Operator.REMAINDER)) {
+                return ctx.mkBVSRem(Z3LeftOperand, Z3RightOperand);
+            } else if (operator.equals(InfixExpression.Operator.LESS)) {
+                return ctx.mkBVSLT(Z3LeftOperand, Z3RightOperand);
+            } else if (operator.equals(InfixExpression.Operator.GREATER)) {
+                return ctx.mkBVSGT(Z3LeftOperand, Z3RightOperand);
+            } else if (operator.equals(InfixExpression.Operator.LESS_EQUALS)) {
+                return ctx.mkBVSLE(Z3LeftOperand, Z3RightOperand);
+            } else if (operator.equals(InfixExpression.Operator.GREATER_EQUALS)) {
+                return ctx.mkBVSGE(Z3LeftOperand, Z3RightOperand);
+            } else if (operator.equals(InfixExpression.Operator.EQUALS)) {
+                return ctx.mkEq(Z3LeftOperand, Z3RightOperand);
+            } else if (operator.equals(InfixExpression.Operator.NOT_EQUALS)) {
+                return ctx.mkDistinct(Z3LeftOperand, Z3RightOperand);
+            } else if (operator.equals(InfixExpression.Operator.AND)) {
+                return ctx.mkBVAND((BitVecExpr) Z3LeftOperand, (BitVecExpr) Z3RightOperand);
+            } else if (operator.equals(InfixExpression.Operator.OR)) {
+                return ctx.mkBVOR((BitVecExpr) Z3LeftOperand, (BitVecExpr) Z3RightOperand);
+            } else if (operator.equals(InfixExpression.Operator.XOR)) {
+                return ctx.mkBVXOR((BitVecExpr) Z3LeftOperand, (BitVecExpr) Z3RightOperand);
+            } else if (operator.equals(InfixExpression.Operator.LEFT_SHIFT)) {
+                return ctx.mkBVSHL((BitVecExpr) Z3LeftOperand, (BitVecExpr) Z3RightOperand);
+            } else if (operator.equals(InfixExpression.Operator.RIGHT_SHIFT_SIGNED)) {
+                return ctx.mkBVASHR((BitVecExpr) Z3LeftOperand, (BitVecExpr) Z3RightOperand);
+            } else if (operator.equals(InfixExpression.Operator.RIGHT_SHIFT_UNSIGNED)) {
+                return ctx.mkBVLSHR((BitVecExpr) Z3LeftOperand, (BitVecExpr) Z3RightOperand);
+            } else {
+                throw new RuntimeException("Invalid operator for bit-vectors: " + operator);
+            }
         }
 
-        if (operator.equals(InfixExpression.Operator.PLUS)) {
-            return ctx.mkBVAdd(Z3LeftOperand, Z3RightOperand);
-        } else if (operator.equals(InfixExpression.Operator.MINUS)) {
-            return ctx.mkBVSub(Z3LeftOperand, Z3RightOperand);
-        } else if (operator.equals(InfixExpression.Operator.TIMES)) {
-            return ctx.mkBVMul(Z3LeftOperand, Z3RightOperand);
-        } else if (operator.equals(InfixExpression.Operator.DIVIDE)) {
-            return ctx.mkBVSDiv(Z3LeftOperand, Z3RightOperand);
-        } else if (operator.equals(InfixExpression.Operator.REMAINDER)) {
-            return ctx.mkBVSRem(Z3LeftOperand, Z3RightOperand);
-        } else if (operator.equals(InfixExpression.Operator.LESS)) {
-            return ctx.mkBVSLT(Z3LeftOperand, Z3RightOperand);
-        } else if (operator.equals(InfixExpression.Operator.GREATER)) {
-            return ctx.mkBVSGT(Z3LeftOperand, Z3RightOperand);
-        } else if (operator.equals(InfixExpression.Operator.LESS_EQUALS)) {
-            return ctx.mkBVSLE(Z3LeftOperand, Z3RightOperand);
-        } else if (operator.equals(InfixExpression.Operator.GREATER_EQUALS)) {
-            return ctx.mkBVSGE(Z3LeftOperand, Z3RightOperand);
-        } else if (operator.equals(InfixExpression.Operator.EQUALS)) {
-            return ctx.mkEq(Z3LeftOperand, Z3RightOperand);
-        } else if (operator.equals(InfixExpression.Operator.NOT_EQUALS)) {
-            return ctx.mkDistinct(Z3LeftOperand, Z3RightOperand);
-        } else if (operator.equals(InfixExpression.Operator.AND)) {
-            return ctx.mkBVAND((BitVecExpr) Z3LeftOperand, (BitVecExpr) Z3RightOperand);
-        } else if (operator.equals(InfixExpression.Operator.OR)) {
-            return ctx.mkBVOR((BitVecExpr) Z3LeftOperand, (BitVecExpr) Z3RightOperand);
-        } else if (operator.equals(InfixExpression.Operator.XOR)) {
-            return ctx.mkBVXOR((BitVecExpr) Z3LeftOperand, (BitVecExpr) Z3RightOperand);
-        } else if (operator.equals(InfixExpression.Operator.LEFT_SHIFT)) {
-            return ctx.mkBVSHL((BitVecExpr) Z3LeftOperand, (BitVecExpr) Z3RightOperand);
-        } else if (operator.equals(InfixExpression.Operator.RIGHT_SHIFT_SIGNED)) {
-            return ctx.mkBVASHR((BitVecExpr) Z3LeftOperand, (BitVecExpr) Z3RightOperand);
-        } else if (operator.equals(InfixExpression.Operator.RIGHT_SHIFT_UNSIGNED)) {
-            return ctx.mkBVLSHR((BitVecExpr) Z3LeftOperand, (BitVecExpr) Z3RightOperand);
-        } else {
-            throw new RuntimeException("Invalid operator for bit-vectors: " + operator);
+        if (Z3LeftOperand instanceof SeqExpr || Z3RightOperand instanceof SeqExpr) {
+
+            boolean leftIsSeq = Z3LeftOperand instanceof SeqExpr;
+            boolean rightIsSeq = Z3RightOperand instanceof SeqExpr;
+
+            if (leftIsSeq && rightIsSeq) {
+                SeqExpr<CharSort> left =
+                        (SeqExpr<CharSort>) Z3LeftOperand.translate(ctx);
+                SeqExpr<CharSort> right =
+                        (SeqExpr<CharSort>) Z3RightOperand.translate(ctx);
+
+                if (operator.equals(InfixExpression.Operator.PLUS)) {
+                    return ctx.mkConcat(left, right);
+                } else if (operator.equals(InfixExpression.Operator.MINUS)) {
+                    return ctx.mkSub(
+                            ctx.charToInt(ctx.mkNth(left, ctx.mkInt(0))),
+                            ctx.charToInt(ctx.mkNth(right, ctx.mkInt(0)))
+                    );
+                } else if (operator.equals(InfixExpression.Operator.EQUALS)) {
+                    return ctx.mkEq(left, right);
+                } else if (operator.equals(InfixExpression.Operator.NOT_EQUALS)) {
+                    return ctx.mkDistinct(left, right);
+                } else if (operator.equals(InfixExpression.Operator.LESS)) {
+                    return ctx.MkStringLt(left, right);
+                } else if (operator.equals(InfixExpression.Operator.LESS_EQUALS)) {
+                    return ctx.MkStringLe(left, right);
+                } else if (operator.equals(InfixExpression.Operator.GREATER)) {
+                    return ctx.MkStringLt(right, left);
+                } else if (operator.equals(InfixExpression.Operator.GREATER_EQUALS)) {
+                    return ctx.MkStringLe(right, left);
+                }
+
+                throw new RuntimeException("Unsupported operator for String operands: " + operator);
+            }
+
+            IntExpr left = toJavaNumericInt(ctx, Z3LeftOperand);
+            IntExpr right = toJavaNumericInt(ctx, Z3RightOperand);
+
+            if (operator.equals(InfixExpression.Operator.PLUS)) {
+                return ctx.mkAdd(left, right);
+            } else if (operator.equals(InfixExpression.Operator.MINUS)) {
+                return ctx.mkSub(left, right);
+            } else if (operator.equals(InfixExpression.Operator.TIMES)) {
+                return ctx.mkMul(left, right);
+            } else if (operator.equals(InfixExpression.Operator.DIVIDE)) {
+                return ctx.mkDiv(left, right);
+            } else if (operator.equals(InfixExpression.Operator.REMAINDER)) {
+                return ctx.mkMod(left, right);
+            } else if (operator.equals(InfixExpression.Operator.LESS)) {
+                return ctx.mkLt(left, right);
+            } else if (operator.equals(InfixExpression.Operator.LESS_EQUALS)) {
+                return ctx.mkLe(left, right);
+            } else if (operator.equals(InfixExpression.Operator.GREATER)) {
+                return ctx.mkGt(left, right);
+            } else if (operator.equals(InfixExpression.Operator.GREATER_EQUALS)) {
+                return ctx.mkGe(left, right);
+            } else if (operator.equals(InfixExpression.Operator.EQUALS)) {
+                return ctx.mkEq(left, right);
+            } else if (operator.equals(InfixExpression.Operator.NOT_EQUALS)) {
+                return ctx.mkDistinct(left, right);
+            }
+
+            throw new RuntimeException("Unsupported mixed String/numeric operator: " + operator);
         }
+
+        /*
+        if (operator.equals(InfixExpression.Operator.CONDITIONAL_AND)) {
+            return ctx.mkAnd((BoolExpr) Z3LeftOperand, (BoolExpr) Z3RightOperand);
+        } else if (operator.equals(InfixExpression.Operator.CONDITIONAL_OR)) {
+            return ctx.mkOr((BoolExpr) Z3LeftOperand, (BoolExpr) Z3RightOperand);
+        }
+
+         */
+
+        IntExpr left = toJavaNumericInt(ctx, Z3LeftOperand);
+        IntExpr right = toJavaNumericInt(ctx, Z3RightOperand);
+
+        if (operator.equals(InfixExpression.Operator.PLUS)) {
+            return ctx.mkAdd(left, right);
+        } else if (operator.equals(InfixExpression.Operator.MINUS)) {
+            return ctx.mkSub(left, right);
+        } else if (operator.equals(InfixExpression.Operator.TIMES)) {
+            return ctx.mkMul(left, right);
+        } else if (operator.equals(InfixExpression.Operator.DIVIDE)) {
+            return ctx.mkDiv(left, right);
+        } else if (operator.equals(InfixExpression.Operator.REMAINDER)) {
+            return ctx.mkMod(left, right);
+        } else if (operator.equals(InfixExpression.Operator.EQUALS)) {
+            return ctx.mkEq(left, right);
+        } else if (operator.equals(InfixExpression.Operator.NOT_EQUALS)) {
+            return ctx.mkDistinct(left, right);
+        } else if (operator.equals(InfixExpression.Operator.LESS)) {
+            return ctx.mkLt(left, right);
+        } else if (operator.equals(InfixExpression.Operator.GREATER)) {
+            return ctx.mkGt(left, right);
+        } else if (operator.equals(InfixExpression.Operator.LESS_EQUALS)) {
+            return ctx.mkLe(left, right);
+        } else if (operator.equals(InfixExpression.Operator.GREATER_EQUALS)) {
+            return ctx.mkGe(left, right);
+        }
+
+        throw new RuntimeException("Invalid operator for integer operands: " + operator);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static IntExpr toJavaNumericInt(Context ctx, Expr expr) {
+        Expr translated = expr.translate(ctx);
+
+        if (translated instanceof IntExpr) {
+            return (IntExpr) translated;
+        }
+
+        if (translated instanceof SeqExpr) {
+            SeqExpr<CharSort> seq = (SeqExpr<CharSort>) translated;
+            Expr<CharSort> ch = ctx.mkNth(seq, ctx.mkInt(0));
+            return ctx.charToInt(ch);
+        }
+
+        if (translated.getSort().equals(ctx.mkCharSort())) {
+            return ctx.charToInt((Expr<CharSort>) translated);
+        }
+
+        throw new RuntimeException(
+                "Cannot promote expression to Java int: " + translated + " sort=" + translated.getSort()
+        );
     }
 
     public static ExpressionNode executeInfixExpression(InfixExpression infixExpression, MemoryModel memoryModel) {
@@ -202,6 +328,10 @@ public class InfixExpressionNode extends OperationExpressionNode {
         InfixExpression.Operator operator = infixExpressionNode.operator;
         List<AstNode> extendedOperands = infixExpressionNode.extendedOperands;
 
+        if (leftOperand == null ||  rightOperand == null) {
+            System.err.println("Invalid infix expression node: " + infixExpressionNode);
+        }
+
         if (leftOperand.isLiteralNode() && rightOperand.isLiteralNode()) {
             LiteralNode literalResult = LiteralNode.analyzeTwoInfixLiteral((LiteralNode) leftOperand, operator, (LiteralNode) rightOperand);
 
@@ -229,7 +359,7 @@ public class InfixExpressionNode extends OperationExpressionNode {
                 newNode.setLeftOperand(leftOperand);
             }
 
-            if (!rightOperand.isLiteralNode()) {
+            if (!rightOperand.isLiteralNode()|| rightOperand == null) {
                 ExpressionNode tmp = OperationExpressionNode.executeOperandNode(rightOperand, memoryModel);
                 newNode.setRightOperand(tmp != null ? tmp : rightOperand);
             } else {
@@ -252,6 +382,7 @@ public class InfixExpressionNode extends OperationExpressionNode {
 
             return newNode;
         }
+
 //        if (leftOperand.isLiteralNode() && rightOperand.isLiteralNode()) {
 //            LiteralNode literalResult = LiteralNode.analyzeTwoInfixLiteral((LiteralNode) leftOperand, operator, (LiteralNode) rightOperand);
 //
@@ -287,6 +418,25 @@ public class InfixExpressionNode extends OperationExpressionNode {
 //            }
 //        }
 //        return infixExpressionNode;
+    }
+
+    private static IntExpr charSeqToInt(Context ctx, SeqExpr charSeq) {
+        Expr charElem = ctx.mkNth(charSeq, ctx.mkInt(0));
+        return ctx.charToInt((Expr<CharSort>) charElem);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static IntExpr toIntExpr(Context ctx, Expr<?> e) {
+        if (e instanceof SeqExpr) {
+            // SeqExpr<CharSort> → lấy char thứ 0 → int
+            Expr charElem = ctx.mkNth((SeqExpr) e, ctx.mkInt(0));
+            return ctx.charToInt((Expr<CharSort>) charElem);
+        } else if (e.getSort() instanceof IntSort) {
+            return (IntExpr) e;
+        } else if (e.getSort() instanceof BitVecSort) {
+            return ctx.mkBV2Int((Expr<BitVecSort>) e, false);
+        }
+        throw new RuntimeException("Cannot convert to IntExpr: " + e.getSort());
     }
 
     public static boolean isBitwiseOperator(InfixExpression.Operator operator) {
@@ -394,18 +544,33 @@ public class InfixExpressionNode extends OperationExpressionNode {
     // Convert Expr (BitVec hoặc FP) sang FPExpr với sort mong muốn
     private static FPExpr coerceToFP(Context ctx, Expr e, FPSort target, FPRMExpr rm) {
         if (e instanceof FPExpr) {
-            FPSort s = (FPSort) e.getSort();
-            if (s.getEBits() == target.getEBits() && s.getSBits() == target.getSBits()) {
-                return (FPExpr) e;
+            FPExpr fp = (FPExpr) e;
+            FPSort s = (FPSort) fp.getSort();
+
+            if (s.getEBits() == target.getEBits()
+                    && s.getSBits() == target.getSBits()) {
+                return fp;
             }
-            // FP32 -> FP64 (hoặc ngược lại nếu bạn rất muốn, nhưng Java chỉ nâng lên)
-            return ctx.mkFPToFP(rm, (FPExpr) e, target);
+
+            return ctx.mkFPToFP(rm, fp, target);
         }
+
         if (e instanceof BitVecExpr) {
-            // BV (int/long) -> FP theo 2's complement signed, giống cast Java
-            return ctx.mkFPToFP(rm, (BitVecExpr) e, target, true); // signed=true
+            BitVecExpr bv = (BitVecExpr) e;
+            return ctx.mkFPToFP(rm, bv, target, true);
         }
-        throw new IllegalArgumentException("Cannot coerce non-numeric expr " + e);
+
+        if (e instanceof IntExpr) {
+            RealExpr real = ctx.mkInt2Real((IntExpr) e);
+            return ctx.mkFPToFP(rm, real, target);
+        }
+
+        if (e instanceof RealExpr) {
+            return ctx.mkFPToFP(rm, (RealExpr) e, target);
+        }
+
+        throw new IllegalArgumentException(
+                "Cannot coerce non-numeric expr " + e + " sort=" + e.getSort());
     }
 
     private static BitVecExpr fixBvWidth(Context ctx, BitVecExpr e, int targetSz, boolean signExt) {
@@ -414,6 +579,17 @@ public class InfixExpressionNode extends OperationExpressionNode {
         return curSz < targetSz
                 ? (signExt ? ctx.mkSignExt(targetSz - curSz, e) : ctx.mkZeroExt(targetSz - curSz, e))
                 : ctx.mkExtract(targetSz - 1, 0, e); // Cắt bớt nếu thừa
+    }
+
+    private static IntExpr coerceToInt(Context ctx, Expr e) {
+        if (e instanceof IntExpr) {
+            return (IntExpr) e;
+        }
+        if (e instanceof BitVecExpr) {
+            // BV (int/long) -> Int (mathematical integer)
+            return ctx.mkBV2Int((BitVecExpr) e, true); // signed=true
+        }
+        throw new IllegalArgumentException("Cannot coerce non-numeric expr to Int: " + e);
     }
 
     @Override

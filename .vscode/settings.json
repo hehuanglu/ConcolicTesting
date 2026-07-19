@@ -1,3 +1,4 @@
 {
-    "java.compile.nullAnalysis.mode": "automatic"
+    "java.compile.nullAnalysis.mode": "automatic",
+    "java.debug.settings.vmArgs": "-Dz3.native.dir=${workspaceFolder}/z3-4.16.0-arm64-osx-15.7.3/bin"
 }

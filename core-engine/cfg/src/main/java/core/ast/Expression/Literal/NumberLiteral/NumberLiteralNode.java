@@ -31,11 +31,21 @@ public abstract class NumberLiteralNode extends LiteralNode {
     }
 
     public static boolean isDoubleValue(String tokenValue) {
-        return tokenValue.contains(".");
+        try {
+            Double.parseDouble(tokenValue);
+            return true;
+        } catch (NumberFormatException e) {
+            return false;
+        }
     }
 
     public static boolean isIntegerValue(String tokenValue) {
-        return !isDoubleValue(tokenValue);
+        try {
+            Integer.parseInt(tokenValue);
+            return true;
+        } catch (NumberFormatException e) {
+            return false;
+        }
     }
 
     public final boolean isIntegerLiteralNode() {
