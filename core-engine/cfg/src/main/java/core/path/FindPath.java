@@ -85,7 +85,6 @@ public class FindPath {
                     else boolNode.trueCounting++;
                 }
             }
-
         } else if (beginNode instanceof CfgForEachExpressionNode) {
             CfgForEachExpressionNode forNode = (CfgForEachExpressionNode) beginNode;
             CfgNode hasElementNode = forNode.getHasElementAfterNode();
