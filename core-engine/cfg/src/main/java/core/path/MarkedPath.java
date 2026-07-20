@@ -363,6 +363,7 @@ public final class MarkedPath {
             if (rootNode instanceof CfgBoolExprNode) {
                 CfgBoolExprNode boolExprNode = (CfgBoolExprNode) rootNode;
 
+<<<<<<< HEAD
                 if (boolExprNode != ConcolicTestingWithStub4Libs.previousUncoveredNode &&
                         !boolExprNode.isTrueMarked() && boolExprNode.getFakeTrueMarked() < 5) {
                     isGoingTrueBranch = true;
@@ -371,6 +372,12 @@ public final class MarkedPath {
                 if (boolExprNode != ConcolicTestingWithStub4Libs.previousUncoveredNode &&
                         !boolExprNode.isFalseMarked() && boolExprNode.getFakeFalseMarked() < 5) {
                     isGoingTrueBranch = false;
+=======
+                if (!boolExprNode.isTrueMarked() && boolExprNode.getFakeTrueMarked() < 5) {
+                    return boolExprNode;
+                }
+                if (!boolExprNode.isFalseMarked() && boolExprNode.getFakeFalseMarked() < 5) {
+>>>>>>> 4719efc0cc44b3e122543b87d7578eb9575b2a7a
                     return boolExprNode;
                 }
 

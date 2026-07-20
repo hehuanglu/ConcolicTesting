@@ -52,6 +52,32 @@ public class StringMethodNode extends MethodInvocationNode {
         this.arguments = arguments;
     }
 
+    public StringMethodNode() {}
+
+    public AstNode getTarget() {
+        return target;
+    }
+
+    public void setTarget(AstNode target) {
+        this.target = target;
+    }
+
+    public String getMethodName() {
+        return methodName;
+    }
+
+    public void setMethodName(String methodName) {
+        this.methodName = methodName;
+    }
+
+    public List<AstNode> getArguments() {
+        return arguments;
+    }
+
+    public void setArguments(List<AstNode> arguments) {
+        this.arguments = arguments;
+    }
+
     public static AstNode executeStringMethod(MethodInvocation methodInvocation, MemoryModel memoryModel) {
         StringMethodNode stringMethodNode = new StringMethodNode();
 
@@ -653,7 +679,11 @@ public class StringMethodNode extends MethodInvocationNode {
             SeqExpr<CharSort> nonEmptyCase =
                     (SeqExpr<CharSort>) ctx.mkITE(keepHead, withHead, recOnTailSeq);
 
+<<<<<<< HEAD
             SeqExpr<CharSort> emptyCase = ctx.mkString("");
+=======
+            SeqExpr<CharSort> emptyCase = ctx.mkEmptySeq(charSort);
+>>>>>>> 4719efc0cc44b3e122543b87d7578eb9575b2a7a
 
             SeqExpr<CharSort> body =
                     (SeqExpr<CharSort>) ctx.mkITE(isEmpty, emptyCase, nonEmptyCase);

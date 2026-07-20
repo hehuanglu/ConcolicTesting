@@ -69,7 +69,11 @@ public class ArrayAccessNode extends ExpressionNode {
         Expr z3ArrayBase = SymbolicExecutionRewrite.z3ArrayStateMap.get().get(arrayName);
 
         if (z3ArrayBase == null) {
+<<<<<<< HEAD
 
+=======
+            Sort rangeSort = ctx.mkBitVecSort(32);
+>>>>>>> 4719efc0cc44b3e122543b87d7578eb9575b2a7a
             Map<String, String> typeMap = SymbolicExecutionRewrite.variableTypeMap;
 
             Sort rangeSort = ctx.getIntSort();   // mặc định

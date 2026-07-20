@@ -197,8 +197,11 @@ public class MathMethodNode extends MethodInvocationNode {
                 return handleMathSignum(node, memoryModel, ctx, vars);
             case "copySign":
                 return handleMathCopySign(node, memoryModel, ctx, vars);
+<<<<<<< HEAD
             case "sqrt":
                 return handleMathSqrt(node, memoryModel, ctx, vars);
+=======
+>>>>>>> 4719efc0cc44b3e122543b87d7578eb9575b2a7a
             default:
                 throw new RuntimeException("Unsupported Math method for Z3: " + node.methodName);
         }
@@ -308,6 +311,7 @@ public class MathMethodNode extends MethodInvocationNode {
                 ctx.mkUnaryMinus(absMag), absMag);
     }
 
+<<<<<<< HEAD
     private static Expr handleMathSqrt(MathMethodNode node,
                                        MemoryModel memoryModel,
                                        Context ctx,
@@ -324,6 +328,8 @@ public class MathMethodNode extends MethodInvocationNode {
         return ctx.mkApp(sqrt, arg);
     }
 
+=======
+>>>>>>> 4719efc0cc44b3e122543b87d7578eb9575b2a7a
     public String getClassName() {
         return ownerName;
     }

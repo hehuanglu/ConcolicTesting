@@ -22,6 +22,57 @@ public class ASTHelper {
         PATH
     }
 
+<<<<<<< HEAD
+=======
+    public static CompilationUnit applyDesugaringAndReparse(CompilationUnit cu, String originalSourceCode) {
+        if (cu == null) return null;
+        AST ast = cu.getAST();
+        ASTRewrite rewrite = ASTRewrite.create(ast);
+
+        cu.accept(new ASTVisitor() {
+            @Override
+            public boolean visit(ReturnStatement node) {
+                ASTNode result = convertTernaryToIf(node);
+                if (result != node) {
+                    rewrite.replace(node, result, null);
+                }
+                return super.visit(node);
+            }
+
+            @Override
+            public boolean visit(ExpressionStatement node) {
+                ASTNode result = convertTernaryToIf(node);
+                if (result != node) {
+                    rewrite.replace(node, result, null);
+                }
+                return super.visit(node);
+            }
+
+            @Override
+            public boolean visit(VariableDeclarationStatement node) {
+                ASTNode result = convertTernaryToIf(node);
+                if (result != node) {
+                    rewrite.replace(node, result, null);
+                }
+                return super.visit(node);
+            }
+        });
+
+        try {
+            IDocument document = new Document(originalSourceCode);
+            TextEdit edits = rewrite.rewriteAST(document, JavaCore.getOptions());
+            edits.apply(document);
+            String newSource = document.get();
+
+            // Re-parse using the standard parser configuration
+            return parserToCompilationUnit(newSource);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return cu;
+        }
+    }
+
+>>>>>>> 4719efc0cc44b3e122543b87d7578eb9575b2a7a
     private static CompilationUnit parserToCompilationUnit(String sourceCode) {
         ASTParser parser = ASTParser.newParser(AST.JLS8);
         parser.setSource(sourceCode.toCharArray());
@@ -315,7 +366,131 @@ public class ASTHelper {
         // Nếu không phải 3 trường hợp trên, trả về nguyên gốc
         return statement;
     }
+    public static ForStatement convertForEachToFor(AST ast, EnhancedForStatement forEachStmt) {
+        // Khởi tạo ForStatement rỗng
+        ForStatement forStmt = ast.newForStatement();
 
+<<<<<<< HEAD
+=======
+        // Lấy thông tin từ for-each
+        SingleVariableDeclaration param = forEachStmt.getParameter();
+        Type elementType = param.getType();            // Kiểu dữ liệu (VD: String)
+        SimpleName elementName = param.getName();      // Tên biến (VD: element)
+        Expression Expr = forEachStmt.getExpression(); // Biểu thức lặp (VD: list)
+
+        String indexVarName = "index_" + elementName.toString(); // Biến chạy index
+
+        // 1. Phân tích Type Binding để xác định kiểu dữ liệu
+        boolean isArray = false;
+        boolean isCollection = false;
+
+        ITypeBinding binding = Expr.resolveTypeBinding();
+        if (binding != null) {
+            if (binding.isArray()) {
+                isArray = true;
+            } else if (isCollectionType(binding.getErasure())) {
+                isCollection = true;
+            }
+        }
+
+        // 2. Khởi tạo (Init): int i = 0;
+        VariableDeclarationFragment initFrag = ast.newVariableDeclarationFragment();
+        initFrag.setName(ast.newSimpleName(indexVarName));
+        initFrag.setInitializer(ast.newNumberLiteral("0"));
+
+        VariableDeclarationExpression initExpr = ast.newVariableDeclarationExpression(initFrag);
+        initExpr.setType(ast.newPrimitiveType(PrimitiveType.INT));
+        forStmt.initializers().add(initExpr);
+
+        // 3. Điều kiện (Condition): i < list.length hoặc i < list.size()
+        InfixExpression condition = ast.newInfixExpression();
+        condition.setLeftOperand(ast.newSimpleName(indexVarName));
+        condition.setOperator(InfixExpression.Operator.LESS);
+
+        Expression rightOperandBound = null;
+
+        if (isArray) {
+            // list.length
+            FieldAccess lengthAccess = ast.newFieldAccess();
+            lengthAccess.setExpression((Expression) ASTNode.copySubtree(ast, Expr));
+            lengthAccess.setName(ast.newSimpleName("length"));
+            rightOperandBound = lengthAccess;
+        } else if (isCollection) {
+            // list.size()
+            MethodInvocation sizeInvocation = ast.newMethodInvocation();
+            sizeInvocation.setExpression((Expression) ASTNode.copySubtree(ast, Expr));
+            sizeInvocation.setName(ast.newSimpleName("size"));
+            rightOperandBound = sizeInvocation;
+        } else {
+            // Fallback an toàn nếu không resolve được binding, mặc định coi như mảng
+            FieldAccess fallbackAccess = ast.newFieldAccess();
+            fallbackAccess.setExpression((Expression) ASTNode.copySubtree(ast, Expr));
+            fallbackAccess.setName(ast.newSimpleName("length"));
+            rightOperandBound = fallbackAccess;
+        }
+
+        condition.setRightOperand(rightOperandBound);
+        forStmt.setExpression(condition);
+
+        // 4. Bước nhảy (Update): i++
+        PostfixExpression update = ast.newPostfixExpression();
+        update.setOperand(ast.newSimpleName(indexVarName));
+        update.setOperator(PostfixExpression.Operator.INCREMENT);
+        forStmt.updaters().add(update);
+
+        // 5. Khối lệnh bên trong (Body)
+        Block newBody = ast.newBlock();
+
+        // 5.1 Tạo dòng gán: Type element = list[i] hoặc Type element = list.get(i)
+        VariableDeclarationFragment elementFrag = ast.newVariableDeclarationFragment();
+        elementFrag.setName((SimpleName) ASTNode.copySubtree(ast, elementName));
+
+        Expression elementAccessExpr = null;
+
+        if (isArray) {
+            // list[i]
+            ArrayAccess arrayAccess = ast.newArrayAccess();
+            arrayAccess.setArray((Expression) ASTNode.copySubtree(ast, Expr));
+            arrayAccess.setIndex(ast.newSimpleName(indexVarName));
+            elementAccessExpr = arrayAccess;
+        } else if (isCollection) {
+            // list.get(i)
+            MethodInvocation getInvocation = ast.newMethodInvocation();
+            getInvocation.setExpression((Expression) ASTNode.copySubtree(ast, Expr));
+            getInvocation.setName(ast.newSimpleName("get"));
+            getInvocation.arguments().add(ast.newSimpleName(indexVarName));
+            elementAccessExpr = getInvocation;
+        } else {
+            // Fallback mặc định
+            ArrayAccess fallbackAccess = ast.newArrayAccess();
+            fallbackAccess.setArray((Expression) ASTNode.copySubtree(ast, Expr));
+            fallbackAccess.setIndex(ast.newSimpleName(indexVarName));
+            elementAccessExpr = fallbackAccess;
+        }
+
+        elementFrag.setInitializer(elementAccessExpr);
+
+        VariableDeclarationStatement elementDecl = ast.newVariableDeclarationStatement(elementFrag);
+        elementDecl.setType((Type) ASTNode.copySubtree(ast, elementType));
+        newBody.statements().add(elementDecl);
+
+        // 5.2 Copy lại toàn bộ code cũ bên trong vòng lặp for-each đưa vào đây
+        Statement originalBody = forEachStmt.getBody();
+        if (originalBody instanceof Block) {
+            Block origBlock = (Block) originalBody;
+            for (Object stmt : origBlock.statements()) {
+                newBody.statements().add(ASTNode.copySubtree(ast, (ASTNode) stmt));
+            }
+        } else {
+            // Trường hợp for-each không có ngoặc nhọn { }
+            newBody.statements().add(ASTNode.copySubtree(ast, originalBody));
+        }
+
+        forStmt.setBody(newBody);
+
+        return forStmt;
+    }
+>>>>>>> 4719efc0cc44b3e122543b87d7578eb9575b2a7a
     // Hàm đệ quy kiểm tra Collection
     private static boolean isCollectionType(ITypeBinding binding) {
         if (binding == null) return false;
@@ -363,7 +538,11 @@ public class ASTHelper {
 //        2. Tạo khối Then
         Block thenBlock = ast.newBlock();
         Assignment thenAssign = ast.newAssignment();
+<<<<<<< HEAD
         thenAssign.setLeftHandSide(createLeftHandSide(ast, varName));
+=======
+        thenAssign.setLeftHandSide(ast.newSimpleName(varName));
+>>>>>>> 4719efc0cc44b3e122543b87d7578eb9575b2a7a
         thenAssign.setRightHandSide(ast.newBooleanLiteral(true));
         ExpressionStatement thenStmt = ast.newExpressionStatement(thenAssign);
         thenBlock.statements().add(thenStmt);
@@ -372,7 +551,11 @@ public class ASTHelper {
         // 3. Tạo khối else
         Block elseBlock = ast.newBlock();
         Assignment elseAssign = ast.newAssignment();
+<<<<<<< HEAD
         elseAssign.setLeftHandSide(createLeftHandSide(ast, varName));
+=======
+        elseAssign.setLeftHandSide(ast.newSimpleName(varName));
+>>>>>>> 4719efc0cc44b3e122543b87d7578eb9575b2a7a
         elseAssign.setRightHandSide(ast.newBooleanLiteral(false));
         ExpressionStatement elseStmt = ast.newExpressionStatement(elseAssign);
         elseBlock.statements().add(elseStmt);
@@ -381,6 +564,7 @@ public class ASTHelper {
 
         return ifStmt;
     }
+<<<<<<< HEAD
 
     private static Expression createLeftHandSide(AST ast, String varName) {
         if (varName.contains("[") && varName.endsWith("]")) {
@@ -400,6 +584,8 @@ public class ASTHelper {
         return ast.newSimpleName(varName);
     }
 
+=======
+>>>>>>> 4719efc0cc44b3e122543b87d7578eb9575b2a7a
     // Hàm tạo câu lệnh Gán (x = y;)
     private static Statement createAssignment(AST ast, Expression leftHandSide, Expression rightHandSide) {
         Assignment assignment = ast.newAssignment();
@@ -491,6 +677,7 @@ public class ASTHelper {
         CfgNode currentNode;
 
         if (statement instanceof EnhancedForStatement) {
+<<<<<<< HEAD
 
             CfgEnhancedForStatementBlockNode cfgNode =
                     new CfgEnhancedForStatementBlockNode();
@@ -505,6 +692,9 @@ public class ASTHelper {
                     compilationUnit,
                     firstLine,
                     coverage);
+=======
+            statement = convertForEachToFor(statement.getAST(), (EnhancedForStatement) statement);
+>>>>>>> 4719efc0cc44b3e122543b87d7578eb9575b2a7a
         }
 
         if (statement instanceof SwitchStatement) {

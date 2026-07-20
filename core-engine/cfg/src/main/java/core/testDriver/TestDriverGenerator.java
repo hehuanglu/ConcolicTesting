@@ -109,10 +109,13 @@ public final class TestDriverGenerator {
 
         // Bắt đầu khối kiểm thử cô lập
         // result.append("try {\n");
+<<<<<<< HEAD
 
         boolean isVoidReturn = method.getReturnType2() != null
                 && method.getReturnType2().isPrimitiveType()
                 && ((PrimitiveType) method.getReturnType2()).getPrimitiveTypeCode() == PrimitiveType.VOID;
+=======
+>>>>>>> 4719efc0cc44b3e122543b87d7578eb9575b2a7a
 
         List<ASTNode> modifiers = method.modifiers();
         boolean isStatic = false;
@@ -177,6 +180,7 @@ public final class TestDriverGenerator {
 
         // Gọi phương thức mục tiêu với bộ tham số thực từ Z3.
         result.append("    try {\n");
+<<<<<<< HEAD
         if (isVoidReturn) {
             // Void method: không gán "output = ...", chỉ gọi trực tiếp
             result.append("    ");
@@ -185,6 +189,10 @@ public final class TestDriverGenerator {
             } else {
                 result.append("new ").append(simpleClassName).append("().");
             }
+=======
+        if (isStatic) {
+            result.append("    output = ").append(simpleClassName).append(".");
+>>>>>>> 4719efc0cc44b3e122543b87d7578eb9575b2a7a
         } else {
             result.append("    output = ");
             if (isStatic) {
@@ -231,6 +239,13 @@ public final class TestDriverGenerator {
             result.append("}\n");
         }
 
+<<<<<<< HEAD
+=======
+        result.append("    } catch (Throwable e) {\n");
+        result.append("        output = e;\n");
+        result.append("    }\n");
+
+>>>>>>> 4719efc0cc44b3e122543b87d7578eb9575b2a7a
         result.append("long endRunTestTime = System.nanoTime();\n");
         result.append("double runTestDuration = (endRunTestTime - startRunTestTime) / 1000000.0;\n");
 

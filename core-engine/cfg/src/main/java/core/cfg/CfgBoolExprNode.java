@@ -15,9 +15,12 @@ public class CfgBoolExprNode extends CfgNode implements IEvaluateCoverage
     private int isFakeTrueMarked = 0;
     private int isFakeFalseMarked = 0;
 
+<<<<<<< HEAD
     public int trueCounting = 0;
     public int falseCounting = 0;
 
+=======
+>>>>>>> 4719efc0cc44b3e122543b87d7578eb9575b2a7a
     private int depth = 0;
 
     @Override

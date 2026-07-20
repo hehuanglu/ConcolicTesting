@@ -138,8 +138,11 @@ public class FullTestingService {
                     }
                 }
 
+<<<<<<< HEAD
                 //unitTesting(nameProject, "statement", id);
                 //unitTesting(nameProject, "branch", id);
+=======
+>>>>>>> 4719efc0cc44b3e122543b87d7578eb9575b2a7a
                 unitTesting(nameProject, "mcdc", id);
 
                 try {

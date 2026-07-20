@@ -39,7 +39,81 @@ public class AssignmentNode extends ExpressionNode {
         ExpressionNode assignValue = analyzeAssignValue(assignmentNode.leftHandSide, assignmentNode.rightHandSide, assignmentNode.operator);
         Expression leftHandSide = assignment.getLeftHandSide();
 
+<<<<<<< HEAD
         writeAssignedValue(leftHandSide, assignValue, memoryModel);
+=======
+        if (leftHandSide instanceof Name) {
+            String key = NameNode.getStringName((Name) leftHandSide);
+            memoryModel.assignVariable(key, assignValue);
+        } else if (leftHandSide instanceof ArrayAccess) {
+            ArrayAccess arrayAccess = (ArrayAccess) leftHandSide;
+
+            // 1. Index "luộc chín" (Dành riêng cho việc lưu RAM)
+            ExpressionNode cookedArrayIndex = (ExpressionNode) AstNode.executeASTNode(arrayAccess.getIndex(), memoryModel);
+
+            // Chỉ gán vào RAM nếu Index là số cụ thể.
+            if (cookedArrayIndex instanceof LiteralNode) {
+                int index = LiteralNode.changeLiteralNodeToInteger((LiteralNode) cookedArrayIndex);
+                Expression arrayExpression = arrayAccess.getArray();
+                ArrayNode arrayNode;
+                if (arrayExpression instanceof ArrayAccess) {
+                    arrayNode = (ArrayNode) ArrayAccessNode.executeArrayAccessNode((ArrayAccess) arrayExpression, memoryModel);
+                } else if (arrayExpression instanceof Name) {
+                    String name = NameNode.getStringName((Name) arrayExpression);
+                    arrayNode = (ArrayNode) memoryModel.getValue(name);
+                } else {
+                    throw new RuntimeException("Can't execute ArrayAccess");
+                }
+                arrayNode.assignElements(index, assignValue);
+            } else {
+                System.out.println("Bỏ qua gán RAM do Index là symbolic");
+            }
+
+            try {
+                String arrayName = arrayAccess.getArray().toString();
+
+                Context ctx = core.symbolicExecution.SymbolicExecutionRewrite.globalCtx.get();
+                List<Z3VariableWrapper> vars = core.symbolicExecution.SymbolicExecutionRewrite.globalZ3Vars.get();
+                Map<String, Expr> stateMap = core.symbolicExecution.SymbolicExecutionRewrite.z3ArrayStateMap.get();
+
+                if (ctx != null && stateMap != null) {
+                    // Lấy mảng cũ
+                    Expr z3OldArray = stateMap.get(arrayName);
+                    if (z3OldArray == null) {
+                        // CMặc định Range là BitVec 32-bit
+                        Sort rangeSort = ctx.mkBitVecSort(32);
+                        Map<String, String> typeMap = SymbolicExecutionRewrite.variableTypeMap;
+
+                        if (typeMap != null && typeMap.get(arrayName) != null) {
+                            String typeStr = typeMap.get(arrayName).toString();
+                            if (typeStr.equals("long")) {
+                                rangeSort = ctx.mkBitVecSort(64);
+                            } else if (typeStr.equals("double")) {
+                                rangeSort = ctx.mkFPSortDouble();
+                            } else if (typeStr.equals("float")) {
+                                rangeSort = ctx.mkFPSortSingle();
+                            }
+                        }
+
+                        z3OldArray = ctx.mkConst(arrayName, ctx.mkArraySort(ctx.mkBitVecSort(32), rangeSort));
+                    }
+
+                    // Dịch Index
+                    Expr z3Index = OperationExpressionNode.createZ3Expression(cookedArrayIndex, ctx, vars, memoryModel);
+
+                    // Dịch Value
+                    Expr z3Value = OperationExpressionNode.createZ3Expression(assignValue, ctx, vars, memoryModel);
+
+                    // Đẻ mảng mới và cập nhật vô sổ tay
+                    Expr z3NewArray = ctx.mkStore((ArrayExpr) z3OldArray, z3Index, z3Value);
+                    stateMap.put(arrayName, z3NewArray);
+                }
+            } catch (Exception e) {
+                System.out.println("   ---> Lỗi Z3 mkStore: " + e.getMessage());
+                e.printStackTrace();
+            }
+        }
+>>>>>>> 4719efc0cc44b3e122543b87d7578eb9575b2a7a
     }
 
     private static ExpressionNode analyzeAssignValue(ExpressionNode variable, ExpressionNode initialValue, Assignment.Operator assignmentOperator) {

@@ -19,13 +19,20 @@ public class CfgNode {
     private boolean isFalseNode = false; //Nut false cua cau lenh dieu kien
     private String content = "";
     private boolean isMarked = false;
+<<<<<<< HEAD
     private int isFakeMarked = 0;
+=======
+    private boolean isFakeMarked = false;
+>>>>>>> 4719efc0cc44b3e122543b87d7578eb9575b2a7a
     private ASTNode ast;
     private CfgNode parent;
     private List<CfgNode> children = new ArrayList<>();
     private Set<String> defVars = new HashSet<>();
     private Set<String> useVars = new HashSet<>();
+<<<<<<< HEAD
     public int counting = 0;
+=======
+>>>>>>> 4719efc0cc44b3e122543b87d7578eb9575b2a7a
 
     public CfgNode(ASTNode ast) {
         this.ast = ast;

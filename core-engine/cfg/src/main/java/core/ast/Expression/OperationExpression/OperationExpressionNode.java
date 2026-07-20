@@ -118,6 +118,7 @@ public abstract class OperationExpressionNode extends ExpressionNode {
             } else if (operand instanceof CharacterLiteralNode) {
                 return ctx.mkString(String.valueOf(((CharacterLiteralNode) operand).getCharacterValue()));
             } else if (operand instanceof NullLiteralNode) {
+<<<<<<< HEAD
                 // kiểm tra xem có đang so sánh với mảng hay không
                 boolean isComparingWithArray = false;
 
@@ -133,6 +134,10 @@ public abstract class OperationExpressionNode extends ExpressionNode {
                 }
 
                  return ctx.mkInt(SymbolicExecutionRewrite.NULL_REF);
+=======
+                //đặt 0 tượng trưng cho null trong bộ giải z3
+                return ctx.mkInt(0);
+>>>>>>> 4719efc0cc44b3e122543b87d7578eb9575b2a7a
             } else if (operand instanceof StringLiteralNode) {
                 return ctx.mkString(((StringLiteralNode) operand).getStringValue());
             } else {
@@ -226,6 +231,11 @@ public abstract class OperationExpressionNode extends ExpressionNode {
         } else if (operand instanceof ArrayAccessNode) {
             return operand;
         } else if (operand instanceof SimpleTypeNode) {
+<<<<<<< HEAD
+=======
+            return operand;
+        } else if (operand instanceof LiteralNode) {
+>>>>>>> 4719efc0cc44b3e122543b87d7578eb9575b2a7a
             return operand;
         } else if (operand instanceof LiteralNode) {
             return operand;

@@ -221,6 +221,7 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
             //boolean isTestedSuccessfully = true;
             int count = 0;
 
+<<<<<<< HEAD
             long start = System.currentTimeMillis();
             for (CfgNode uncoveredNode = TestGeneration.findUncoverNode(TestGeneration.cfgBeginNode, coverage);
                  uncoveredNode != null && ++count <= 100;
@@ -279,6 +280,52 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
                     } else {
                         ((CfgBoolExprNode) uncoveredNode).setFakeFalseMarked(true);
                     }
+=======
+            for (CfgNode uncoveredNode = TestGeneration.findUncoverNode(TestGeneration.cfgBeginNode, coverage);
+                 uncoveredNode != null && count < 10;
+                 uncoveredNode = TestGeneration.findUncoverNode(TestGeneration.cfgBeginNode, coverage)) {
+
+                boolean isGoingToTrueBranch = true;
+                if (uncoveredNode instanceof CfgBoolExprNode) {
+                    CfgBoolExprNode boolNode = (CfgBoolExprNode) uncoveredNode;
+                    if (!boolNode.isTrueMarked() && !boolNode.isFakeTrueMarked()) {
+                        isGoingToTrueBranch = true;
+                    } else if (!boolNode.isFalseMarked() && !boolNode.isFakeFalseMarked()) {
+                        isGoingToTrueBranch = false;
+                    }
+                }
+
+                log.info("Cố gắng phủ nhánh còn thiếu tại Node " + (++count) + " : {}"
+                                + " \n -> theo hướng " + isGoingToTrueBranch,
+                        uncoveredNode.getContent().isEmpty() ? uncoveredNode.getParent() : uncoveredNode
+                );
+
+                // Tìm path đến node cha, rồi gắn thêm node con tương ứng
+                CfgNode childNode = isGoingToTrueBranch
+                        ? ((CfgBoolExprNode) uncoveredNode).getTrueNode()
+                        : ((CfgBoolExprNode) uncoveredNode).getFalseNode();
+
+                Path newPath = (new FindPath(
+                        TestGeneration.cfgBeginNode,
+                        uncoveredNode
+                )).getPath();
+                //newPath.addLast(childNode); // gắn thêm node con vào cuối path
+                newPath.addPath(new FindPath(
+                        childNode,
+                        TestGeneration.cfgEndNode
+                ).getPath());
+                //System.out.println("Path: \n" + newPath);
+
+                boolean success = solveAndRunTest(newPath, testResult, coverage, id);
+
+                if (!success) {
+                    childNode.setFakeMarked(true);
+                    if (isGoingToTrueBranch) {
+                        ((CfgBoolExprNode) uncoveredNode).setFakeTrueMarked(true);
+                    } else {
+                        ((CfgBoolExprNode) uncoveredNode).setFakeFalseMarked(true);
+                    }
+>>>>>>> 4719efc0cc44b3e122543b87d7578eb9575b2a7a
                     continue;
                 } else if (uncoveredNode instanceof CfgBoolExprNode) {
                     CfgBoolExprNode boolNode = (CfgBoolExprNode) uncoveredNode;
@@ -290,6 +337,10 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
                     }
                 }
 
+<<<<<<< HEAD
+=======
+                System.out.println("this one " + uncoveredNode.isFakeMarked());
+>>>>>>> 4719efc0cc44b3e122543b87d7578eb9575b2a7a
                 java.nio.file.Path errorPath = java.nio.file.Path.of(
                         "processing-service/unitTesting/data/error.txt");
                 try {
@@ -938,9 +989,92 @@ public class ConcolicTestingWithStub4Libs extends ConcolicTestGeneration {
 
         String inputSign = Arrays.deepToString(evaluatedValues);
 
+<<<<<<< HEAD
         if (isDuplicateInput(testResult, inputSign)) {
             log.debug("Input {} đã tồn tại trong tập dữ liệu. Bỏ qua.", inputSign);
             return false;
+=======
+        Set<String> executedInThisPath = new HashSet<>();
+
+        for (Object[] input : inputCandidates) {
+            String inputSign = Arrays.deepToString(input);
+
+            // Kiểm tra trong lịch sử testResult xem input này đã từng xuất hiện chưa
+            boolean isDuplicateGlobal = false;
+
+            for (TestData oldData : testResult.getFullTestData()) {
+                Object[] oldInput = oldData.getTestDataSet().toArray();
+
+                // Dùng deepToString để so sánh ruột mảng
+                String oldInputSign = Arrays.deepToString(oldInput);
+
+                // Nếu trùng với input chuẩn bị chạy
+                if (oldInputSign.equals(inputSign)) {
+                    isDuplicateGlobal = true;
+                    break;
+                }
+            }
+
+            if (isDuplicateGlobal) {
+                log.debug("Input {} đã tồn tại trong tập dữ liệu. Bỏ qua.", inputSign);
+                // continue;
+                return false;
+            }
+
+            if (executedInThisPath.contains(inputSign)) continue;
+            executedInThisPath.add(inputSign);
+
+            log.info("Chạy TestDriver với bộ Input mới sinh: {}", inputSign);
+
+            TestGeneration.writeDataToFile("", FilePath.concreteExecuteResultPath, false);
+
+            String testDriver = TestDriverGenerator.generateTestDriverNew(
+                    (MethodDeclaration) TestGeneration.testFunc,
+                    input,
+                    TestGeneration.getCoverageType(coverage),
+                    originalFileLocation,
+                    simpleClassName
+            );
+
+            List<MarkedStatement> markedStatements;
+            try {
+                markedStatements = TestDriverRunner.newRunTestDriver(testDriver, originalFileLocation);
+            } catch (RuntimeException e) {
+                if (e.getMessage() != null && e.getMessage().contains("timeout")) {
+                    System.out.println("Infinite loop detected");
+                }
+                return false;
+            }
+
+            MarkedPath.markPathToCFGV2(TestGeneration.cfgBeginNode, markedStatements);
+            //MarkedPath.printCoverageReport(coverage); // new
+
+            List<CoveredStatement> coveredStatements = CoveredStatement.switchToCoveredStatementList(markedStatements);
+
+            boolean hitException = false;
+            for (CoveredStatement stmt : coveredStatements) {
+                if (stmt.getStatementContent().startsWith("EXCEPTION_THROWN")) {
+                    hitException = true;
+                    log.warn("Đụng phải Exception: {}. Chấm dứt Path này, thử đường khác!", stmt.getStatementContent());
+                    break;
+                }
+            }
+            testResult.addToFullTestData(new TestData(
+                    TestGeneration.parameterNames,
+                    TestGeneration.parameterClasses,
+                    input,
+                    coveredStatements,
+                    TestDriverRunner.getOutput(),
+                    TestDriverRunner.getRuntime()
+                    //calculateRequiredCoverage(coverage)
+                    //calculateFunctionCoverage(),
+                    //calculateSourceCodeCoverage()
+            ));
+
+            if (hitException) {
+                return false;
+            }
+>>>>>>> 4719efc0cc44b3e122543b87d7578eb9575b2a7a
         }
 
         log.info("Chạy TestDriver với bộ Input mới sinh: {}", inputSign);

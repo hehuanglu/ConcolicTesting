@@ -57,12 +57,17 @@ public class VariableDeclarationFragmentNode extends VariableDeclarationNode {
                         if (!dimensions.isEmpty()) {
                             Expression firstDimension = (Expression) dimensions.get(0);
 
+<<<<<<< HEAD
+=======
+                            // Móc context Z3 ra
+>>>>>>> 4719efc0cc44b3e122543b87d7578eb9575b2a7a
                             Context ctx = SymbolicExecutionRewrite.globalCtx.get();
                             Map<String, Expr> stateMap = SymbolicExecutionRewrite.z3ArrayStateMap.get();
                             List<Z3VariableWrapper> vars = SymbolicExecutionRewrite.globalZ3Vars.get();
 
                             if (ctx != null && stateMap != null && vars != null) {
 
+<<<<<<< HEAD
                                 String eleType = type.getElementType().toString();
 
                                 Sort domainSort = ctx.getIntSort();
@@ -93,11 +98,29 @@ public class VariableDeclarationFragmentNode extends VariableDeclarationNode {
                                     default:
                                         rangeSort = ctx.getIntSort();
                                         defaultValue = ctx.mkInt(0);
+=======
+                                // Tạo mảng rỗng toàn số 0 trong Z3
+                                Sort domainSort = ctx.mkBitVecSort(32);
+                                String eleType = type.getElementType().toString();
+                                Sort rangeSort = ctx.mkBitVecSort(32); // Mặc định là BitVec32
+                                Expr defaultValue = ctx.mkBV(0, 32);
+
+                                if (eleType.equals("long")) {
+                                    rangeSort = ctx.mkBitVecSort(64);
+                                    defaultValue = ctx.mkBV(0, 64);
+                                } else if (eleType.equals("float")) {
+                                    rangeSort = ctx.mkFPSortSingle();
+                                    defaultValue = ctx.mkFP(0.0f, (FPSort) rangeSort);
+                                } else if (eleType.equals("double")) {
+                                    rangeSort = ctx.mkFPSortDouble();
+                                    defaultValue = ctx.mkFP(0.0, (FPSort) rangeSort);
+>>>>>>> 4719efc0cc44b3e122543b87d7578eb9575b2a7a
                                 }
 
                                 ArrayExpr z3NewArray = ctx.mkConstArray(domainSort, defaultValue);
                                 stateMap.put(name, z3NewArray);
 
+<<<<<<< HEAD
                                 ExpressionNode dimExprNode =
                                         (ExpressionNode) ExpressionNode.executeExpression(firstDimension, memoryModel);
 
@@ -114,6 +137,17 @@ public class VariableDeclarationFragmentNode extends VariableDeclarationNode {
                                 SymbolicExecutionRewrite.arrayLengthConstraints.add(lengthConstraint);
 
                                 log.info("Đã chích Z3 cho mảng cục bộ: {} length = {}", name, firstDimension);
+=======
+                                // Dịch biểu thức kích thước sang Z3
+                                ExpressionNode dimExprNode = (ExpressionNode) ExpressionNode.executeExpression(firstDimension, memoryModel);
+                                Expr z3SizeExpr = OperationExpressionNode.createZ3Expression(dimExprNode, ctx, vars, memoryModel);
+
+                                Expr z3LengthVar = ctx.mkBVConst(name + ".length", 32);
+                                BoolExpr lengthConstraint = ctx.mkEq(z3LengthVar, z3SizeExpr);
+
+                                SymbolicExecutionRewrite.arrayLengthConstraints.add(lengthConstraint);
+                                log.info("Đã chích Z3 cho mảng cục bộ: {} length = {}" ,name, firstDimension.toString());
+>>>>>>> 4719efc0cc44b3e122543b87d7578eb9575b2a7a
                             }
                         }
                     }

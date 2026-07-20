@@ -46,11 +46,18 @@ public class ArrayCreationWithNewKeyWord implements ArrayCreationStrategy {
             if(dimension instanceof LiteralNode) {
                 capacityOfDimension = LiteralNode.changeLiteralNodeToInteger((LiteralNode) dimension);
                 lengthOfDimension = (LiteralNode) dimension;
+<<<<<<< HEAD
             } else {
                 lengthOfDimension = (ExpressionNode) dimension;
                 System.out.println("SYMBOLIC CAPACITY");
             }
             /*
+=======
+            } else if (dimension instanceof NameNode) {
+                lengthOfDimension = (NameNode) dimension;
+                System.out.println("SYMBOLIC CAPACITY");
+            }
+>>>>>>> 4719efc0cc44b3e122543b87d7578eb9575b2a7a
             else if (dimension instanceof core.ast.Expression.OperationExpression.OperationExpressionNode) {
                 lengthOfDimension = (core.ast.Expression.ExpressionNode) dimension;
                 System.out.println("SYMBOLIC CAPACITY (Operation)");
@@ -58,8 +65,11 @@ public class ArrayCreationWithNewKeyWord implements ArrayCreationStrategy {
             else {
                 throw new RuntimeException("Can't execute Dimension. Type: " + dimension.getClass());
             }
+<<<<<<< HEAD
 
              */
+=======
+>>>>>>> 4719efc0cc44b3e122543b87d7578eb9575b2a7a
         }
         ArrayNode result = new ArrayNode();
         result.setLengthOfDimensions(lengthOfDimension);

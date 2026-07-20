@@ -68,6 +68,7 @@ public class MethodInvocationNode extends ExpressionNode {
         if (methodInvocation.getExpression() != null) { // method invocation in the same class
             String className = methodInvocation.getExpression().toString();
 
+
             IMethodBinding methodBinding = methodInvocation.resolveMethodBinding();
             if (methodBinding != null) {
                 ITypeBinding declaringClass = methodBinding.getDeclaringClass();
@@ -101,7 +102,11 @@ public class MethodInvocationNode extends ExpressionNode {
             Class<?> invokedMethodReturnClass = getInvokedMethodReturnClass(methodInvocation, memoryModel);
             return declareStubVariable(methodName, invokedMethodReturnClass, memoryModel, methodInvocation);
         }
+<<<<<<< HEAD
         throw new RuntimeException("Method invocation has no method name" + methodInvocation.getName());
+=======
+        throw new RuntimeException("Method invocation has no method name");
+>>>>>>> 4719efc0cc44b3e122543b87d7578eb9575b2a7a
     }
 
     private static Class<?> getInvokedMethodReturnClass(MethodInvocation methodInvocation, MemoryModel memoryModel) {
